@@ -66,16 +66,26 @@ serve(async (req) => {
     }
 
     // Get GitHub username for repository operations
-    const userResponse = await fetch('https://api.github.com/user', {
-      headers: githubHeaders
-    })
-    
-    if (!userResponse.ok) {
-      throw new Error('Failed to get GitHub user info')
+    let githubUsername;
+    try {
+      const userResponse = await fetch('https://api.github.com/user', {
+        headers: githubHeaders
+      });
+      
+      if (!userResponse.ok) {
+        console.error('GitHub user fetch failed with status:', userResponse.status);
+        const errorText = await userResponse.text();
+        console.error('GitHub API error:', errorText);
+        throw new Error(`GitHub API error: ${userResponse.status} - ${errorText}`);
+      }
+      
+      const githubUser = await userResponse.json();
+      githubUsername = githubUser.login;
+      console.log('✅ Successfully authenticated with GitHub user:', githubUsername);
+    } catch (error) {
+      console.error('❌ Failed to get GitHub user info:', error);
+      throw new Error('Failed to authenticate with GitHub. Please check your GitHub token.');
     }
-    
-    const githubUser = await userResponse.json()
-    const githubUsername = githubUser.login
 
     switch (action) {
       case 'create-repo': {

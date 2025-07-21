@@ -26,6 +26,7 @@ import { useWorkflowConfiguration } from '@/hooks/useWorkflowConfiguration';
 import { useWorkflowDeployment } from '@/hooks/useWorkflowDeployment';
 import { useWorkflowMonitoring } from '@/hooks/useWorkflowMonitoring';
 import { useGitHubIntegration } from '@/hooks/useGitHubIntegration';
+import { useGitHubWorkflowLoader } from '@/hooks/useGitHubWorkflowLoader';
 import { useAuth } from '@/hooks/useAuth';
 import N8nConfigToggle from '@/components/N8nConfigToggle';
 import {
@@ -80,6 +81,7 @@ const WorkflowPlayground = memo(() => {
   const workflowDeployment = useWorkflowDeployment(workflowId);
   const workflowMonitoring = useWorkflowMonitoring(workflowId);
   const { createWorkflowRepository, loadWorkflow } = useGitHubIntegration();
+  const { loadWorkflowFromGitHub } = useGitHubWorkflowLoader();
   const { user, loading: authLoading } = useAuth();
   
   const isActive = workflowDeployment.deploymentStatus?.status === 'active';
@@ -223,7 +225,27 @@ const WorkflowPlayground = memo(() => {
       
       const loadWorkflowData = async () => {
         try {
-          const result = await loadWorkflow(workflowIdFromUrl);
+          console.log('🔄 Loading workflow from GitHub...', workflowIdFromUrl);
+          
+          // First get workflow info from database
+          const { data: workflowInfo, error: dbError } = await supabase
+            .from('user_workflows')
+            .select('github_repo_url, github_repo_name, workflow_name')
+            .eq('workflow_id', workflowIdFromUrl)
+            .eq('user_id', user.id)
+            .single();
+
+          if (dbError || !workflowInfo) {
+            console.error('❌ Workflow not found in database:', dbError);
+            setIsWorkflowLoaded(false);
+            return;
+          }
+
+          console.log('📋 Found workflow in database:', workflowInfo);
+
+          // Load directly from GitHub using raw URL
+          const result = await loadWorkflowFromGitHub(workflowInfo.github_repo_url, workflowInfo.github_repo_name);
+          
           if (result?.success && result.workflowData) {
             console.log('✅ Workflow loaded from GitHub:', result.workflowData);
             
@@ -240,12 +262,14 @@ const WorkflowPlayground = memo(() => {
             setShowCodePreview(true);
             setShowN8nEngine(false);
           } else {
-            console.log('⚠️ No workflow data found, starting with empty canvas');
+            console.log('⚠️ No workflow data found or failed to load');
             setIsWorkflowLoaded(false);
+            console.warn('Workflow could not be loaded, starting with empty canvas');
           }
         } catch (error) {
-          console.error('❌ Failed to load workflow:', error);
+          console.error('❌ Failed to load workflow from GitHub:', error);
           setIsWorkflowLoaded(false);
+          console.warn('Unable to load workflow from GitHub, starting with empty canvas');
         } finally {
           setIsLoadingWorkflow(false);
         }
@@ -259,7 +283,7 @@ const WorkflowPlayground = memo(() => {
       handleWorkflowGenerated(stateData, {});
       setIsLoadingWorkflow(false);
     }
-  }, [searchParams, location.state, workflowId, loadWorkflow, authLoading, user, handleWorkflowGenerated]);
+  }, [searchParams, location.state, workflowId, loadWorkflowFromGitHub, authLoading, user, handleWorkflowGenerated]);
 
   // Define callbacks first
   const onConnect = useCallback(
