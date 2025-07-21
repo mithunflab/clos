@@ -1,6 +1,6 @@
 
 import { useEffect, useRef, useCallback } from 'react';
-import { useWorkflowStorage } from './useWorkflowStorage';
+import { useWorkflowStorageV2 } from './useWorkflowStorageV2';
 import { useToast } from '@/hooks/use-toast';
 
 interface AutoSaveOptions {
@@ -11,7 +11,7 @@ interface AutoSaveOptions {
 }
 
 export const useAutoSave = ({ workflowId, workflowData, chatHistory, delay = 2000 }: AutoSaveOptions) => {
-  const { saveWorkflow, loading } = useWorkflowStorage();
+  const { saveWorkflow, loading } = useWorkflowStorageV2();
   const { toast } = useToast();
   const timeoutRef = useRef<NodeJS.Timeout>();
   const lastSavedRef = useRef<string>('');

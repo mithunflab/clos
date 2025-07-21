@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
-import { useWorkflowStorage } from '@/hooks/useWorkflowStorage';
+import { useWorkflowStorageV2 } from '@/hooks/useWorkflowStorageV2';
 import { useUserPlan } from '@/hooks/useUserPlan';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -27,7 +27,7 @@ const Workflows = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { plan } = useUserPlan();
-  const { deleteWorkflow, getUserWorkflowCount, getWorkflowLimit } = useWorkflowStorage();
+  const { deleteWorkflow, getUserWorkflowCount, getWorkflowLimit } = useWorkflowStorageV2();
   const [workflows, setWorkflows] = useState<WorkflowItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [workflowCount, setWorkflowCount] = useState(0);

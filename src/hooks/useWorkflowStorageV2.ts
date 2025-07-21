@@ -19,16 +19,16 @@ export const useWorkflowStorageV2 = () => {
     if (!user) return false;
 
     try {
-      const { data, error } = await supabase.rpc('check_workflow_limit', {
-        p_user_id: user.id
-      });
-
-      if (error) {
-        console.error('Error checking workflow limit:', error);
-        return false;
+      const currentCount = await getUserWorkflowCount();
+      const maxAllowed = getWorkflowLimit();
+      
+      // If unlimited (-1), allow creation
+      if (maxAllowed === -1) {
+        return true;
       }
-
-      return data;
+      
+      // Check if under limit
+      return currentCount < maxAllowed;
     } catch (err) {
       console.error('Error checking workflow limit:', err);
       return false;

@@ -1,6 +1,6 @@
 
 import { useState, useCallback, useEffect } from 'react';
-import { useWorkflowStorage } from './useWorkflowStorage';
+import { useWorkflowStorageV2 } from './useWorkflowStorageV2';
 import { useAutoSave } from './useAutoSave';
 
 interface WorkflowConfiguration {
@@ -33,7 +33,7 @@ export const useWorkflowConfiguration = (workflowId: string | null) => {
   const [chatHistory, setChatHistory] = useState<any[]>([]);
   const [workflowData, setWorkflowData] = useState<any>(null);
   
-  const { loadWorkflow, updateDeploymentStatus } = useWorkflowStorage();
+  const { loadWorkflow, updateDeploymentStatus } = useWorkflowStorageV2();
 
   // Auto-save functionality
   const { saving } = useAutoSave({
