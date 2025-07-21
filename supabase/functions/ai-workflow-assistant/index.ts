@@ -390,46 +390,95 @@ IMPORTANT: When generating workflows, create the n8n JSON structure and send it 
                     const textContent = parsed.candidates[0].content.parts[0].text;
                     fullContent += textContent;
                     
+                    // Enhanced JSON detection - look for workflow patterns
+                    const hasJsonStart = textContent.includes('```json') || 
+                                       textContent.includes('"nodes"') ||
+                                       textContent.includes('"connections"') ||
+                                       (textContent.includes('{') && textContent.includes('"name"'));
+                    
                     // Process text character by character to detect JSON blocks
                     for (let i = 0; i < textContent.length; i++) {
                       const char = textContent[i];
                       
-                      // Detect start of JSON block
-                      if (!insideJsonBlock && textContent.substr(i, 7) === '```json') {
-                        insideJsonBlock = true;
-                        jsonBuffer = '';
-                        i += 6; // Skip past ```json
-                        console.log('🔍 Started detecting JSON block');
-                        continue;
+                      // Detect start of JSON block (more robust detection)
+                      if (!insideJsonBlock) {
+                        // Check for ```json
+                        if (textContent.substr(i, 7) === '```json') {
+                          insideJsonBlock = true;
+                          jsonBuffer = '';
+                          i += 6; // Skip past ```json
+                          console.log('🔍 Started detecting JSON block');
+                          continue;
+                        }
+                        // Check for inline JSON workflow patterns
+                        if ((char === '{' && (
+                              textContent.substr(i, 20).includes('"nodes"') ||
+                              textContent.substr(i, 20).includes('"name"') ||
+                              textContent.substr(i, 30).includes('"connections"')
+                            )) || 
+                            (hasJsonStart && char === '{' && jsonBuffer === '')) {
+                          insideJsonBlock = true;
+                          jsonBuffer = char;
+                          console.log('🔍 Started detecting inline JSON workflow');
+                          continue;
+                        }
                       }
                       
                       // Detect end of JSON block
-                      if (insideJsonBlock && textContent.substr(i, 3) === '```') {
-                        insideJsonBlock = false;
-                        console.log('🔍 Completed JSON block, parsing...', jsonBuffer.substring(0, 100));
+                      if (insideJsonBlock) {
+                        jsonBuffer += char;
                         
-                        // Try to parse and send workflow immediately
-                        const workflowData = await tryParseWorkflow(jsonBuffer);
-                        if (workflowData) {
-                          console.log('🎯 Sending workflow data in real-time:', workflowData.name);
-                          const chunk = new TextEncoder().encode(`data: ${JSON.stringify({
-                            type: 'workflow',
-                            content: workflowData,
-                            model: usedModel
-                          })}\n\n`);
-                          controller.enqueue(chunk);
+                        // Check for explicit end markers
+                        if (textContent.substr(i, 3) === '```') {
+                          insideJsonBlock = false;
+                          console.log('🔍 Completed JSON block (markdown), parsing...');
+                          
+                          // Try to parse and send workflow immediately
+                          const workflowData = await tryParseWorkflow(jsonBuffer.replace(/```$/, ''));
+                          if (workflowData) {
+                            console.log('🎯 Sending workflow data in real-time:', workflowData.name);
+                            const chunk = new TextEncoder().encode(`data: ${JSON.stringify({
+                              type: 'workflow',
+                              content: workflowData,
+                              model: usedModel
+                            })}\n\n`);
+                            controller.enqueue(chunk);
+                          }
+                          
+                          jsonBuffer = '';
+                          i += 2; // Skip past ```
+                          continue;
                         }
                         
-                        jsonBuffer = '';
-                        i += 2; // Skip past ```
+                        // Check for balanced braces (inline JSON)
+                        const openBraces = (jsonBuffer.match(/{/g) || []).length;
+                        const closeBraces = (jsonBuffer.match(/}/g) || []).length;
+                        
+                        if (openBraces > 0 && openBraces === closeBraces && jsonBuffer.length > 50) {
+                          insideJsonBlock = false;
+                          console.log('🔍 Completed inline JSON workflow, parsing...');
+                          
+                          // Try to parse and send workflow immediately
+                          const workflowData = await tryParseWorkflow(jsonBuffer);
+                          if (workflowData) {
+                            console.log('🎯 Sending inline workflow data:', workflowData.name);
+                            const chunk = new TextEncoder().encode(`data: ${JSON.stringify({
+                              type: 'workflow',
+                              content: workflowData,
+                              model: usedModel
+                            })}\n\n`);
+                            controller.enqueue(chunk);
+                          }
+                          
+                          jsonBuffer = '';
+                          continue;
+                        }
+                        // Don't send JSON characters to chat - they stay in buffer
                         continue;
                       }
                       
-                      // Collect JSON content
-                      if (insideJsonBlock) {
-                        jsonBuffer += char;
-                      } else {
-                        // Send non-JSON content to chat
+                      // Send non-JSON content to chat only if we're not inside a JSON block
+                      if (!insideJsonBlock) {
                         const chunk = new TextEncoder().encode(`data: ${JSON.stringify({
                           type: 'text',
                           content: char,
