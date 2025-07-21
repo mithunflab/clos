@@ -143,7 +143,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ isOpen, onClose }) => {
   const handleUpgradeClick = (planType: string) => {
     if (planType === 'custom') {
       handleShowQRCode();
-    } else {
+    } else if (planType === 'pro') {
       setShowPromoInput(true);
     }
   };
@@ -158,23 +158,23 @@ const PricingPage: React.FC<PricingPageProps> = ({ isOpen, onClose }) => {
 
   const getPlanBadge = (planType: string) => {
     if (isCurrentPlan(planType)) {
-      return <Badge variant="secondary" className="ml-2 bg-green-100 text-green-800">Current</Badge>;
+      return <Badge variant="secondary" className="ml-2 bg-green-500/20 text-green-400 border-green-500/30">Current</Badge>;
     }
     return null;
   };
 
   // Congratulations Animation Component
   const CongratulationsAnimation = () => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl p-8 text-center animate-scale-in shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div className="bg-gray-800 border border-gray-700 rounded-2xl p-8 text-center animate-scale-in shadow-2xl">
         <div className="flex justify-center mb-4">
           <div className="relative">
-            <Sparkles className="w-16 h-16 text-yellow-500 animate-pulse" />
-            <Star className="w-8 h-8 text-yellow-400 absolute -top-2 -right-2 animate-bounce" />
+            <Sparkles className="w-16 h-16 text-yellow-400 animate-pulse" />
+            <Star className="w-8 h-8 text-yellow-300 absolute -top-2 -right-2 animate-bounce" />
           </div>
         </div>
-        <h2 className="text-3xl font-bold text-gray-800 mb-2">Congratulations!</h2>
-        <p className="text-gray-600 text-lg">Your promo code has been successfully applied!</p>
+        <h2 className="text-3xl font-bold text-gray-100 mb-2">Congratulations!</h2>
+        <p className="text-gray-400 text-lg">Your promo code has been successfully applied!</p>
         <div className="mt-4">
           <div className="animate-bounce">🎉</div>
         </div>
@@ -185,17 +185,17 @@ const PricingPage: React.FC<PricingPageProps> = ({ isOpen, onClose }) => {
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto bg-gradient-to-br from-slate-50 to-blue-50 border-0 shadow-2xl">
+        <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto bg-gray-900 border-gray-700 shadow-2xl">
           <DialogHeader className="text-center pb-8">
-            <DialogTitle className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
+            <DialogTitle className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-4">
               Choose Your Perfect Plan
             </DialogTitle>
-            <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 mx-auto max-w-md">
-              <p className="text-lg font-semibold text-gray-700">
-                Current Credits: <span className="text-blue-600">{credits?.current_credits || 0}</span>
+            <div className="bg-gray-800/50 backdrop-blur-sm rounded-lg p-4 mx-auto max-w-md border border-gray-700/50">
+              <p className="text-lg font-semibold text-gray-200">
+                Current Credits: <span className="text-blue-400">{credits?.current_credits || 0}</span>
               </p>
-              <p className="text-sm text-gray-600">
-                Current Plan: <span className="uppercase font-medium text-purple-600">{getCurrentPlanType()}</span>
+              <p className="text-sm text-gray-400">
+                Current Plan: <span className="uppercase font-medium text-purple-400">{getCurrentPlanType()}</span>
               </p>
             </div>
           </DialogHeader>
@@ -207,8 +207,8 @@ const PricingPage: React.FC<PricingPageProps> = ({ isOpen, onClose }) => {
                 key={planItem.type} 
                 className={`relative transform transition-all duration-300 hover:scale-105 ${
                   planItem.popular 
-                    ? 'border-2 border-blue-500 shadow-xl bg-gradient-to-br from-blue-50 to-purple-50' 
-                    : 'border border-gray-200 shadow-lg bg-white hover:shadow-xl'
+                    ? 'border-2 border-blue-500 shadow-xl bg-gradient-to-br from-blue-900/20 to-purple-900/20' 
+                    : 'border border-gray-700 shadow-lg bg-gray-800/50 hover:shadow-xl'
                 }`}
               >
                 {planItem.popular && (
@@ -220,15 +220,15 @@ const PricingPage: React.FC<PricingPageProps> = ({ isOpen, onClose }) => {
                 )}
                 
                 <CardHeader className="text-center pb-4">
-                  <CardTitle className="flex items-center justify-center text-2xl font-bold text-gray-800">
+                  <CardTitle className="flex items-center justify-center text-2xl font-bold text-gray-100">
                     {planItem.name}
                     {getPlanBadge(planItem.type)}
                   </CardTitle>
-                  <p className="text-gray-600 text-sm">{planItem.description}</p>
-                  <div className="text-4xl font-extrabold text-gray-900 mt-4">
+                  <p className="text-gray-400 text-sm">{planItem.description}</p>
+                  <div className="text-4xl font-extrabold text-gray-100 mt-4">
                     {planItem.price}
                     {planItem.type !== 'custom' && (
-                      <span className="text-lg font-normal text-gray-600">
+                      <span className="text-lg font-normal text-gray-400">
                         /{planItem.period}
                       </span>
                     )}
@@ -239,8 +239,8 @@ const PricingPage: React.FC<PricingPageProps> = ({ isOpen, onClose }) => {
                   <ul className="space-y-3 mb-8">
                     {planItem.features.map((feature, index) => (
                       <li key={index} className="flex items-center gap-3">
-                        <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
-                        <span className="text-gray-700">{feature}</span>
+                        <Check className="w-5 h-5 text-green-400 flex-shrink-0" />
+                        <span className="text-gray-300">{feature}</span>
                       </li>
                     ))}
                   </ul>
@@ -249,7 +249,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ isOpen, onClose }) => {
                     className={`w-full py-3 text-lg font-semibold transition-all duration-300 ${
                       planItem.popular 
                         ? "bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg hover:shadow-xl" 
-                        : "bg-gray-800 hover:bg-gray-900 text-white"
+                        : "bg-gray-700 hover:bg-gray-600 text-white border border-gray-600"
                     }`}
                     disabled={isCurrentPlan(planItem.type)}
                     onClick={() => handleUpgradeClick(planItem.type)}
@@ -264,9 +264,9 @@ const PricingPage: React.FC<PricingPageProps> = ({ isOpen, onClose }) => {
 
           {/* Promo Code Input Section */}
           {showPromoInput && (
-            <Card className="mb-6 bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 animate-fade-in">
+            <Card className="mb-6 bg-gradient-to-r from-green-900/20 to-blue-900/20 border-2 border-green-500/30 animate-fade-in">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-green-700">
+                <CardTitle className="flex items-center gap-2 text-green-400">
                   <Gift className="w-5 h-5" />
                   Enter Your Promo Code
                 </CardTitle>
@@ -277,7 +277,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ isOpen, onClose }) => {
                     placeholder="Enter your promo code"
                     value={promoCode}
                     onChange={(e) => setPromoCode(e.target.value)}
-                    className="flex-1 border-2 border-green-200 focus:border-green-400"
+                    className="flex-1 border-2 border-green-500/30 focus:border-green-400 bg-gray-800/50 text-gray-100 placeholder-gray-500"
                   />
                   <Button 
                     onClick={handleApplyPromoCode}
@@ -290,7 +290,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ isOpen, onClose }) => {
                 <Button 
                   variant="ghost" 
                   onClick={() => setShowPromoInput(false)}
-                  className="mt-3 text-gray-600 hover:text-gray-800"
+                  className="mt-3 text-gray-400 hover:text-gray-200 hover:bg-gray-800/50"
                 >
                   Cancel
                 </Button>
@@ -300,25 +300,25 @@ const PricingPage: React.FC<PricingPageProps> = ({ isOpen, onClose }) => {
 
           {/* QR Code Dialog */}
           <Dialog open={showQRCode} onOpenChange={setShowQRCode}>
-            <DialogContent className="max-w-md bg-white">
+            <DialogContent className="max-w-md bg-gray-800 border-gray-700">
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-center text-xl font-bold text-gray-800">
-                  <QrCode className="w-6 h-6 text-blue-500" />
+                <DialogTitle className="flex items-center gap-2 text-center text-xl font-bold text-gray-100">
+                  <QrCode className="w-6 h-6 text-blue-400" />
                   Contact Us for Custom Plan
                 </DialogTitle>
               </DialogHeader>
               <div className="text-center space-y-6 p-4">
-                <div className="bg-gradient-to-br from-gray-100 to-gray-200 p-8 rounded-xl">
+                <div className="bg-gradient-to-br from-gray-700 to-gray-800 p-8 rounded-xl border border-gray-600">
                   <QrCode className="w-32 h-32 mx-auto text-gray-400" />
                 </div>
                 <div className="space-y-4">
-                  <p className="text-gray-600 leading-relaxed">
+                  <p className="text-gray-300 leading-relaxed">
                     Get in touch with our team for custom enterprise pricing and solutions tailored to your needs.
                   </p>
-                  <div className="bg-blue-50 p-4 rounded-lg space-y-2">
-                    <p className="font-semibold text-gray-800">Contact Information:</p>
-                    <p className="text-blue-600 font-medium">📧 zenmithun@outlook.com</p>
-                    <p className="text-gray-700">📞 +1 (555) 123-4567</p>
+                  <div className="bg-blue-900/20 p-4 rounded-lg space-y-2 border border-blue-500/30">
+                    <p className="font-semibold text-gray-200">Contact Information:</p>
+                    <p className="text-blue-400 font-medium">📧 zenmithun@outlook.com</p>
+                    <p className="text-gray-300">📞 +1 (555) 123-4567</p>
                   </div>
                 </div>
               </div>
