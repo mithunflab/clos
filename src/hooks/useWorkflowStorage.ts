@@ -16,6 +16,25 @@ const decompressJSON = (compressedData: Uint8Array): any => {
   return JSON.parse(jsonString);
 };
 
+// Helper function to convert data to Uint8Array for decompression
+const convertToUint8Array = (data: any): Uint8Array => {
+  if (data instanceof Uint8Array) {
+    return data;
+  }
+  
+  if (typeof data === 'string') {
+    // It's a base64 string, decode it
+    return new Uint8Array(atob(data).split('').map(c => c.charCodeAt(0)));
+  }
+  
+  // If it's an array-like object, convert to Uint8Array
+  if (data && typeof data === 'object' && data.length !== undefined) {
+    return new Uint8Array(data);
+  }
+  
+  throw new Error('Unable to convert data to Uint8Array');
+};
+
 export interface WorkflowData {
   name: string;
   workflow: any;
@@ -155,34 +174,48 @@ export const useWorkflowStorage = () => {
       }
 
       console.log('🔍 Raw data from database:', {
+        workflowId: data.workflow_id,
+        workflowName: data.workflow_name,
         workflowJsonType: typeof data.compressed_workflow_json,
         workflowJsonConstructor: data.compressed_workflow_json?.constructor?.name,
         chatHistoryType: typeof data.compressed_chat_history,
-        chatHistoryConstructor: data.compressed_chat_history?.constructor?.name
+        chatHistoryConstructor: data.compressed_chat_history?.constructor?.name,
+        hasWorkflowJson: !!data.compressed_workflow_json,
+        hasChatHistory: !!data.compressed_chat_history
       });
 
-      // Handle decompression - bytea columns return Uint8Array directly
+      // Handle decompression with robust type checking
       let workflowData;
       let chatHistory = [];
 
       try {
-        // Convert base64 string back to Uint8Array for decompression
-        const workflowBytes = new Uint8Array(atob(data.compressed_workflow_json).split('').map(c => c.charCodeAt(0)));
+        // Handle compressed_workflow_json - support both Uint8Array and base64 string
+        console.log('🔄 Converting workflow JSON data...');
+        const workflowBytes = convertToUint8Array(data.compressed_workflow_json);
         workflowData = decompressJSON(workflowBytes);
+        console.log('✅ Workflow JSON decompressed successfully');
 
-        // Handle chat history if present
+        // Handle compressed_chat_history - support both Uint8Array and base64 string
         if (data.compressed_chat_history) {
-          const chatBytes = new Uint8Array(atob(data.compressed_chat_history).split('').map(c => c.charCodeAt(0)));
+          console.log('🔄 Converting chat history data...');
+          const chatBytes = convertToUint8Array(data.compressed_chat_history);
           chatHistory = decompressJSON(chatBytes);
+          console.log('✅ Chat history decompressed successfully:', chatHistory.length, 'messages');
         }
       } catch (decompressionError) {
         console.error('❌ Decompression error:', decompressionError);
-        throw new Error('Failed to decompress workflow data');
+        console.error('Raw data types:', {
+          workflowJsonType: typeof data.compressed_workflow_json,
+          chatHistoryType: typeof data.compressed_chat_history
+        });
+        throw new Error(`Failed to decompress workflow data: ${decompressionError.message}`);
       }
 
       console.log('✅ Workflow loaded and decompressed successfully:', {
-        workflowData,
-        chatHistoryLength: chatHistory.length
+        workflowName: data.workflow_name,
+        workflowNodesCount: workflowData.nodes?.length || 0,
+        chatHistoryLength: chatHistory.length,
+        hasConnections: !!workflowData.connections
       });
 
       return {
