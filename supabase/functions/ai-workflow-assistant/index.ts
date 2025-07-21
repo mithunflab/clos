@@ -204,7 +204,7 @@ serve(async (req) => {
   }
 
   try {
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API');
     if (!GEMINI_API_KEY) {
       console.error('Gemini API key not configured');
       return new Response(JSON.stringify({ error: 'AI service not properly configured' }), {
