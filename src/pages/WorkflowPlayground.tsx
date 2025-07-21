@@ -238,12 +238,16 @@ const WorkflowPlayground = memo(() => {
             setGeneratedWorkflow(result.workflowData);
             setWorkflowName(result.workflowData.name || 'Loaded Workflow');
             
-            // Create JSON file for preview
-            const workflowData = result.workflowData.workflow || result.workflowData;
-            const workflowJson = JSON.stringify(workflowData, null, 2);
-            const fileName = `${(result.workflowData.name || 'workflow').replace(/[^a-zA-Z0-9]/g, '_')}_loaded.json`;
+            // Create JSON file for preview - use the loaded workflow data directly
+            const workflowData = result.workflowData || result.workflow;
+            console.log('📝 Full result from loadWorkflow:', result);
+            console.log('📝 Workflow data to display:', workflowData);
             
-            console.log('📝 Creating JSON file for loaded workflow:', fileName, 'Data structure:', workflowData);
+            const workflowJson = JSON.stringify(workflowData, null, 2);
+            const fileName = `${(workflowData.name || 'workflow').replace(/[^a-zA-Z0-9]/g, '_')}_loaded.json`;
+            
+            console.log('📝 Creating JSON file for loaded workflow:', fileName);
+            console.log('📝 JSON content preview:', workflowJson.substring(0, 200) + '...');
             
             setLiveFiles({
               [fileName]: workflowJson

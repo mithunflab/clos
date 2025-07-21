@@ -18,8 +18,9 @@ const decompressJSON = (compressedData: Uint8Array): any => {
 
 // Helper function to convert data to Uint8Array for decompression
 const convertToUint8Array = (data: any): Uint8Array => {
-  if (data instanceof Uint8Array) {
-    return data;
+  // Check if it's already a Uint8Array
+  if (data && data.constructor && data.constructor.name === 'Uint8Array') {
+    return data as Uint8Array;
   }
   
   if (typeof data === 'string') {
@@ -28,7 +29,7 @@ const convertToUint8Array = (data: any): Uint8Array => {
   }
   
   // If it's an array-like object, convert to Uint8Array
-  if (data && typeof data === 'object' && data.length !== undefined) {
+  if (data && typeof data === 'object' && typeof data.length === 'number') {
     return new Uint8Array(data);
   }
   
@@ -119,7 +120,7 @@ export const useWorkflowStorage = () => {
             version: '1.0.0'
           }
         }, {
-          onConflict: 'workflow_id'
+          onConflict: 'user_id,workflow_id'
         })
         .select()
         .single();
