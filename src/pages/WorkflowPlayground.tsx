@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Play, 
@@ -80,22 +80,19 @@ const WorkflowPlayground = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  useEffect(() => {
-    console.log('🔄 Nodes state updated:', {
-      count: nodes.length,
-      nodeIds: nodes.map(n => n.id),
-      nodeTypes: nodes.map(n => n.type),
-      nodePositions: nodes.map(n => ({ id: n.id, position: n.position }))
-    });
-  }, [nodes]);
-
-  useEffect(() => {
-    console.log('🔗 Edges state updated:', {
-      count: edges.length,
-      edgeIds: edges.map(e => e.id),
-      connections: edges.map(e => ({ source: e.source, target: e.target }))
-    });
-  }, [edges]);
+  // Memoize the ReactFlow props to prevent unnecessary re-renders
+  const reactFlowProps = useMemo(() => ({
+    nodes,
+    edges,
+    onNodesChange,
+    onEdgesChange,
+    fitView: true,
+    nodeTypes,
+    style: { backgroundColor: 'transparent' },
+    nodesDraggable: true,
+    nodesConnectable: true,
+    elementsSelectable: true,
+  }), [nodes, edges, onNodesChange, onEdgesChange]);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -586,16 +583,10 @@ const WorkflowPlayground = () => {
     return (
       <div className="w-full h-full bg-black/90">
         <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
+          {...reactFlowProps}
           onConnect={onConnect}
           onNodeClick={onNodeClick}
-          nodeTypes={nodeTypes}
-          fitView
           className="w-full h-full"
-          style={{ backgroundColor: 'transparent' }}
         >
           <Background 
             variant={BackgroundVariant.Dots} 

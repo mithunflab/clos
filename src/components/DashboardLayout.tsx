@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Outlet, NavLink, useLocation } from 'react-router-dom';
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Bot, 
@@ -30,12 +30,21 @@ interface SidebarItemProps {
 }
 
 const SidebarItem = ({ icon, label, to, isActive, onClick, isMinimized }: SidebarItemProps) => {
+  const navigate = useNavigate();
+  
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (onClick) {
+      onClick();
+    }
+    navigate(to);
+  };
+
   return (
-    <NavLink
-      to={to}
-      onClick={onClick}
+    <button
+      onClick={handleClick}
       className={cn(
-        "flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 group relative",
+        "flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 group relative w-full text-left",
         isActive 
           ? "bg-white/10 text-white border border-white/20" 
           : "text-white/70 hover:text-white hover:bg-white/5",
@@ -57,7 +66,7 @@ const SidebarItem = ({ icon, label, to, isActive, onClick, isMinimized }: Sideba
           transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
         />
       )}
-    </NavLink>
+    </button>
   );
 };
 
@@ -66,6 +75,7 @@ const DashboardLayout = () => {
   const [isMinimized, setIsMinimized] = useState(false);
   const location = useLocation();
   const { signOut } = useAuth();
+  const navigate = useNavigate();
 
   // Auto-minimize sidebar when in playground
   useEffect(() => {
@@ -78,6 +88,7 @@ const DashboardLayout = () => {
   const handleSignOut = async () => {
     try {
       await signOut();
+      navigate('/');
     } catch (error) {
       console.error('Error signing out:', error);
     }
