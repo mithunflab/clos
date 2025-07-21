@@ -256,6 +256,7 @@ export type Database = {
       }
       workflow_data: {
         Row: {
+          chat_storage_path: string | null
           compressed_chat_history: string | null
           compressed_workflow_json: string
           created_at: string
@@ -268,8 +269,10 @@ export type Database = {
           user_id: string
           workflow_id: string
           workflow_name: string
+          workflow_storage_path: string | null
         }
         Insert: {
+          chat_storage_path?: string | null
           compressed_chat_history?: string | null
           compressed_workflow_json: string
           created_at?: string
@@ -282,8 +285,10 @@ export type Database = {
           user_id: string
           workflow_id: string
           workflow_name: string
+          workflow_storage_path?: string | null
         }
         Update: {
+          chat_storage_path?: string | null
           compressed_chat_history?: string | null
           compressed_workflow_json?: string
           created_at?: string
@@ -296,6 +301,7 @@ export type Database = {
           user_id?: string
           workflow_id?: string
           workflow_name?: string
+          workflow_storage_path?: string | null
         }
         Relationships: []
       }
