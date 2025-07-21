@@ -73,6 +73,7 @@ const WorkflowPlayground = memo(() => {
   const [showN8nConfig, setShowN8nConfig] = useState(false);
   const [isCreatingRepo, setIsCreatingRepo] = useState(false);
   const [isLoadingWorkflow, setIsLoadingWorkflow] = useState(false);
+  const [isWorkflowLoaded, setIsWorkflowLoaded] = useState(false);
 
   // Only initialize hooks when needed to prevent unnecessary computations
   const workflowConfig = useWorkflowConfiguration(workflowId);
@@ -89,11 +90,11 @@ const WorkflowPlayground = memo(() => {
 
   // Define handleWorkflowGenerated with proper memoization to prevent loops
   const handleWorkflowGenerated = useCallback(async (workflow: any, code: any) => {
-    console.log('🎯 Enhanced workflow generation:', {
+    console.log('🎯 Processing workflow generation:', {
       workflowName: workflow?.name,
       nodeCount: workflow?.nodes?.length || 0,
       hasConnections: !!workflow?.connections,
-      codeKeys: code ? Object.keys(code) : []
+      isLoadedWorkflow: isWorkflowLoaded
     });
 
     if (!workflow || !workflow.nodes || !Array.isArray(workflow.nodes)) {
@@ -101,25 +102,32 @@ const WorkflowPlayground = memo(() => {
       return;
     }
 
-    // Check if this is the same workflow to prevent unnecessary updates
-    if (generatedWorkflow && 
-        generatedWorkflow.name === workflow.name && 
-        JSON.stringify(generatedWorkflow.nodes) === JSON.stringify(workflow.nodes)) {
-      console.log('⚠️ Workflow unchanged, skipping update');
+    // For loaded workflows, don't create new files - just set the data
+    if (isWorkflowLoaded) {
+      setGeneratedWorkflow(workflow);
+      setGeneratedCode(code);
+      setWorkflowName(workflow.name || 'Loaded Workflow');
+      
+      try {
+        const { nodes: parsedNodes, edges: parsedEdges } = parseN8nWorkflowToReactFlow(workflow);
+        setNodes(parsedNodes);
+        setEdges(parsedEdges);
+        setShowCodePreview(true);
+      } catch (error) {
+        console.error('❌ Error parsing loaded workflow:', error);
+      }
       return;
     }
 
+    // For new workflows, create files and animate
     const workflowJson = JSON.stringify(workflow, null, 2);
     const timestamp = Date.now();
     const fileName = `${(workflow.name || 'generated_workflow').replace(/[^a-zA-Z0-9]/g, '_')}_${timestamp}.json`;
     
-    console.log('📝 Creating workflow JSON file:', fileName);
+    console.log('📝 Creating new workflow JSON file:', fileName);
     
-    // Only trigger animation for genuinely new workflows
-    if (!generatedWorkflow || generatedWorkflow.name !== workflow.name) {
-      setAnimationJsonContent(workflowJson);
-      setShowJsonAnimation(true);
-    }
+    setAnimationJsonContent(workflowJson);
+    setShowJsonAnimation(true);
 
     setGeneratedWorkflow(workflow);
     setGeneratedCode({
@@ -135,18 +143,13 @@ const WorkflowPlayground = memo(() => {
       setN8nWorkflowId(workflow.deployment.workflowId);
     }
     
-    // Only add to liveFiles if it's a new file
-    setLiveFiles(prev => {
-      if (prev[fileName]) {
-        console.log('📄 File already exists, skipping:', fileName);
-        return prev;
-      }
-      const updated = { ...prev, [fileName]: workflowJson };
-      console.log('✅ Workflow JSON added to live files:', fileName);
-      return updated;
-    });
+    // Only add to liveFiles for new workflows
+    setLiveFiles(prev => ({
+      ...prev,
+      [fileName]: workflowJson
+    }));
     
-    // Save with enhanced chat history
+    // Save configuration
     await workflowConfig.saveConfiguration({
       name: workflow.name,
       description: workflow.description || '',
@@ -163,11 +166,6 @@ const WorkflowPlayground = memo(() => {
     try {
       console.log('🚀 Parsing workflow for canvas display...');
       const { nodes: parsedNodes, edges: parsedEdges } = parseN8nWorkflowToReactFlow(workflow);
-      
-      console.log('✅ Canvas parsing completed:', {
-        parsedNodesCount: parsedNodes.length,
-        parsedEdgesCount: parsedEdges.length
-      });
       
       if (parsedNodes.length > 0) {
         setNodes(parsedNodes);
@@ -208,22 +206,21 @@ const WorkflowPlayground = memo(() => {
         { error: error.message, workflow: workflow }
       );
     }
-  }, [generatedWorkflow, workflowConfig, workflowMonitoring, setNodes, setEdges]);
+  }, [isWorkflowLoaded, workflowConfig, workflowMonitoring, setNodes, setEdges]);
 
   // Load workflow if ID is provided in URL - wait for auth to complete
   useEffect(() => {
     const workflowIdFromUrl = searchParams.get('id');
     const stateData = location.state?.workflowData;
     
-    // Don't try to load if auth is still loading or user is not authenticated
     if (authLoading || !user) return;
     
     if (workflowIdFromUrl && !stateData && workflowIdFromUrl !== workflowId) {
       console.log('🔄 Loading workflow from URL parameter:', workflowIdFromUrl);
       setWorkflowId(workflowIdFromUrl);
       setIsLoadingWorkflow(true);
+      setIsWorkflowLoaded(true);
       
-      // Load workflow data
       const loadWorkflowData = async () => {
         try {
           const result = await loadWorkflow(workflowIdFromUrl);
@@ -232,9 +229,11 @@ const WorkflowPlayground = memo(() => {
             await handleWorkflowGenerated(result.workflowData, {});
           } else {
             console.log('⚠️ No workflow data found, starting with empty canvas');
+            setIsWorkflowLoaded(false);
           }
         } catch (error) {
           console.error('❌ Failed to load workflow:', error);
+          setIsWorkflowLoaded(false);
         } finally {
           setIsLoadingWorkflow(false);
         }
@@ -244,6 +243,7 @@ const WorkflowPlayground = memo(() => {
     } else if (stateData && !workflowId) {
       console.log('✅ Using workflow data from navigation state:', stateData);
       setIsLoadingWorkflow(true);
+      setIsWorkflowLoaded(true);
       handleWorkflowGenerated(stateData, {});
       setIsLoadingWorkflow(false);
     }
@@ -303,18 +303,21 @@ const WorkflowPlayground = memo(() => {
       const updatedWorkflow = updateWorkflowFromNode(generatedWorkflow, nodeId, nodeData);
       setGeneratedWorkflow(updatedWorkflow);
       
-      const workflowJson = JSON.stringify(updatedWorkflow, null, 2);
-      const fileName = `workflow_${Date.now()}.json`;
-      
-      setAnimationJsonContent(workflowJson);
-      setShowJsonAnimation(true);
-      
-      setLiveFiles(prev => ({ ...prev, [fileName]: workflowJson }));
+      // Only create new files for actual edits, not loaded workflows
+      if (!isWorkflowLoaded) {
+        const workflowJson = JSON.stringify(updatedWorkflow, null, 2);
+        const fileName = `workflow_edit_${Date.now()}.json`;
+        
+        setAnimationJsonContent(workflowJson);
+        setShowJsonAnimation(true);
+        
+        setLiveFiles(prev => ({ ...prev, [fileName]: workflowJson }));
+      }
       
       setHasUnsavedChanges(true);
-      console.log('✅ Workflow JSON updated and saved to file with animation');
+      console.log('✅ Workflow updated');
     }
-  }, [setNodes, generatedWorkflow]);
+  }, [setNodes, generatedWorkflow, isWorkflowLoaded]);
 
   const handleJsonUpdate = useCallback((updateData: any) => {
     console.log('🔄 Handling JSON update:', updateData);
@@ -329,15 +332,18 @@ const WorkflowPlayground = memo(() => {
       setGeneratedWorkflow(updatedWorkflow);
       setHasUnsavedChanges(true);
       
-      const workflowJson = JSON.stringify(updatedWorkflow, null, 2);
-      const fileName = `workflow_live_${Date.now()}.json`;
-      
-      setAnimationJsonContent(workflowJson);
-      setShowJsonAnimation(true);
-      
-      setLiveFiles(prev => ({ ...prev, [fileName]: workflowJson }));
+      // Only create new files for actual edits, not loaded workflows
+      if (!isWorkflowLoaded) {
+        const workflowJson = JSON.stringify(updatedWorkflow, null, 2);
+        const fileName = `workflow_live_${Date.now()}.json`;
+        
+        setAnimationJsonContent(workflowJson);
+        setShowJsonAnimation(true);
+        
+        setLiveFiles(prev => ({ ...prev, [fileName]: workflowJson }));
+      }
     }
-  }, [generatedWorkflow]);
+  }, [generatedWorkflow, isWorkflowLoaded]);
 
   const autoRedeploy = useCallback(async () => {
     if (!generatedWorkflow || !n8nWorkflowId || !hasUnsavedChanges) return;
@@ -468,41 +474,40 @@ const WorkflowPlayground = memo(() => {
     setShowCodePreview(false);
   };
 
-  const handleGenerationStart = () => {
-    console.log('🚀 Generation started - switching to code preview');
+  const handleGenerationStart = useCallback(() => {
+    console.log('🚀 Generation started - resetting workflow state');
     setShowCodePreview(true);
     setShowN8nEngine(false);
     setLiveFiles({});
-  };
+    setIsWorkflowLoaded(false); // Reset for new generation
+  }, []);
 
-  const handleFileGenerated = (fileName: string, content: string) => {
+  const handleFileGenerated = useCallback((fileName: string, content: string) => {
     console.log('📝 File generated:', {
       fileName,
       contentLength: content.length,
-      contentPreview: content.substring(0, 100) + '...',
-      isJson: fileName.includes('.json')
+      isWorkflowLoaded
     });
     
-    if (fileName.includes('.json')) {
-      setAnimationJsonContent(content);
-      setShowJsonAnimation(true);
-    }
-    
-    setLiveFiles(prev => {
-      const updated = {
+    // Only process file generation for new workflows, not loaded ones
+    if (!isWorkflowLoaded) {
+      if (fileName.includes('.json')) {
+        setAnimationJsonContent(content);
+        setShowJsonAnimation(true);
+      }
+      
+      setLiveFiles(prev => ({
         ...prev,
         [fileName]: content
-      };
-      console.log('✅ Live files updated:', Object.keys(updated));
-      return updated;
-    });
-    
-    if (!showCodePreview) {
-      console.log('🔄 Auto-switching to code preview');
-      setShowCodePreview(true);
-      setShowN8nEngine(false);
+      }));
+      
+      if (!showCodePreview) {
+        console.log('🔄 Auto-switching to code preview');
+        setShowCodePreview(true);
+        setShowN8nEngine(false);
+      }
     }
-  };
+  }, [isWorkflowLoaded, showCodePreview]);
 
 
   const getDeployButtonText = () => {

@@ -22,24 +22,31 @@ const CodePreview: React.FC<CodePreviewProps> = ({
   const [copied, setCopied] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
-  const [processedWorkflowId, setProcessedWorkflowId] = useState<string | null>(null);
+  const [processedFiles, setProcessedFiles] = useState<Set<string>>(new Set());
 
-  // Track when files are being updated for animation
+  // Track when files are being updated for animation - only for genuinely new files
   useEffect(() => {
-    if (Object.keys(liveFiles).length > 0) {
+    const newFiles = Object.keys(liveFiles).filter(key => !processedFiles.has(key));
+    if (newFiles.length > 0) {
       setIsUpdating(true);
       setLastUpdateTime(new Date());
+      setProcessedFiles(prev => new Set([...prev, ...newFiles]));
+      
       const timer = setTimeout(() => setIsUpdating(false), 1000);
       return () => clearTimeout(timer);
     }
-  }, [liveFiles]);
+  }, [Object.keys(liveFiles).join(','), processedFiles]);
 
-  // Enhanced workflow JSON retrieval with proper fallback - memoized without liveFiles dependency
-  const getWorkflowJson = useMemo(() => {
-    // Priority 1: Check for the most recent JSON file in liveFiles
+  // Get the current workflow JSON - prioritize actual workflow data over empty structures
+  const currentWorkflowJson = useMemo(() => {
+    // Priority 1: If we have a generated workflow with actual content, use it
+    if (generatedWorkflow && generatedWorkflow.nodes && generatedWorkflow.nodes.length > 0) {
+      return JSON.stringify(generatedWorkflow, null, 2);
+    }
+    
+    // Priority 2: Check for the most recent JSON file in liveFiles with actual content
     const jsonFiles = Object.keys(liveFiles).filter(key => key.endsWith('.json'));
     if (jsonFiles.length > 0) {
-      // Get the most recent JSON file (by timestamp in filename)
       const latestFile = jsonFiles.sort((a, b) => {
         const timestampA = a.match(/_(\d+)\.json$/)?.[1] || '0';
         const timestampB = b.match(/_(\d+)\.json$/)?.[1] || '0';
@@ -47,37 +54,42 @@ const CodePreview: React.FC<CodePreviewProps> = ({
       })[0];
       
       if (latestFile && liveFiles[latestFile]) {
-        console.log('✅ Using latest live JSON file:', latestFile);
-        return liveFiles[latestFile];
+        try {
+          const parsed = JSON.parse(liveFiles[latestFile]);
+          // Only use if it has actual content (not empty structure)
+          if (parsed.nodes && parsed.nodes.length > 0) {
+            return liveFiles[latestFile];
+          }
+        } catch (e) {
+          console.warn('Invalid JSON in live file:', latestFile);
+        }
       }
     }
     
-    // Priority 2: Check generatedCode for workflowJson
+    // Priority 3: Check generatedCode for workflowJson
     if (generatedCode?.workflowJson) {
-      console.log('✅ Using generatedCode.workflowJson');
-      return generatedCode.workflowJson;
+      try {
+        const parsed = JSON.parse(generatedCode.workflowJson);
+        if (parsed.nodes && parsed.nodes.length > 0) {
+          return generatedCode.workflowJson;
+        }
+      } catch (e) {
+        console.warn('Invalid JSON in generatedCode');
+      }
     }
     
-    // Priority 3: Generate JSON from generatedWorkflow (only once per workflow)
-    if (generatedWorkflow && workflowId !== processedWorkflowId) {
-      console.log('✅ Generating JSON from generatedWorkflow for:', workflowId);
-      setProcessedWorkflowId(workflowId);
+    // Priority 4: If we have generatedWorkflow but no nodes, still show it
+    if (generatedWorkflow) {
       return JSON.stringify(generatedWorkflow, null, 2);
     }
     
-    // Priority 4: If we already processed this workflow, don't regenerate
-    if (generatedWorkflow && workflowId === processedWorkflowId) {
-      return JSON.stringify(generatedWorkflow, null, 2);
-    }
-    
-    console.log('❌ No workflow JSON found anywhere');
     return null;
-  }, [generatedCode, generatedWorkflow, workflowId, processedWorkflowId, Object.keys(liveFiles).join(',')]);
+  }, [generatedWorkflow, generatedCode, liveFiles]);
 
   const copyToClipboard = async () => {
-    if (getWorkflowJson) {
+    if (currentWorkflowJson) {
       try {
-        await navigator.clipboard.writeText(getWorkflowJson);
+        await navigator.clipboard.writeText(currentWorkflowJson);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       } catch (err) {
@@ -87,8 +99,8 @@ const CodePreview: React.FC<CodePreviewProps> = ({
   };
 
   const downloadJson = () => {
-    if (getWorkflowJson) {
-      const blob = new Blob([getWorkflowJson], { type: 'application/json' });
+    if (currentWorkflowJson) {
+      const blob = new Blob([currentWorkflowJson], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -117,7 +129,7 @@ const CodePreview: React.FC<CodePreviewProps> = ({
                   className="flex items-center space-x-1"
                 >
                   <Zap className="w-4 h-4 text-yellow-400" />
-                  <span className="text-xs text-yellow-400">Live Update</span>
+                  <span className="text-xs text-yellow-400">Updated</span>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -131,7 +143,7 @@ const CodePreview: React.FC<CodePreviewProps> = ({
 
         {/* Actions */}
         <div className="flex items-center space-x-2">
-          {getWorkflowJson && (
+          {currentWorkflowJson && (
             <>
               <Button
                 onClick={copyToClipboard}
@@ -160,7 +172,7 @@ const CodePreview: React.FC<CodePreviewProps> = ({
         </div>
       </div>
 
-      {/* Live Files Status */}
+      {/* Live Files Status - only show if there are actual new files */}
       <AnimatePresence>
         {Object.keys(liveFiles).length > 0 && (
           <motion.div
@@ -174,19 +186,6 @@ const CodePreview: React.FC<CodePreviewProps> = ({
               <span className="text-sm text-blue-400">
                 {Object.keys(liveFiles).length} live file(s) • Real-time sync active
               </span>
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: '100%' }}
-                transition={{ duration: 1 }}
-                className="flex-1 h-1 bg-blue-500/30 rounded-full overflow-hidden"
-              >
-                <motion.div
-                  initial={{ x: '-100%' }}
-                  animate={{ x: '0%' }}
-                  transition={{ duration: 1, repeat: isUpdating ? Infinity : 0 }}
-                  className="h-full bg-blue-500 rounded-full"
-                />
-              </motion.div>
             </div>
             <div className="text-xs text-blue-300 mt-1">
               Files: {Object.keys(liveFiles).join(', ')}
@@ -198,9 +197,9 @@ const CodePreview: React.FC<CodePreviewProps> = ({
       {/* Content */}
       <div className="flex-1 overflow-hidden">
         <AnimatePresence mode="wait">
-          {getWorkflowJson ? (
+          {currentWorkflowJson ? (
             <motion.div
-              key={`json-content-${lastUpdateTime?.getTime() || 'initial'}`}
+              key="json-content"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
@@ -208,7 +207,7 @@ const CodePreview: React.FC<CodePreviewProps> = ({
               className="h-full"
             >
               <JsonWorkflowViewer 
-                workflowJson={getWorkflowJson}
+                workflowJson={currentWorkflowJson}
                 workflowName={generatedWorkflow?.name || 'Live Workflow'}
               />
             </motion.div>
@@ -226,9 +225,6 @@ const CodePreview: React.FC<CodePreviewProps> = ({
                 <p className="text-white/40">
                   Use WorkflowAI to describe your automation needs and generate n8n workflows
                 </p>
-                <div className="mt-4 text-xs text-white/30">
-                  Live JSON files will appear here with real-time synchronization
-                </div>
               </div>
             </motion.div>
           )}
