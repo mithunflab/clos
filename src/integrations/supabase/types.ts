@@ -251,6 +251,51 @@ export type Database = {
         }
         Relationships: []
       }
+      workflow_data: {
+        Row: {
+          compressed_chat_history: string | null
+          compressed_workflow_json: string
+          created_at: string
+          deployment_status: string | null
+          id: string
+          metadata: Json | null
+          n8n_url: string | null
+          n8n_workflow_id: string | null
+          updated_at: string
+          user_id: string
+          workflow_id: string
+          workflow_name: string
+        }
+        Insert: {
+          compressed_chat_history?: string | null
+          compressed_workflow_json: string
+          created_at?: string
+          deployment_status?: string | null
+          id?: string
+          metadata?: Json | null
+          n8n_url?: string | null
+          n8n_workflow_id?: string | null
+          updated_at?: string
+          user_id: string
+          workflow_id: string
+          workflow_name: string
+        }
+        Update: {
+          compressed_chat_history?: string | null
+          compressed_workflow_json?: string
+          created_at?: string
+          deployment_status?: string | null
+          id?: string
+          metadata?: Json | null
+          n8n_url?: string | null
+          n8n_workflow_id?: string | null
+          updated_at?: string
+          user_id?: string
+          workflow_id?: string
+          workflow_name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

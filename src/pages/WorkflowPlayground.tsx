@@ -10,8 +10,7 @@ import {
   Home,
   Rocket,
   Loader2,
-  Zap,
-  Github
+  Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -25,8 +24,7 @@ import { parseN8nWorkflowToReactFlow, N8nWorkflow, updateWorkflowFromNode } from
 import { useWorkflowConfiguration } from '@/hooks/useWorkflowConfiguration';
 import { useWorkflowDeployment } from '@/hooks/useWorkflowDeployment';
 import { useWorkflowMonitoring } from '@/hooks/useWorkflowMonitoring';
-import { useGitHubIntegration } from '@/hooks/useGitHubIntegration';
-import { useGitHubWorkflowLoader } from '@/hooks/useGitHubWorkflowLoader';
+import { useWorkflowStorage } from '@/hooks/useWorkflowStorage';
 import { useAuth } from '@/hooks/useAuth';
 import N8nConfigToggle from '@/components/N8nConfigToggle';
 import {
@@ -80,8 +78,7 @@ const WorkflowPlayground = memo(() => {
   const workflowConfig = useWorkflowConfiguration(workflowId);
   const workflowDeployment = useWorkflowDeployment(workflowId);
   const workflowMonitoring = useWorkflowMonitoring(workflowId);
-  const { createWorkflowRepository, loadWorkflow } = useGitHubIntegration();
-  const { loadWorkflowFromGitHub } = useGitHubWorkflowLoader();
+  const { saveWorkflow, loadWorkflow, updateDeploymentStatus } = useWorkflowStorage();
   const { user, loading: authLoading } = useAuth();
   
   const isActive = workflowDeployment.deploymentStatus?.status === 'active';
@@ -225,32 +222,22 @@ const WorkflowPlayground = memo(() => {
       
       const loadWorkflowData = async () => {
         try {
-          console.log('🔄 Loading workflow from GitHub...', workflowIdFromUrl);
+          console.log('🔄 Loading workflow from Supabase...', workflowIdFromUrl);
           
-          // First get workflow info from database
-          const { data: workflowInfo, error: dbError } = await supabase
-            .from('user_workflows')
-            .select('github_repo_url, github_repo_name, workflow_name')
-            .eq('workflow_id', workflowIdFromUrl)
-            .eq('user_id', user.id)
-            .single();
-
-          if (dbError || !workflowInfo) {
-            console.error('❌ Workflow not found in database:', dbError);
-            setIsWorkflowLoaded(false);
-            return;
-          }
-
-          console.log('📋 Found workflow in database:', workflowInfo);
-
-          // Load directly from GitHub using raw URL
-          const result = await loadWorkflowFromGitHub(workflowInfo.github_repo_url, workflowInfo.github_repo_name);
+          // Load workflow directly from Supabase
+          const result = await loadWorkflow(workflowIdFromUrl);
           
           if (result?.success && result.workflowData) {
-            console.log('✅ Workflow loaded from GitHub:', result.workflowData);
+            console.log('✅ Workflow loaded from Supabase:', result.workflowData);
             
             // Set the loaded workflow directly without creating new files
             setGeneratedWorkflow(result.workflowData);
+            setWorkflowName(result.workflowData.name || 'Loaded Workflow');
+            
+            // Set deployment info if available
+            if (result.n8nWorkflowId) {
+              setN8nWorkflowId(result.n8nWorkflowId);
+            }
             
             // Parse and display on canvas
             const { nodes: parsedNodes, edges: parsedEdges } = parseN8nWorkflowToReactFlow(result.workflowData);
@@ -267,9 +254,9 @@ const WorkflowPlayground = memo(() => {
             console.warn('Workflow could not be loaded, starting with empty canvas');
           }
         } catch (error) {
-          console.error('❌ Failed to load workflow from GitHub:', error);
+          console.error('❌ Failed to load workflow from Supabase:', error);
           setIsWorkflowLoaded(false);
-          console.warn('Unable to load workflow from GitHub, starting with empty canvas');
+          console.warn('Unable to load workflow from Supabase, starting with empty canvas');
         } finally {
           setIsLoadingWorkflow(false);
         }
@@ -283,7 +270,7 @@ const WorkflowPlayground = memo(() => {
       handleWorkflowGenerated(stateData, {});
       setIsLoadingWorkflow(false);
     }
-  }, [searchParams, location.state, workflowId, loadWorkflowFromGitHub, authLoading, user, handleWorkflowGenerated]);
+  }, [searchParams, location.state, workflowId, loadWorkflow, authLoading, user, handleWorkflowGenerated]);
 
   // Define callbacks first
   const onConnect = useCallback(
@@ -421,74 +408,57 @@ const WorkflowPlayground = memo(() => {
     setDeploymentMessage(message);
   };
 
-  const handleCreateGitHubRepo = async () => {
+  const handleSaveWorkflow = async () => {
     if (!generatedWorkflow) {
-      addDeploymentMessageToChat('❌ Generate a workflow first to create a GitHub repository', true);
+      addDeploymentMessageToChat('❌ Generate a workflow first to save it', true);
       return;
     }
 
     try {
       setIsCreatingRepo(true);
-      console.log('🚀 Creating/updating GitHub repository for workflow...');
+      console.log('💾 Saving workflow to Supabase...');
 
       const workflowData = {
-        name: generatedWorkflow.name || 'Untitled Workflow',
+        name: generatedWorkflow.name || workflowName || 'Untitled Workflow',
         workflow: generatedWorkflow,
-        chat: workflowConfig.chatHistory,
-        nodes: generatedWorkflow.nodes || [],
-        connections: generatedWorkflow.connections || {},
-        metadata: {
-          created_at: new Date().toISOString(),
-          workflow_id: workflowId,
-          ai_model: 'gemini-2.0-flash-exp'
-        }
+        chat: workflowConfig.chatHistory
       };
 
-      // Check if we're editing an existing workflow
-      if (workflowId && workflowId.startsWith('workflow_')) {
-        console.log('📝 Updating existing workflow repository...');
-        try {
-          const updateResult = await createWorkflowRepository(workflowData, workflowId);
-          if (updateResult && updateResult.success) {
-            const successMessage = `✅ **GitHub Repository Updated!**\n\n🔗 **Repository URL:** ${updateResult.repository?.url}\n📋 **Repository Name:** ${updateResult.repository?.name}\n\n*Your workflow changes have been synced to GitHub successfully!*`;
-            addDeploymentMessageToChat(successMessage);
-            return;
-          }
-        } catch (updateError) {
-          console.log('⚠️ Update failed, will create new repository:', updateError.message);
-        }
-      }
-
-      // Create new repository if update failed or it's a new workflow
-      const result = await createWorkflowRepository(workflowData, workflowId || `workflow_${Date.now()}`);
+      const currentWorkflowId = workflowId || `workflow_${Date.now()}`;
+      const result = await saveWorkflow(workflowData, currentWorkflowId);
       
       if (result && result.success) {
-        const successMessage = `✅ **GitHub Repository Created!**\n\n🔗 **Repository URL:** ${result.repository?.url}\n📋 **Repository Name:** ${result.repository?.name}\n\n*Your workflow has been synced to GitHub successfully!*`;
+        const successMessage = `✅ **Workflow Saved!**\n\n📋 **Workflow Name:** ${workflowData.name}\n💾 **Storage:** Supabase\n\n*Your workflow has been saved successfully!*`;
         addDeploymentMessageToChat(successMessage);
+        
+        // Update workflow ID if it was generated
+        if (!workflowId) {
+          setWorkflowId(currentWorkflowId);
+        }
         
         await workflowMonitoring.logRealTimeEvent(
           'success',
-          `GitHub repository created: ${result.repository?.name}`,
+          `Workflow saved: ${workflowData.name}`,
           undefined,
           undefined,
           { 
-            github_repo_url: result.repository?.url,
-            github_repo_name: result.repository?.name,
+            workflow_name: workflowData.name,
+            workflow_id: currentWorkflowId,
             timestamp: new Date().toISOString()
           }
         );
       } else {
-        throw new Error('Failed to create GitHub repository');
+        throw new Error('Failed to save workflow');
       }
       
     } catch (error) {
-      console.error('❌ Error with GitHub repository:', error);
-      const errorMessage = `❌ **GitHub Sync Failed**\n\n${error.message || 'Unknown error occurred'}\n\nPlease check your GitHub configuration and try again.`;
+      console.error('❌ Error saving workflow:', error);
+      const errorMessage = `❌ **Save Failed**\n\n${error.message || 'Unknown error occurred'}\n\nPlease try again.`;
       addDeploymentMessageToChat(errorMessage, true);
       
       await workflowMonitoring.logRealTimeEvent(
         'error',
-        `Failed to sync GitHub repository: ${error.message}`,
+        `Failed to save workflow: ${error.message}`,
         undefined,
         undefined,
         { error: error.message }
@@ -836,18 +806,18 @@ const WorkflowPlayground = memo(() => {
                 </button>
               </div>
               <Button
-                onClick={handleCreateGitHubRepo}
+                onClick={handleSaveWorkflow}
                 disabled={!generatedWorkflow || isCreatingRepo}
                 variant="outline"
                 className="text-white hover:bg-white/10 bg-white/5 border-white/20 px-4"
-                title="Sync to GitHub"
+                title="Save Workflow"
               >
                 {isCreatingRepo ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
-                  <Github className="w-4 h-4 mr-2" />
+                  <Plus className="w-4 h-4 mr-2" />
                 )}
-                GitHub
+                Save
               </Button>
               <Button
                 onClick={() => setShowN8nConfig(true)}

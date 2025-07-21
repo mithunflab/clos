@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
-import { useGitHubIntegration } from '@/hooks/useGitHubIntegration';
+import { useWorkflowStorage } from '@/hooks/useWorkflowStorage';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -25,7 +25,7 @@ interface WorkflowItem {
 const Workflows = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { deleteWorkflow } = useGitHubIntegration();
+  const { deleteWorkflow } = useWorkflowStorage();
   const [workflows, setWorkflows] = useState<WorkflowItem[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();

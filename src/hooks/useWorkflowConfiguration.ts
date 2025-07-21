@@ -1,6 +1,6 @@
 
 import { useState, useCallback } from 'react';
-import { useGitHubIntegration } from './useGitHubIntegration';
+import { useWorkflowStorage } from './useWorkflowStorage';
 
 interface WorkflowConfiguration {
   id: string;
@@ -31,7 +31,7 @@ export const useWorkflowConfiguration = (workflowId: string | null) => {
   const [error, setError] = useState<string | null>(null);
   const [chatHistory, setChatHistory] = useState<any[]>([]);
   
-  const { createWorkflowRepository, updateWorkflow, loadWorkflow, getUserWorkflows } = useGitHubIntegration();
+  const { saveWorkflow, updateDeploymentStatus, loadWorkflow, getUserWorkflows } = useWorkflowStorage();
 
   const saveConfiguration = useCallback(async (config: any, deploymentSettings?: any, chat?: any[]) => {
     if (!workflowId) return false;
@@ -76,8 +76,8 @@ export const useWorkflowConfiguration = (workflowId: string | null) => {
       console.log('🔄 Syncing workflow to GitHub (will update existing repo if available)...');
       
       try {
-        // This will either create new repo or update existing one
-        const result = await createWorkflowRepository(workflowData, workflowId);
+        // Save workflow to Supabase storage
+        const result = await saveWorkflow(workflowData, workflowId);
         console.log('✅ Workflow synced successfully with GitHub:', result);
         
         setConfiguration(configData);
@@ -104,7 +104,7 @@ export const useWorkflowConfiguration = (workflowId: string | null) => {
     } finally {
       setIsLoading(false);
     }
-  }, [workflowId, createWorkflowRepository, chatHistory]);
+  }, [workflowId, saveWorkflow, chatHistory]);
 
   const saveNodes = useCallback(async (workflowNodes: any[]) => {
     if (!workflowId) return false;

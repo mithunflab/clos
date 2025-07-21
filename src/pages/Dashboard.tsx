@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Workflow, Zap, Clock, TrendingUp, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { useGitHubIntegration } from '@/hooks/useGitHubIntegration';
+import { useWorkflowStorage } from '@/hooks/useWorkflowStorage';
 import { useUserPlan } from '@/hooks/useUserPlan';
 
 const StatCard = ({ icon, title, value, subtitle }: { 
@@ -31,7 +31,7 @@ const StatCard = ({ icon, title, value, subtitle }: {
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { getUserWorkflows } = useGitHubIntegration();
+  const { getUserWorkflows } = useWorkflowStorage();
   const { plan } = useUserPlan();
   const [workflowStats, setWorkflowStats] = useState({
     total: 0,
