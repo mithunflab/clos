@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -147,6 +146,43 @@ export const useGitHubIntegration = () => {
     }
   };
 
+  const deleteWorkflow = async (workflowId: string) => {
+    if (!user) throw new Error('User not authenticated');
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      console.log('🗑️ Deleting workflow...', { workflowId });
+
+      const { data, error } = await supabase.functions.invoke('github-manager', {
+        body: {
+          action: 'delete-workflow',
+          workflowId
+        }
+      });
+
+      if (error) {
+        console.error('❌ Supabase function error:', error);
+        throw error;
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to delete workflow');
+      }
+
+      console.log('✅ Workflow deleted successfully:', data);
+      return data;
+    } catch (err: any) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete workflow';
+      console.error('❌ GitHub workflow deletion failed:', errorMessage);
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getUserWorkflows = async () => {
     if (!user) return [];
 
@@ -178,6 +214,7 @@ export const useGitHubIntegration = () => {
     createWorkflowRepository,
     updateWorkflow,
     loadWorkflow,
-    getUserWorkflows
+    getUserWorkflows,
+    deleteWorkflow
   };
 };

@@ -48,17 +48,17 @@ const Workflows = () => {
     try {
       setLoading(true);
       
-      // Load workflows from GitHub integration
-      const result = await getUserWorkflows();
+      // Load workflows from GitHub integration - returns array directly
+      const workflowsData = await getUserWorkflows();
       
-      if (result.success && result.workflows) {
-        const formattedWorkflows = result.workflows.map((workflow: any) => ({
-          id: workflow.id,
-          name: workflow.name || 'Untitled Workflow',
+      if (workflowsData && workflowsData.length > 0) {
+        const formattedWorkflows = workflowsData.map((workflow: any) => ({
+          id: workflow.workflow_id || workflow.id,
+          name: workflow.workflow_name || 'Untitled Workflow',
           description: workflow.description || 'No description',
           status: workflow.status || 'draft',
           created_at: workflow.created_at,
-          updated_at: workflow.updated_at,
+          updated_at: workflow.last_updated || workflow.updated_at,
           workflow_data: workflow.workflow_data,
           n8n_workflow_id: workflow.n8n_workflow_id,
           deployment_url: workflow.deployment_url

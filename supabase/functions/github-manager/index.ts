@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -274,6 +273,52 @@ serve(async (req) => {
           nodes: content.nodes || [],
           connections: content.connections || {},
           metadata: content.metadata || {}
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      case 'delete-workflow': {
+        // Get repository info from database
+        const { data: workflowInfo, error: fetchError } = await supabaseClient
+          .from('user_workflows')
+          .select('github_repo_name, github_repo_url')
+          .eq('workflow_id', workflowId)
+          .eq('user_id', user.id)
+          .single()
+
+        if (fetchError || !workflowInfo) {
+          console.error('Workflow not found:', fetchError)
+          throw new Error('Workflow not found in database')
+        }
+
+        // Delete GitHub repository
+        const deleteResponse = await fetch(`https://api.github.com/repos/${githubUsername}/${workflowInfo.github_repo_name}`, {
+          method: 'DELETE',
+          headers: githubHeaders
+        })
+
+        if (!deleteResponse.ok && deleteResponse.status !== 404) {
+          const deleteError = await deleteResponse.text()
+          console.error('GitHub repo deletion failed:', deleteError)
+          throw new Error('Failed to delete GitHub repository')
+        }
+
+        // Delete from database
+        const { error: dbError } = await supabaseClient
+          .from('user_workflows')
+          .delete()
+          .eq('workflow_id', workflowId)
+          .eq('user_id', user.id)
+
+        if (dbError) {
+          console.error('Database deletion error:', dbError)
+          throw new Error(`Database deletion failed: ${dbError.message}`)
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          message: 'Workflow deleted successfully'
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
