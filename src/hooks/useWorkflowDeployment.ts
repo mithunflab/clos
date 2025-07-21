@@ -62,7 +62,10 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
     const cleanWorkflow = {
       name: workflow.name,
       nodes: workflow.nodes || [],
-      connections: workflow.connections || {}
+      connections: workflow.connections || {},
+      settings: {
+        executionOrder: 'v1'
+      }
     };
 
     if (cleanWorkflow.nodes) {
@@ -72,6 +75,7 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
         type: node.type,
         position: node.position || [0, 0],
         parameters: node.parameters || {},
+        typeVersion: node.typeVersion || 1,
         ...(node.credentials && { credentials: node.credentials })
       }));
     }
@@ -89,33 +93,57 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
       await updateLocalDeploymentStatus('deploying');
 
       console.log('🚀 Deploying workflow to N8N:', workflowId);
-      console.log('Using Casel Cloud:', config?.use_casel_cloud);
+      console.log('N8N Config:', config);
 
       const cleanedWorkflow = cleanWorkflowForN8n(workflow);
 
       // Check if we have an existing deployment
       const existingDeployment = await getDeployment(workflowId);
       
-      // In a real implementation, this would call the appropriate N8N API
-      // For now, we'll simulate the deployment
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Call the real N8N deployment function
+      const { data, error } = await supabase.functions.invoke('generate-n8n-workflow', {
+        body: {
+          action: existingDeployment ? 'update' : 'deploy',
+          workflow: cleanedWorkflow,
+          workflowId: existingDeployment?.n8n_workflow_id || workflowId,
+          n8nConfig: config
+        }
+      });
 
-      const mockDeploymentId = existingDeployment?.n8n_workflow_id || `n8n_${workflowId}_${Date.now()}`;
-      const deploymentUrl = config?.use_casel_cloud 
-        ? `https://casel-n8n.example.com/workflow/${mockDeploymentId}`
-        : `${config?.n8n_url}/workflow/${mockDeploymentId}`;
+      if (error) {
+        console.error('❌ N8N deployment error:', error);
+        throw new Error(error.message || 'Failed to deploy to N8N');
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to deploy workflow to N8N');
+      }
+
+      const deploymentId = data.workflowId || data.id;
+      let deploymentUrl = data.workflowUrl || data.url;
+
+      // Construct real deployment URL based on config
+      if (!deploymentUrl) {
+        if (config?.use_casel_cloud) {
+          deploymentUrl = `https://n8n.casel.cloud/workflow/${deploymentId}`;
+        } else if (config?.n8n_url) {
+          deploymentUrl = `${config.n8n_url}/workflow/${deploymentId}`;
+        } else {
+          deploymentUrl = `https://n8n.example.com/workflow/${deploymentId}`;
+        }
+      }
       
       // Create or update deployment in database
-      await createOrUpdateDeployment(workflowId, mockDeploymentId, deploymentUrl);
+      await createOrUpdateDeployment(workflowId, deploymentId, deploymentUrl);
       
-      await updateLocalDeploymentStatus('deployed', mockDeploymentId);
-      console.log('✅ Workflow deployed successfully:', mockDeploymentId);
+      await updateLocalDeploymentStatus('deployed', deploymentId);
+      console.log('✅ Workflow deployed successfully to N8N:', deploymentId);
       
       return {
         success: true,
-        workflowId: mockDeploymentId,
+        workflowId: deploymentId,
         workflowUrl: deploymentUrl,
-        message: existingDeployment ? 'Workflow updated successfully' : 'Workflow deployed successfully'
+        message: existingDeployment ? 'Workflow updated successfully in N8N' : 'Workflow deployed successfully to N8N'
       };
 
     } catch (err) {
@@ -139,13 +167,25 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
       setIsDeploying(true);
       setError(null);
 
-      console.log('🔌 Activating workflow:', deploymentStatus.deployment_id);
+      console.log('🔌 Activating workflow in N8N:', deploymentStatus.deployment_id);
 
-      // Simulate activation
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { data, error } = await supabase.functions.invoke('generate-n8n-workflow', {
+        body: {
+          action: 'activate',
+          workflowId: deploymentStatus.deployment_id
+        }
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to activate workflow');
+      }
 
       await updateLocalDeploymentStatus('active');
-      console.log('✅ Workflow activated successfully');
+      console.log('✅ Workflow activated successfully in N8N');
       return true;
 
     } catch (err) {

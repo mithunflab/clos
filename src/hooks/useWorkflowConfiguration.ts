@@ -73,42 +73,38 @@ export const useWorkflowConfiguration = (workflowId: string | null) => {
         }
       };
 
-      let result;
-      console.log('🔄 Creating/updating workflow in GitHub with enhanced data...');
+      console.log('🔄 Syncing workflow to GitHub (will update existing repo if available)...');
       
       try {
-        // Always try to create first, then update if it exists
-        result = await createWorkflowRepository(workflowData, workflowId);
-        console.log('✅ Workflow created successfully in GitHub:', result);
-      } catch (createError: any) {
-        console.log('ℹ️ Create failed, trying to update existing workflow:', createError.message);
-        try {
-          result = await updateWorkflow(workflowData, workflowId);
-          console.log('✅ Workflow updated successfully in GitHub:', result);
-        } catch (updateError) {
-          console.error('❌ Both create and update failed:', updateError);
-          throw updateError;
-        }
+        // This will either create new repo or update existing one
+        const result = await createWorkflowRepository(workflowData, workflowId);
+        console.log('✅ Workflow synced successfully with GitHub:', result);
+        
+        setConfiguration(configData);
+        if (chat) setChatHistory(chat);
+        
+        console.log('✅ Configuration saved successfully with GitHub integration:', { 
+          configData, 
+          result,
+          githubRepo: result?.repository
+        });
+        
+        return true;
+      } catch (githubError: any) {
+        console.warn('⚠️ GitHub sync failed, but continuing without it:', githubError.message);
+        setConfiguration(configData);
+        if (chat) setChatHistory(chat);
+        return true; // Still return true as local save succeeded
       }
-
-      setConfiguration(configData);
-      if (chat) setChatHistory(chat);
       
-      console.log('✅ Configuration saved successfully with GitHub integration:', { 
-        configData, 
-        result,
-        githubRepo: result?.repository
-      });
-      
-      return true;
     } catch (err: any) {
-      console.error('❌ Error saving configuration with GitHub:', err);
+      console.error('❌ Error saving configuration:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
       return false;
     } finally {
       setIsLoading(false);
     }
-  }, [workflowId, createWorkflowRepository, updateWorkflow, chatHistory]);
+  }, [workflowId, createWorkflowRepository, chatHistory]);
 
   const saveNodes = useCallback(async (workflowNodes: any[]) => {
     if (!workflowId) return false;

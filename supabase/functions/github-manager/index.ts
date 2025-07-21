@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -40,7 +41,7 @@ serve(async (req) => {
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '', // Use service role key for admin operations
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       { auth: { persistSession: false } }
     )
 
@@ -79,6 +80,36 @@ serve(async (req) => {
 
     switch (action) {
       case 'create-repo': {
+        // Check if workflow already exists in database
+        const { data: existingWorkflow, error: checkError } = await supabaseClient
+          .from('user_workflows')
+          .select('github_repo_name, github_repo_url')
+          .eq('workflow_id', workflowId)
+          .eq('user_id', user.id)
+          .maybeSingle()
+
+        if (checkError && checkError.code !== 'PGRST116') {
+          console.error('Database check error:', checkError)
+          throw new Error(`Database check failed: ${checkError.message}`)
+        }
+
+        if (existingWorkflow) {
+          console.log('Workflow already exists, updating instead of creating new repo')
+          // Update existing workflow instead of creating new repo
+          const updateResult = await updateExistingWorkflow(
+            supabaseClient,
+            githubHeaders,
+            githubUsername,
+            existingWorkflow.github_repo_name,
+            workflowData,
+            workflowId,
+            user.id
+          )
+          return new Response(JSON.stringify(updateResult), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+
         // Create unique repository name
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19)
         const uniqueRepoName = `casel-workflow-${user.id.substring(0, 8)}-${timestamp}`
@@ -137,7 +168,7 @@ serve(async (req) => {
         // Create chat history as text file
         if (workflowData.chat && workflowData.chat.length > 0) {
           const chatText = formatChatAsText(workflowData.chat);
-          const chatResponse = await fetch(`https://api.github.com/repos/${repo.full_name}/contents/chat-history.txt`, {
+          await fetch(`https://api.github.com/repos/${repo.full_name}/contents/chat-history.txt`, {
             method: 'PUT',
             headers: githubHeaders,
             body: JSON.stringify({
@@ -145,31 +176,21 @@ serve(async (req) => {
               content: encodeBase64(chatText)
             })
           })
-          
-          if (!chatResponse.ok) {
-            console.warn('Failed to create chat history file, but continuing...')
-          }
         }
 
-        // Store in Supabase with service role key to bypass RLS
-        console.log('Inserting workflow into database:', {
-          user_id: user.id,
-          workflow_id: workflowId,
-          workflow_name: workflowData.name || 'Untitled Workflow',
-          github_repo_name: uniqueRepoName,
-          github_repo_url: repo.html_url,
-          github_repo_id: repo.id.toString()
-        });
-
+        // Store in Supabase with upsert to handle duplicates
         const { error: dbError } = await supabaseClient
           .from('user_workflows')
-          .insert({
+          .upsert({
             user_id: user.id,
             workflow_id: workflowId,
             workflow_name: workflowData.name || 'Untitled Workflow',
             github_repo_name: uniqueRepoName,
             github_repo_url: repo.html_url,
-            github_repo_id: repo.id.toString()
+            github_repo_id: repo.id.toString(),
+            last_updated: new Date().toISOString()
+          }, {
+            onConflict: 'user_id,workflow_id'
           })
 
         if (dbError) {
@@ -194,105 +215,29 @@ serve(async (req) => {
 
       case 'update-workflow': {
         // Get repository info from database
-        const { data: workflowInfo } = await supabaseClient
+        const { data: workflowInfo, error: fetchError } = await supabaseClient
           .from('user_workflows')
-          .select('github_repo_name')
+          .select('github_repo_name, github_repo_url')
           .eq('workflow_id', workflowId)
           .eq('user_id', user.id)
           .single()
 
-        if (!workflowInfo) {
+        if (fetchError || !workflowInfo) {
+          console.error('Workflow not found:', fetchError)
           throw new Error('Workflow not found in database')
         }
 
-        // Get current file to get SHA
-        const getCurrentFile = await fetch(`https://api.github.com/repos/${githubUsername}/${workflowInfo.github_repo_name}/contents/workflow.json`, {
-          headers: githubHeaders
-        })
+        const updateResult = await updateExistingWorkflow(
+          supabaseClient,
+          githubHeaders,
+          githubUsername,
+          workflowInfo.github_repo_name,
+          workflowData,
+          workflowId,
+          user.id
+        )
 
-        if (!getCurrentFile.ok) {
-          throw new Error('Failed to get current workflow file')
-        }
-
-        const currentFile = await getCurrentFile.json()
-        
-        // Enhanced workflow content for updates
-        const workflowContent = {
-          workflow: workflowData.workflow,
-          chat: workflowData.chat || [],
-          nodes: workflowData.nodes || [],
-          connections: workflowData.connections || {},
-          metadata: {
-            updated_at: new Date().toISOString(),
-            user_id: user.id,
-            workflow_id: workflowId,
-            version: '1.1.0'
-          }
-        }
-
-        // Update workflow file with proper encoding
-        const updateResponse = await fetch(`https://api.github.com/repos/${githubUsername}/${workflowInfo.github_repo_name}/contents/workflow.json`, {
-          method: 'PUT',
-          headers: githubHeaders,
-          body: JSON.stringify({
-            message: 'Update workflow with enhanced data',
-            content: encodeBase64(JSON.stringify(workflowContent, null, 2)),
-            sha: currentFile.sha
-          })
-        })
-
-        if (!updateResponse.ok) {
-          const updateError = await updateResponse.text()
-          console.error('GitHub update failed:', updateError)
-          throw new Error('Failed to update workflow file')
-        }
-
-        // Update chat history as text file if exists
-        if (workflowData.chat && workflowData.chat.length > 0) {
-          try {
-            const chatText = formatChatAsText(workflowData.chat);
-            const getChatFile = await fetch(`https://api.github.com/repos/${githubUsername}/${workflowInfo.github_repo_name}/contents/chat-history.txt`, {
-              headers: githubHeaders
-            })
-            
-            if (getChatFile.ok) {
-              const chatFile = await getChatFile.json()
-              await fetch(`https://api.github.com/repos/${githubUsername}/${workflowInfo.github_repo_name}/contents/chat-history.txt`, {
-                method: 'PUT',
-                headers: githubHeaders,
-                body: JSON.stringify({
-                  message: 'Update chat history as text file',
-                  content: encodeBase64(chatText),
-                  sha: chatFile.sha
-                })
-              })
-            } else {
-              // Create new chat history text file
-              await fetch(`https://api.github.com/repos/${githubUsername}/${workflowInfo.github_repo_name}/contents/chat-history.txt`, {
-                method: 'PUT',
-                headers: githubHeaders,
-                body: JSON.stringify({
-                  message: 'Add chat history as text file',
-                  content: encodeBase64(chatText)
-                })
-              })
-            }
-          } catch (chatError) {
-            console.warn('Failed to update chat history, but continuing...', chatError)
-          }
-        }
-
-        // Update last_updated in database
-        await supabaseClient
-          .from('user_workflows')
-          .update({ last_updated: new Date().toISOString() })
-          .eq('workflow_id', workflowId)
-          .eq('user_id', user.id)
-
-        return new Response(JSON.stringify({ 
-          success: true,
-          message: 'Workflow updated successfully with enhanced data'
-        }), {
+        return new Response(JSON.stringify(updateResult), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
@@ -349,3 +294,113 @@ serve(async (req) => {
     })
   }
 })
+
+async function updateExistingWorkflow(
+  supabaseClient: any,
+  githubHeaders: any,
+  githubUsername: string,
+  repoName: string,
+  workflowData: any,
+  workflowId: string,
+  userId: string
+) {
+  try {
+    // Get current file to get SHA
+    const getCurrentFile = await fetch(`https://api.github.com/repos/${githubUsername}/${repoName}/contents/workflow.json`, {
+      headers: githubHeaders
+    })
+
+    if (!getCurrentFile.ok) {
+      throw new Error('Failed to get current workflow file')
+    }
+
+    const currentFile = await getCurrentFile.json()
+    
+    // Enhanced workflow content for updates
+    const workflowContent = {
+      workflow: workflowData.workflow,
+      chat: workflowData.chat || [],
+      nodes: workflowData.nodes || [],
+      connections: workflowData.connections || {},
+      metadata: {
+        updated_at: new Date().toISOString(),
+        user_id: userId,
+        workflow_id: workflowId,
+        version: '1.1.0'
+      }
+    }
+
+    // Update workflow file
+    const updateResponse = await fetch(`https://api.github.com/repos/${githubUsername}/${repoName}/contents/workflow.json`, {
+      method: 'PUT',
+      headers: githubHeaders,
+      body: JSON.stringify({
+        message: 'Update workflow with enhanced data',
+        content: encodeBase64(JSON.stringify(workflowContent, null, 2)),
+        sha: currentFile.sha
+      })
+    })
+
+    if (!updateResponse.ok) {
+      const updateError = await updateResponse.text()
+      console.error('GitHub update failed:', updateError)
+      throw new Error('Failed to update workflow file')
+    }
+
+    // Update chat history as text file if exists
+    if (workflowData.chat && workflowData.chat.length > 0) {
+      try {
+        const chatText = formatChatAsText(workflowData.chat);
+        const getChatFile = await fetch(`https://api.github.com/repos/${githubUsername}/${repoName}/contents/chat-history.txt`, {
+          headers: githubHeaders
+        })
+        
+        if (getChatFile.ok) {
+          const chatFile = await getChatFile.json()
+          await fetch(`https://api.github.com/repos/${githubUsername}/${repoName}/contents/chat-history.txt`, {
+            method: 'PUT',
+            headers: githubHeaders,
+            body: JSON.stringify({
+              message: 'Update chat history as text file',
+              content: encodeBase64(chatText),
+              sha: chatFile.sha
+            })
+          })
+        } else {
+          await fetch(`https://api.github.com/repos/${githubUsername}/${repoName}/contents/chat-history.txt`, {
+            method: 'PUT',
+            headers: githubHeaders,
+            body: JSON.stringify({
+              message: 'Add chat history as text file',
+              content: encodeBase64(chatText)
+            })
+          })
+        }
+      } catch (chatError) {
+        console.warn('Failed to update chat history, but continuing...', chatError)
+      }
+    }
+
+    // Update last_updated in database
+    await supabaseClient
+      .from('user_workflows')
+      .update({ 
+        last_updated: new Date().toISOString(),
+        workflow_name: workflowData.name || 'Untitled Workflow'
+      })
+      .eq('workflow_id', workflowId)
+      .eq('user_id', userId)
+
+    return {
+      success: true,
+      message: 'Workflow updated successfully',
+      repository: {
+        name: repoName,
+        url: `https://github.com/${githubUsername}/${repoName}`
+      }
+    }
+  } catch (error) {
+    console.error('Error updating workflow:', error)
+    throw error
+  }
+}

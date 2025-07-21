@@ -23,6 +23,26 @@ export const useGitHubIntegration = () => {
 
       console.log('🚀 Creating workflow repository...', { workflowId, workflowName: workflowData.name });
 
+      // First check if workflow already exists in database
+      const { data: existingWorkflow, error: checkError } = await supabase
+        .from('user_workflows')
+        .select('github_repo_name, github_repo_url')
+        .eq('workflow_id', workflowId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('❌ Error checking existing workflow:', checkError);
+        throw checkError;
+      }
+
+      // If workflow exists, update it instead of creating new
+      if (existingWorkflow) {
+        console.log('📝 Updating existing workflow repository:', existingWorkflow.github_repo_name);
+        return await updateWorkflow(workflowData, workflowId);
+      }
+
+      // Create new repository only if it doesn't exist
       const { data, error } = await supabase.functions.invoke('github-manager', {
         body: {
           action: 'create-repo',
