@@ -25,36 +25,11 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/dashboard" element={
+          <Route path="/*" element={
             <ProtectedRoute>
               <DashboardLayout />
             </ProtectedRoute>
-          }>
-            <Route index element={<Dashboard />} />
-          </Route>
-          <Route path="/workflows" element={
-            <ProtectedRoute>
-              <DashboardLayout />
-            </ProtectedRoute>
-          }>
-            <Route index element={<Workflows />} />
-            <Route path="new" element={<WorkflowPlayground />} />
-            <Route path=":id/edit" element={<WorkflowPlayground />} />
-          </Route>
-          <Route path="/profile" element={
-            <ProtectedRoute>
-              <DashboardLayout />
-            </ProtectedRoute>
-          }>
-            <Route index element={<Profile />} />
-          </Route>
-          <Route path="/playground" element={
-            <ProtectedRoute>
-              <DashboardLayout />
-            </ProtectedRoute>
-          }>
-            <Route index element={<WorkflowPlayground />} />
-          </Route>
+          } />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

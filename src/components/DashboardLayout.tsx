@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Bot, 
@@ -15,6 +15,10 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
+import Dashboard from '@/pages/Dashboard';
+import Workflows from '@/pages/Workflows';
+import WorkflowPlayground from '@/pages/WorkflowPlayground';
+import Profile from '@/pages/Profile';
 
 const cn = (...classes: (string | undefined | null | false)[]): string => {
   return classes.filter(Boolean).join(' ');
@@ -267,7 +271,14 @@ const DashboardLayout = () => {
       {/* Main Content */}
       <div className="flex-1 lg:ml-0 min-h-screen relative z-10">
         <div className="pt-16 lg:pt-0 min-h-screen">
-          <Outlet />
+          <Routes>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/workflows" element={<Workflows />} />
+            <Route path="/workflows/new" element={<WorkflowPlayground />} />
+            <Route path="/workflows/:id/edit" element={<WorkflowPlayground />} />
+            <Route path="/playground" element={<WorkflowPlayground />} />
+            <Route path="/profile" element={<Profile />} />
+          </Routes>
         </div>
       </div>
     </div>

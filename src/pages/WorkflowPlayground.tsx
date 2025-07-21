@@ -49,7 +49,7 @@ const nodeTypes = {
   workflowNode: WorkflowNode,
 };
 
-const WorkflowPlayground = () => {
+const WorkflowPlayground = memo(() => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('Editor');
   const [workflowName, setWorkflowName] = useState('My workflow');
@@ -69,6 +69,7 @@ const WorkflowPlayground = () => {
   const [showN8nConfig, setShowN8nConfig] = useState(false);
   const [isCreatingRepo, setIsCreatingRepo] = useState(false);
 
+  // Only initialize hooks when needed to prevent unnecessary computations
   const workflowConfig = useWorkflowConfiguration(workflowId);
   const workflowDeployment = useWorkflowDeployment(workflowId);
   const workflowMonitoring = useWorkflowMonitoring(workflowId);
@@ -770,6 +771,6 @@ const WorkflowPlayground = () => {
       )}
     </div>
   );
-};
+});
 
 export default WorkflowPlayground;
