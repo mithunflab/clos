@@ -239,8 +239,11 @@ const WorkflowPlayground = memo(() => {
             setWorkflowName(result.workflowData.name || 'Loaded Workflow');
             
             // Create JSON file for preview
-            const workflowJson = JSON.stringify(result.workflowData, null, 2);
+            const workflowData = result.workflowData.workflow || result.workflowData;
+            const workflowJson = JSON.stringify(workflowData, null, 2);
             const fileName = `${(result.workflowData.name || 'workflow').replace(/[^a-zA-Z0-9]/g, '_')}_loaded.json`;
+            
+            console.log('📝 Creating JSON file for loaded workflow:', fileName, 'Data structure:', workflowData);
             
             setLiveFiles({
               [fileName]: workflowJson
