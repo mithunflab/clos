@@ -122,6 +122,8 @@ export const useWorkflowStorageV2 = () => {
           workflow_name: workflowData.name,
           workflow_storage_path: workflowFileName,
           chat_storage_path: chatStoragePath,
+          compressed_workflow_json: null, // Not used in storage version
+          compressed_chat_history: null, // Not used in storage version
           metadata: {
             created_at: new Date().toISOString(),
             version: '2.0.0',

@@ -258,7 +258,7 @@ export type Database = {
         Row: {
           chat_storage_path: string | null
           compressed_chat_history: string | null
-          compressed_workflow_json: string
+          compressed_workflow_json: string | null
           created_at: string
           deployment_status: string | null
           id: string
@@ -274,7 +274,7 @@ export type Database = {
         Insert: {
           chat_storage_path?: string | null
           compressed_chat_history?: string | null
-          compressed_workflow_json: string
+          compressed_workflow_json?: string | null
           created_at?: string
           deployment_status?: string | null
           id?: string
@@ -290,7 +290,7 @@ export type Database = {
         Update: {
           chat_storage_path?: string | null
           compressed_chat_history?: string | null
-          compressed_workflow_json?: string
+          compressed_workflow_json?: string | null
           created_at?: string
           deployment_status?: string | null
           id?: string

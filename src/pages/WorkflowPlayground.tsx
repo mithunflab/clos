@@ -26,7 +26,7 @@ import { useWorkflowConfiguration } from '@/hooks/useWorkflowConfiguration';
 import { useWorkflowDeployment } from '@/hooks/useWorkflowDeployment';
 import { useWorkflowMonitoring } from '@/hooks/useWorkflowMonitoring';
 import { useAutoSave } from '@/hooks/useAutoSave';
-import { useWorkflowStorage } from '@/hooks/useWorkflowStorage';
+import { useWorkflowStorageV2 } from '@/hooks/useWorkflowStorageV2';
 import { useAuth } from '@/hooks/useAuth';
 import N8nConfigToggle from '@/components/N8nConfigToggle';
 import {
@@ -80,7 +80,7 @@ const WorkflowPlayground = memo(() => {
   const workflowConfig = useWorkflowConfiguration(workflowId);
   const workflowDeployment = useWorkflowDeployment(workflowId);
   const workflowMonitoring = useWorkflowMonitoring(workflowId);
-  const { saveWorkflow, loadWorkflow, updateDeploymentStatus } = useWorkflowStorage();
+  const { saveWorkflow, loadWorkflow, updateDeploymentStatus } = useWorkflowStorageV2();
   const { user, loading: authLoading } = useAuth();
   
   const isActive = workflowDeployment.deploymentStatus?.status === 'active';
