@@ -238,41 +238,57 @@ serve(async (req) => {
       }
 
       case 'load-workflow': {
-        // Get repository info
-        const { data: workflowInfo } = await supabaseClient
+        // Get repository info from database
+        const { data: workflowInfo, error: fetchError } = await supabaseClient
           .from('user_workflows')
-          .select('github_repo_name')
+          .select('github_repo_name, github_repo_url')
           .eq('workflow_id', workflowId)
           .eq('user_id', user.id)
           .single()
 
-        if (!workflowInfo) {
+        if (fetchError || !workflowInfo) {
+          console.error('Workflow not found in database:', fetchError)
           throw new Error('Workflow not found in database')
         }
 
-        // Get workflow file from GitHub
-        const fileResponse = await fetch(`https://api.github.com/repos/${githubUsername}/${workflowInfo.github_repo_name}/contents/workflow.json`, {
-          headers: githubHeaders
-        })
+        try {
+          // Get workflow file from GitHub using the repo name from database
+          const fileResponse = await fetch(`https://api.github.com/repos/${githubUsername}/${workflowInfo.github_repo_name}/contents/workflow.json`, {
+            headers: githubHeaders
+          })
 
-        if (!fileResponse.ok) {
-          throw new Error('Failed to load workflow from GitHub')
+          if (!fileResponse.ok) {
+            console.error('Failed to fetch workflow from GitHub, status:', fileResponse.status)
+            throw new Error('Failed to load workflow from GitHub')
+          }
+
+          const fileData = await fileResponse.json()
+          
+          // Decode base64 content
+          let workflowContent
+          try {
+            workflowContent = JSON.parse(atob(fileData.content))
+          } catch (parseError) {
+            console.error('Failed to parse workflow JSON:', parseError)
+            throw new Error('Invalid workflow JSON format')
+          }
+
+          // Return the workflow data in a format that the frontend expects
+          return new Response(JSON.stringify({
+            success: true,
+            workflowData: workflowContent.workflow || workflowContent,
+            workflow: workflowContent.workflow || workflowContent,
+            chat: workflowContent.chat || [],
+            nodes: workflowContent.nodes || [],
+            connections: workflowContent.connections || {},
+            metadata: workflowContent.metadata || {}
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        } catch (githubError) {
+          console.error('GitHub API error:', githubError)
+          throw new Error(`Failed to load workflow: ${githubError.message}`)
         }
-
-        const fileData = await fileResponse.json()
-        const content = JSON.parse(atob(fileData.content))
-
-        return new Response(JSON.stringify({
-          success: true,
-          workflowData: content.workflow,
-          workflow: content.workflow,
-          chat: content.chat || [],
-          nodes: content.nodes || [],
-          connections: content.connections || {},
-          metadata: content.metadata || {}
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        })
       }
 
       case 'delete-workflow': {

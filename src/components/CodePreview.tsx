@@ -45,7 +45,12 @@ const CodePreview: React.FC<CodePreviewProps> = ({
       return JSON.stringify(generatedWorkflow, null, 2);
     }
     
-    // Priority 2: Check for the most recent JSON file in liveFiles with actual content
+    // Priority 2: If we have generatedWorkflow (even without nodes), show it for loaded workflows
+    if (generatedWorkflow) {
+      return JSON.stringify(generatedWorkflow, null, 2);
+    }
+    
+    // Priority 3: Check for the most recent JSON file in liveFiles with actual content
     const jsonFiles = Object.keys(liveFiles).filter(key => key.endsWith('.json'));
     if (jsonFiles.length > 0) {
       const latestFile = jsonFiles.sort((a, b) => {
@@ -67,7 +72,7 @@ const CodePreview: React.FC<CodePreviewProps> = ({
       }
     }
     
-    // Priority 3: Check generatedCode for workflowJson
+    // Priority 4: Check generatedCode for workflowJson
     if (generatedCode?.workflowJson) {
       try {
         const parsed = JSON.parse(generatedCode.workflowJson);
@@ -77,11 +82,6 @@ const CodePreview: React.FC<CodePreviewProps> = ({
       } catch (e) {
         console.warn('Invalid JSON in generatedCode');
       }
-    }
-    
-    // Priority 4: If we have generatedWorkflow but no nodes, still show it
-    if (generatedWorkflow) {
-      return JSON.stringify(generatedWorkflow, null, 2);
     }
     
     return null;
@@ -173,9 +173,9 @@ const CodePreview: React.FC<CodePreviewProps> = ({
         </div>
       </div>
 
-      {/* Live Files Status - only show if there are actual new files */}
+      {/* Live Files Status - only show for new workflows with live files */}
       <AnimatePresence>
-        {Object.keys(liveFiles).length > 0 && (
+        {Object.keys(liveFiles).length > 0 && workflowId && !workflowId.startsWith('workflow_') && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
