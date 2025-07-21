@@ -45,7 +45,7 @@ serve(async (req) => {
           
           if (user) {
             const { data: userConfig } = await supabase
-              .from('user_n8n_config')
+              .from('n8n_configs')
               .select('*')
               .eq('user_id', user.id)
               .single();
