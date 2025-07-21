@@ -26,6 +26,7 @@ import { useWorkflowConfiguration } from '@/hooks/useWorkflowConfiguration';
 import { useWorkflowDeployment } from '@/hooks/useWorkflowDeployment';
 import { useWorkflowMonitoring } from '@/hooks/useWorkflowMonitoring';
 import { useGitHubIntegration } from '@/hooks/useGitHubIntegration';
+import { useAuth } from '@/hooks/useAuth';
 import N8nConfigToggle from '@/components/N8nConfigToggle';
 import {
   ReactFlow,
@@ -78,6 +79,7 @@ const WorkflowPlayground = memo(() => {
   const workflowDeployment = useWorkflowDeployment(workflowId);
   const workflowMonitoring = useWorkflowMonitoring(workflowId);
   const { createWorkflowRepository, loadWorkflow } = useGitHubIntegration();
+  const { user, loading: authLoading } = useAuth();
   
   const isActive = workflowDeployment.deploymentStatus?.status === 'active';
   const isDeploying = workflowDeployment.isDeploying;
@@ -85,10 +87,13 @@ const WorkflowPlayground = memo(() => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  // Load workflow if ID is provided in URL
+  // Load workflow if ID is provided in URL - wait for auth to complete
   useEffect(() => {
     const workflowIdFromUrl = searchParams.get('id');
     const stateData = location.state?.workflowData;
+    
+    // Don't try to load if auth is still loading or user is not authenticated
+    if (authLoading || !user) return;
     
     if (workflowIdFromUrl && !stateData && workflowIdFromUrl !== workflowId) {
       console.log('🔄 Loading workflow from URL parameter:', workflowIdFromUrl);
@@ -119,7 +124,7 @@ const WorkflowPlayground = memo(() => {
       handleWorkflowGenerated(stateData, {});
       setIsLoadingWorkflow(false);
     }
-  }, [searchParams.get('id'), location.state?.workflowData, workflowId]);
+  }, [searchParams, location.state, workflowId, loadWorkflow, authLoading, user]);
 
   // Define callbacks first
   const onConnect = useCallback(
