@@ -24,6 +24,7 @@ import { parseN8nWorkflowToReactFlow, N8nWorkflow, updateWorkflowFromNode } from
 import { useWorkflowConfiguration } from '@/hooks/useWorkflowConfiguration';
 import { useWorkflowDeployment } from '@/hooks/useWorkflowDeployment';
 import { useWorkflowMonitoring } from '@/hooks/useWorkflowMonitoring';
+import { useAutoSave } from '@/hooks/useAutoSave';
 import { useWorkflowStorage } from '@/hooks/useWorkflowStorage';
 import { useAuth } from '@/hooks/useAuth';
 import N8nConfigToggle from '@/components/N8nConfigToggle';
@@ -86,6 +87,14 @@ const WorkflowPlayground = memo(() => {
   
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+  // Add auto-save for workflow changes
+  const { saving } = useAutoSave({
+    workflowId: workflowId || '',
+    workflowData: generatedWorkflow,
+    chatHistory: workflowConfig.chatHistory,
+    delay: 2000
+  });
 
   // Define handleWorkflowGenerated with proper memoization to prevent loops
   const handleWorkflowGenerated = useCallback(async (workflow: any, code: any) => {
@@ -647,7 +656,7 @@ const WorkflowPlayground = memo(() => {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4"></div>
             <div className="text-white text-lg">Loading workflow...</div>
-            <div className="text-white/60 text-sm">Fetching data from GitHub repository</div>
+            <div className="text-white/60 text-sm">Fetching data from Supabase</div>
           </div>
         </div>
       );
