@@ -83,19 +83,15 @@ export const useWorkflowStorage = () => {
       const compressedWorkflow = compressJSON(workflowData.workflow);
       const compressedChat = workflowData.chat ? compressJSON(workflowData.chat) : null;
 
-      // Convert Uint8Array to base64 for storage
-      const workflowBase64 = btoa(String.fromCharCode(...compressedWorkflow));
-      const chatBase64 = compressedChat ? btoa(String.fromCharCode(...compressedChat)) : null;
-
-      // Upsert workflow data
+      // Store compressed data directly as Uint8Array (bytea columns accept this)
       const { data, error: upsertError } = await supabase
         .from('workflow_data')
         .upsert({
           user_id: user.id,
           workflow_id: workflowId,
           workflow_name: workflowData.name,
-          compressed_workflow_json: workflowBase64,
-          compressed_chat_history: chatBase64,
+          compressed_workflow_json: compressedWorkflow,
+          compressed_chat_history: compressedChat,
           metadata: {
             created_at: new Date().toISOString(),
             version: '1.0.0'
@@ -155,18 +151,46 @@ export const useWorkflowStorage = () => {
         throw new Error('Workflow not found');
       }
 
-      // Convert base64 back to Uint8Array and decompress
-      const workflowBytes = new Uint8Array(atob(data.compressed_workflow_json).split('').map(c => c.charCodeAt(0)));
-      const workflowData = decompressJSON(workflowBytes);
-      
-      const chatHistory = data.compressed_chat_history 
-        ? (() => {
-            const chatBytes = new Uint8Array(atob(data.compressed_chat_history).split('').map(c => c.charCodeAt(0)));
-            return decompressJSON(chatBytes);
-          })()
-        : [];
+      console.log('🔍 Raw data from database:', {
+        workflowJsonType: typeof data.compressed_workflow_json,
+        workflowJsonConstructor: data.compressed_workflow_json?.constructor?.name,
+        chatHistoryType: typeof data.compressed_chat_history,
+        chatHistoryConstructor: data.compressed_chat_history?.constructor?.name
+      });
 
-      console.log('✅ Workflow loaded successfully:', workflowData);
+      // Handle decompression - bytea columns return Uint8Array directly
+      let workflowData;
+      let chatHistory = [];
+
+      try {
+        // compressed_workflow_json is already Uint8Array from bytea column
+        if (data.compressed_workflow_json instanceof Uint8Array) {
+          workflowData = decompressJSON(data.compressed_workflow_json);
+        } else {
+          // Fallback for legacy base64 data
+          const workflowBytes = new Uint8Array(atob(data.compressed_workflow_json).split('').map(c => c.charCodeAt(0)));
+          workflowData = decompressJSON(workflowBytes);
+        }
+
+        // compressed_chat_history is already Uint8Array from bytea column  
+        if (data.compressed_chat_history) {
+          if (data.compressed_chat_history instanceof Uint8Array) {
+            chatHistory = decompressJSON(data.compressed_chat_history);
+          } else {
+            // Fallback for legacy base64 data
+            const chatBytes = new Uint8Array(atob(data.compressed_chat_history).split('').map(c => c.charCodeAt(0)));
+            chatHistory = decompressJSON(chatBytes);
+          }
+        }
+      } catch (decompressionError) {
+        console.error('❌ Decompression error:', decompressionError);
+        throw new Error('Failed to decompress workflow data');
+      }
+
+      console.log('✅ Workflow loaded and decompressed successfully:', {
+        workflowData,
+        chatHistoryLength: chatHistory.length
+      });
 
       return {
         success: true,
