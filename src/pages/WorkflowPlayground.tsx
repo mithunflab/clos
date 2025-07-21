@@ -87,6 +87,116 @@ const WorkflowPlayground = memo(() => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
+  // Define handleWorkflowGenerated first before useEffect
+  const handleWorkflowGenerated = useCallback(async (workflow: any, code: any) => {
+    console.log('🎯 Enhanced workflow generation:', {
+      workflowName: workflow?.name,
+      nodeCount: workflow?.nodes?.length || 0,
+      hasConnections: !!workflow?.connections,
+      codeKeys: code ? Object.keys(code) : []
+    });
+
+    if (!workflow || !workflow.nodes || !Array.isArray(workflow.nodes)) {
+      console.error('❌ Invalid workflow provided');
+      return;
+    }
+
+    const workflowJson = JSON.stringify(workflow, null, 2);
+    const timestamp = Date.now();
+    const fileName = `${(workflow.name || 'generated_workflow').replace(/[^a-zA-Z0-9]/g, '_')}_${timestamp}.json`;
+    
+    console.log('📝 Creating workflow JSON file:', fileName);
+    
+    // Only trigger animation for new workflows, not on repeated loads
+    if (!generatedWorkflow || generatedWorkflow.name !== workflow.name) {
+      setAnimationJsonContent(workflowJson);
+      setShowJsonAnimation(true);
+    }
+
+    setGeneratedWorkflow(workflow);
+    setGeneratedCode({
+      ...code,
+      workflowJson: workflowJson
+    });
+    setWorkflowName(workflow.name || 'AI Generated Workflow');
+    
+    const newWorkflowId = workflow.deployment?.workflowId || `workflow_${timestamp}`;
+    setWorkflowId(newWorkflowId);
+    
+    if (workflow.deployment?.workflowId) {
+      setN8nWorkflowId(workflow.deployment.workflowId);
+    }
+    
+    setLiveFiles(prev => {
+      const updated = { ...prev, [fileName]: workflowJson };
+      console.log('✅ Workflow JSON added to live files:', fileName);
+      return updated;
+    });
+    
+    // Save with enhanced chat history
+    await workflowConfig.saveConfiguration({
+      name: workflow.name,
+      description: workflow.description || '',
+      ai_generated: true,
+      nodes_count: workflow.nodes?.length || 0,
+      nodes: workflow.nodes,
+      connections: workflow.connections || {}
+    }, undefined, workflowConfig.chatHistory);
+    
+    if (workflow.nodes) {
+      await workflowConfig.saveNodes(workflow.nodes);
+    }
+    
+    try {
+      console.log('🚀 Parsing workflow for canvas display...');
+      const { nodes: parsedNodes, edges: parsedEdges } = parseN8nWorkflowToReactFlow(workflow);
+      
+      console.log('✅ Canvas parsing completed:', {
+        parsedNodesCount: parsedNodes.length,
+        parsedEdgesCount: parsedEdges.length
+      });
+      
+      if (parsedNodes.length > 0) {
+        setNodes(parsedNodes);
+        setEdges(parsedEdges);
+        
+        setTimeout(() => {
+          const reactFlowInstance = document.querySelector('.react-flow');
+          if (reactFlowInstance) {
+            const event = new Event('resize');
+            window.dispatchEvent(event);
+          }
+        }, 500);
+      }
+      
+      setShowCodePreview(true);
+      setShowN8nEngine(false);
+      
+      await workflowMonitoring.logRealTimeEvent(
+        'success',
+        `Workflow "${workflow.name}" generated with ${parsedNodes.length} nodes`,
+        undefined,
+        undefined,
+        { 
+          generation_timestamp: new Date().toISOString(),
+          node_count: parsedNodes.length,
+          edge_count: parsedEdges.length,
+          json_file: fileName
+        }
+      );
+      
+    } catch (error) {
+      console.error('❌ Error parsing workflow:', error);
+      await workflowMonitoring.logRealTimeEvent(
+        'error',
+        `Failed to parse workflow: ${error.message}`,
+        undefined,
+        undefined,
+        { error: error.message, workflow: workflow }
+      );
+    }
+  }, [generatedWorkflow, workflowConfig, workflowMonitoring, setNodes, setEdges, setGeneratedWorkflow, setGeneratedCode, setWorkflowName, setWorkflowId, setN8nWorkflowId, setLiveFiles, setShowCodePreview, setShowN8nEngine, setAnimationJsonContent, setShowJsonAnimation]);
+
   // Load workflow if ID is provided in URL - wait for auth to complete
   useEffect(() => {
     const workflowIdFromUrl = searchParams.get('id');
@@ -124,7 +234,7 @@ const WorkflowPlayground = memo(() => {
       handleWorkflowGenerated(stateData, {});
       setIsLoadingWorkflow(false);
     }
-  }, [searchParams, location.state, workflowId, loadWorkflow, authLoading, user]);
+  }, [searchParams, location.state, workflowId, loadWorkflow, authLoading, user, handleWorkflowGenerated]);
 
   // Define callbacks first
   const onConnect = useCallback(
@@ -381,111 +491,6 @@ const WorkflowPlayground = memo(() => {
     }
   };
 
-  const handleWorkflowGenerated = async (workflow: any, code: any) => {
-    console.log('🎯 Enhanced workflow generation:', {
-      workflowName: workflow?.name,
-      nodeCount: workflow?.nodes?.length || 0,
-      hasConnections: !!workflow?.connections,
-      codeKeys: code ? Object.keys(code) : []
-    });
-
-    if (!workflow || !workflow.nodes || !Array.isArray(workflow.nodes)) {
-      console.error('❌ Invalid workflow provided');
-      return;
-    }
-
-    const workflowJson = JSON.stringify(workflow, null, 2);
-    const timestamp = Date.now();
-    const fileName = `${(workflow.name || 'generated_workflow').replace(/[^a-zA-Z0-9]/g, '_')}_${timestamp}.json`;
-    
-    console.log('📝 Creating workflow JSON file:', fileName);
-    
-    setAnimationJsonContent(workflowJson);
-    setShowJsonAnimation(true);
-
-    setGeneratedWorkflow(workflow);
-    setGeneratedCode({
-      ...code,
-      workflowJson: workflowJson
-    });
-    setWorkflowName(workflow.name || 'AI Generated Workflow');
-    
-    const newWorkflowId = workflow.deployment?.workflowId || `workflow_${timestamp}`;
-    setWorkflowId(newWorkflowId);
-    
-    if (workflow.deployment?.workflowId) {
-      setN8nWorkflowId(workflow.deployment.workflowId);
-    }
-    
-    setLiveFiles(prev => {
-      const updated = { ...prev, [fileName]: workflowJson };
-      console.log('✅ Workflow JSON added to live files:', fileName);
-      return updated;
-    });
-    
-    // Save with enhanced chat history
-    await workflowConfig.saveConfiguration({
-      name: workflow.name,
-      description: workflow.description || '',
-      ai_generated: true,
-      nodes_count: workflow.nodes?.length || 0,
-      nodes: workflow.nodes,
-      connections: workflow.connections || {}
-    }, undefined, workflowConfig.chatHistory);
-    
-    if (workflow.nodes) {
-      await workflowConfig.saveNodes(workflow.nodes);
-    }
-    
-    try {
-      console.log('🚀 Parsing workflow for canvas display...');
-      const { nodes: parsedNodes, edges: parsedEdges } = parseN8nWorkflowToReactFlow(workflow);
-      
-      console.log('✅ Canvas parsing completed:', {
-        parsedNodesCount: parsedNodes.length,
-        parsedEdgesCount: parsedEdges.length
-      });
-      
-      if (parsedNodes.length > 0) {
-        setNodes(parsedNodes);
-        setEdges(parsedEdges);
-        
-        setTimeout(() => {
-          const reactFlowInstance = document.querySelector('.react-flow');
-          if (reactFlowInstance) {
-            const event = new Event('resize');
-            window.dispatchEvent(event);
-          }
-        }, 500);
-      }
-      
-      setShowCodePreview(true);
-      setShowN8nEngine(false);
-      
-      await workflowMonitoring.logRealTimeEvent(
-        'success',
-        `Workflow "${workflow.name}" generated with ${parsedNodes.length} nodes`,
-        undefined,
-        undefined,
-        { 
-          generation_timestamp: new Date().toISOString(),
-          node_count: parsedNodes.length,
-          edge_count: parsedEdges.length,
-          json_file: fileName
-        }
-      );
-      
-    } catch (error) {
-      console.error('❌ Error parsing workflow:', error);
-      await workflowMonitoring.logRealTimeEvent(
-        'error',
-        `Failed to parse workflow: ${error.message}`,
-        undefined,
-        undefined,
-        { error: error.message, workflow: workflow }
-      );
-    }
-  };
 
   const getDeployButtonText = () => {
     if (isDeploying) {

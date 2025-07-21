@@ -35,13 +35,6 @@ const CodePreview: React.FC<CodePreviewProps> = ({
 
   // Enhanced workflow JSON retrieval with proper fallback
   const getWorkflowJson = () => {
-    console.log('🚨 DEBUG: CodePreview getWorkflowJson called with:', {
-      hasGeneratedCode: !!generatedCode,
-      hasGeneratedWorkflow: !!generatedWorkflow,
-      liveFilesKeys: Object.keys(liveFiles),
-      liveFilesCount: Object.keys(liveFiles).length
-    });
-    
     // Priority 1: Check for the most recent JSON file in liveFiles
     const jsonFiles = Object.keys(liveFiles).filter(key => key.endsWith('.json'));
     if (jsonFiles.length > 0) {
