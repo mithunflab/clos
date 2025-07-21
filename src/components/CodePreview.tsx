@@ -22,6 +22,7 @@ const CodePreview: React.FC<CodePreviewProps> = ({
   const [copied, setCopied] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
+  const [processedWorkflowId, setProcessedWorkflowId] = useState<string | null>(null);
 
   // Track when files are being updated for animation
   useEffect(() => {
@@ -33,8 +34,8 @@ const CodePreview: React.FC<CodePreviewProps> = ({
     }
   }, [liveFiles]);
 
-  // Enhanced workflow JSON retrieval with proper fallback
-  const getWorkflowJson = () => {
+  // Enhanced workflow JSON retrieval with proper fallback - memoized without liveFiles dependency
+  const getWorkflowJson = useMemo(() => {
     // Priority 1: Check for the most recent JSON file in liveFiles
     const jsonFiles = Object.keys(liveFiles).filter(key => key.endsWith('.json'));
     if (jsonFiles.length > 0) {
@@ -57,22 +58,26 @@ const CodePreview: React.FC<CodePreviewProps> = ({
       return generatedCode.workflowJson;
     }
     
-    // Priority 3: Generate JSON from generatedWorkflow
-    if (generatedWorkflow) {
-      console.log('✅ Generating JSON from generatedWorkflow');
+    // Priority 3: Generate JSON from generatedWorkflow (only once per workflow)
+    if (generatedWorkflow && workflowId !== processedWorkflowId) {
+      console.log('✅ Generating JSON from generatedWorkflow for:', workflowId);
+      setProcessedWorkflowId(workflowId);
+      return JSON.stringify(generatedWorkflow, null, 2);
+    }
+    
+    // Priority 4: If we already processed this workflow, don't regenerate
+    if (generatedWorkflow && workflowId === processedWorkflowId) {
       return JSON.stringify(generatedWorkflow, null, 2);
     }
     
     console.log('❌ No workflow JSON found anywhere');
     return null;
-  };
-
-  const workflowJson = useMemo(() => getWorkflowJson(), [liveFiles, generatedCode, generatedWorkflow]);
+  }, [generatedCode, generatedWorkflow, workflowId, processedWorkflowId, Object.keys(liveFiles).join(',')]);
 
   const copyToClipboard = async () => {
-    if (workflowJson) {
+    if (getWorkflowJson) {
       try {
-        await navigator.clipboard.writeText(workflowJson);
+        await navigator.clipboard.writeText(getWorkflowJson);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       } catch (err) {
@@ -82,8 +87,8 @@ const CodePreview: React.FC<CodePreviewProps> = ({
   };
 
   const downloadJson = () => {
-    if (workflowJson) {
-      const blob = new Blob([workflowJson], { type: 'application/json' });
+    if (getWorkflowJson) {
+      const blob = new Blob([getWorkflowJson], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -126,7 +131,7 @@ const CodePreview: React.FC<CodePreviewProps> = ({
 
         {/* Actions */}
         <div className="flex items-center space-x-2">
-          {workflowJson && (
+          {getWorkflowJson && (
             <>
               <Button
                 onClick={copyToClipboard}
@@ -193,7 +198,7 @@ const CodePreview: React.FC<CodePreviewProps> = ({
       {/* Content */}
       <div className="flex-1 overflow-hidden">
         <AnimatePresence mode="wait">
-          {workflowJson ? (
+          {getWorkflowJson ? (
             <motion.div
               key={`json-content-${lastUpdateTime?.getTime() || 'initial'}`}
               initial={{ opacity: 0, y: 10 }}
@@ -203,7 +208,7 @@ const CodePreview: React.FC<CodePreviewProps> = ({
               className="h-full"
             >
               <JsonWorkflowViewer 
-                workflowJson={workflowJson}
+                workflowJson={getWorkflowJson}
                 workflowName={generatedWorkflow?.name || 'Live Workflow'}
               />
             </motion.div>

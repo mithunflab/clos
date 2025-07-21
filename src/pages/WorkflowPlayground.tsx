@@ -87,7 +87,7 @@ const WorkflowPlayground = memo(() => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  // Define handleWorkflowGenerated first before useEffect
+  // Define handleWorkflowGenerated with proper memoization to prevent loops
   const handleWorkflowGenerated = useCallback(async (workflow: any, code: any) => {
     console.log('🎯 Enhanced workflow generation:', {
       workflowName: workflow?.name,
@@ -101,13 +101,21 @@ const WorkflowPlayground = memo(() => {
       return;
     }
 
+    // Check if this is the same workflow to prevent unnecessary updates
+    if (generatedWorkflow && 
+        generatedWorkflow.name === workflow.name && 
+        JSON.stringify(generatedWorkflow.nodes) === JSON.stringify(workflow.nodes)) {
+      console.log('⚠️ Workflow unchanged, skipping update');
+      return;
+    }
+
     const workflowJson = JSON.stringify(workflow, null, 2);
     const timestamp = Date.now();
     const fileName = `${(workflow.name || 'generated_workflow').replace(/[^a-zA-Z0-9]/g, '_')}_${timestamp}.json`;
     
     console.log('📝 Creating workflow JSON file:', fileName);
     
-    // Only trigger animation for new workflows, not on repeated loads
+    // Only trigger animation for genuinely new workflows
     if (!generatedWorkflow || generatedWorkflow.name !== workflow.name) {
       setAnimationJsonContent(workflowJson);
       setShowJsonAnimation(true);
@@ -127,7 +135,12 @@ const WorkflowPlayground = memo(() => {
       setN8nWorkflowId(workflow.deployment.workflowId);
     }
     
+    // Only add to liveFiles if it's a new file
     setLiveFiles(prev => {
+      if (prev[fileName]) {
+        console.log('📄 File already exists, skipping:', fileName);
+        return prev;
+      }
       const updated = { ...prev, [fileName]: workflowJson };
       console.log('✅ Workflow JSON added to live files:', fileName);
       return updated;
@@ -195,7 +208,7 @@ const WorkflowPlayground = memo(() => {
         { error: error.message, workflow: workflow }
       );
     }
-  }, [generatedWorkflow, workflowConfig, workflowMonitoring, setNodes, setEdges, setGeneratedWorkflow, setGeneratedCode, setWorkflowName, setWorkflowId, setN8nWorkflowId, setLiveFiles, setShowCodePreview, setShowN8nEngine, setAnimationJsonContent, setShowJsonAnimation]);
+  }, [generatedWorkflow, workflowConfig, workflowMonitoring, setNodes, setEdges]);
 
   // Load workflow if ID is provided in URL - wait for auth to complete
   useEffect(() => {
