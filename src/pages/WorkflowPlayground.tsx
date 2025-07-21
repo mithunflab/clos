@@ -89,7 +89,7 @@ const WorkflowPlayground = memo(() => {
     const workflowIdFromUrl = searchParams.get('id');
     const stateData = location.state?.workflowData;
     
-    if (workflowIdFromUrl && !stateData) {
+    if (workflowIdFromUrl && !stateData && workflowIdFromUrl !== workflowId) {
       console.log('🔄 Loading workflow from URL parameter:', workflowIdFromUrl);
       setWorkflowId(workflowIdFromUrl);
       
@@ -107,11 +107,11 @@ const WorkflowPlayground = memo(() => {
       };
       
       loadWorkflowData();
-    } else if (stateData) {
+    } else if (stateData && !workflowId) {
       console.log('✅ Using workflow data from navigation state:', stateData);
       handleWorkflowGenerated(stateData, {});
     }
-  }, [searchParams, location.state, loadWorkflow]);
+  }, [searchParams.get('id'), location.state?.workflowData, workflowId]);
 
   // Define callbacks first
   const onConnect = useCallback(
