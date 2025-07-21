@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileCode, Eye, Code, Download, Copy, CheckCircle, Loader2, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -74,7 +74,7 @@ const CodePreview: React.FC<CodePreviewProps> = ({
     return null;
   };
 
-  const workflowJson = getWorkflowJson();
+  const workflowJson = useMemo(() => getWorkflowJson(), [liveFiles, generatedCode, generatedWorkflow]);
 
   const copyToClipboard = async () => {
     if (workflowJson) {
