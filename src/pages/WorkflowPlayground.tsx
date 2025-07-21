@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useMemo, memo } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -250,6 +251,12 @@ const WorkflowPlayground = memo(() => {
               setN8nWorkflowId(result.n8nWorkflowId);
             }
             
+            // Update chat history from loaded data
+            if (result.chat && Array.isArray(result.chat)) {
+              console.log('📝 Restoring chat history:', result.chat.length, 'messages');
+              workflowConfig.updateChatHistory(result.chat);
+            }
+            
             // Parse and display on canvas
             const { nodes: parsedNodes, edges: parsedEdges } = parseN8nWorkflowToReactFlow(result.workflowData);
             if (parsedNodes.length > 0) {
@@ -279,7 +286,7 @@ const WorkflowPlayground = memo(() => {
       handleWorkflowGenerated(stateData, {});
       setIsLoadingWorkflow(false);
     }
-  }, [searchParams, location.state, workflowId, loadWorkflow, authLoading, user, handleWorkflowGenerated, setNodes, setEdges]);
+  }, [searchParams, location.state, workflowId, loadWorkflow, authLoading, user, handleWorkflowGenerated, setNodes, setEdges, workflowConfig]);
 
   // Define callbacks first
   const onConnect = useCallback(
@@ -749,6 +756,7 @@ const WorkflowPlayground = memo(() => {
         deploymentMessage={deploymentMessage}
         onDeploymentMessageShown={() => setDeploymentMessage(null)}
         currentWorkflow={generatedWorkflow}
+        initialChatHistory={workflowConfig.chatHistory}
       />
 
       <div className="flex-1 flex flex-col min-h-0">
