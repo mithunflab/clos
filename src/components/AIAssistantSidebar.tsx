@@ -204,7 +204,7 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
     try {
       console.log('🚀 Sending message to AI assistant:', inputMessage);
 
-      const response = await fetch(`https://kqemyueobhimorhdxodh.supabase.co/functions/v1/ai-workflow-assistant`, {
+      const response = await fetch(`https://drpyxrajehatarshvjtq.supabase.co/functions/v1/ai-workflow-assistant`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
