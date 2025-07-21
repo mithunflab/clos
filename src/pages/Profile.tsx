@@ -69,7 +69,7 @@ const Profile = () => {
   }
 
   return (
-    <div className="min-h-screen bg-transparent text-white overflow-auto">
+    <div className="min-h-screen w-full bg-background overflow-auto">
       <div className="container mx-auto p-6 max-w-4xl space-y-6">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center space-x-2 mb-4">

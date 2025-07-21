@@ -34,7 +34,7 @@ interface WorkflowItem {
 const Workflows = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { getUserWorkflows, deleteWorkflow, loadWorkflow } = useGitHubIntegration();
+  const { deleteWorkflow } = useGitHubIntegration();
   const [workflows, setWorkflows] = useState<WorkflowItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -48,24 +48,34 @@ const Workflows = () => {
     try {
       setLoading(true);
       
-      // Load workflows from GitHub integration - returns array directly
-      const workflowsData = await getUserWorkflows();
+      // Load workflows directly from Supabase
+      const { data: workflowsData, error } = await supabase
+        .from('user_workflows')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('❌ Error loading workflows from Supabase:', error);
+        setWorkflows([]);
+        return;
+      }
       
       if (workflowsData && workflowsData.length > 0) {
         const formattedWorkflows = workflowsData.map((workflow: any) => ({
-          id: workflow.workflow_id || workflow.id,
+          id: workflow.workflow_id,
           name: workflow.workflow_name || 'Untitled Workflow',
-          description: workflow.description || 'No description',
-          status: workflow.status || 'draft',
+          description: 'Automation workflow',
+          status: (workflow.deployment_status === 'active' ? 'active' : 'draft') as 'active' | 'inactive' | 'draft',
           created_at: workflow.created_at,
-          updated_at: workflow.last_updated || workflow.updated_at,
-          workflow_data: workflow.workflow_data,
+          updated_at: workflow.last_updated,
+          workflow_data: null, // Don't load workflow data until editing
           n8n_workflow_id: workflow.n8n_workflow_id,
-          deployment_url: workflow.deployment_url || (workflow.n8n_workflow_id ? `https://n8n.casel.cloud/workflow/${workflow.n8n_workflow_id}` : null)
+          deployment_url: workflow.deployment_url
         }));
         
         setWorkflows(formattedWorkflows);
-        console.log('✅ Loaded workflows:', formattedWorkflows);
+        console.log('✅ Loaded workflows from Supabase:', formattedWorkflows);
       } else {
         console.log('ℹ️ No workflows found');
         setWorkflows([]);
