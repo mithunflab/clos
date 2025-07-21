@@ -28,34 +28,73 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get N8N configuration based on user preference
+    // Get N8N configuration - fetch from database if not provided in request
     let N8N_URL: string;
     let N8N_API_KEY: string;
+    let finalConfig = n8nConfig;
 
-    if (n8nConfig) {
-      console.log('🔧 Using N8N config from request:', n8nConfig);
+    // If no config provided in request, try to fetch from database
+    if (!finalConfig) {
+      console.log('🔍 No config in request, fetching from database...');
       
-      if (n8nConfig.use_casel_cloud === true) {
+      try {
+        const authHeader = req.headers.get('authorization');
+        if (authHeader) {
+          const token = authHeader.replace('Bearer ', '');
+          const { data: { user } } = await supabase.auth.getUser(token);
+          
+          if (user) {
+            const { data: userConfig } = await supabase
+              .from('user_n8n_config')
+              .select('*')
+              .eq('user_id', user.id)
+              .single();
+            
+            if (userConfig) {
+              finalConfig = userConfig;
+              console.log('✅ Retrieved user config from database:', finalConfig);
+            }
+          }
+        }
+      } catch (error) {
+        console.log('⚠️ Could not fetch user config from database:', error.message);
+      }
+    }
+
+    // Determine N8N configuration
+    if (finalConfig) {
+      console.log('🔧 Using N8N config:', {
+        use_casel_cloud: finalConfig.use_casel_cloud,
+        has_custom_url: !!finalConfig.n8n_url,
+        has_custom_key: !!finalConfig.n8n_api_key
+      });
+      
+      if (finalConfig.use_casel_cloud === true || !finalConfig.n8n_url || !finalConfig.n8n_api_key) {
         // Use Casel Cloud with environment credentials
-        N8N_URL = 'https://n8n.casel.cloud';
+        N8N_URL = Deno.env.get('N8N_URL') || 'https://n8n.casel.cloud';
         N8N_API_KEY = Deno.env.get('N8N_API_KEY')!;
-        console.log('🌐 Using Casel Cloud N8N instance');
-      } else if (n8nConfig.use_casel_cloud === false && n8nConfig.n8n_url && n8nConfig.n8n_api_key) {
-        // Use user's own N8N instance
-        N8N_URL = n8nConfig.n8n_url.replace(/\/$/, ''); // Remove trailing slash
-        N8N_API_KEY = n8nConfig.n8n_api_key;
-        console.log('🏠 Using user\'s own N8N instance:', N8N_URL);
+        console.log('🌐 Using Casel Cloud N8N instance:', N8N_URL);
+        
+        if (!N8N_API_KEY) {
+          console.error('❌ N8N_API_KEY environment variable not set for Casel Cloud');
+          throw new Error('N8N API key not configured for Casel Cloud');
+        }
       } else {
-        // Fallback to Casel Cloud if user config is incomplete
-        N8N_URL = 'https://n8n.casel.cloud';
-        N8N_API_KEY = Deno.env.get('N8N_API_KEY')!;
-        console.log('🔄 Fallback to Casel Cloud due to incomplete user config');
+        // Use user's own N8N instance
+        N8N_URL = finalConfig.n8n_url.replace(/\/$/, ''); // Remove trailing slash
+        N8N_API_KEY = finalConfig.n8n_api_key;
+        console.log('🏠 Using user\'s own N8N instance:', N8N_URL);
       }
     } else {
-      // Default to Casel Cloud if no config provided
-      N8N_URL = 'https://n8n.casel.cloud';
+      // Default to Casel Cloud if no config available
+      N8N_URL = Deno.env.get('N8N_URL') || 'https://n8n.casel.cloud';
       N8N_API_KEY = Deno.env.get('N8N_API_KEY')!;
-      console.log('📋 Using default Casel Cloud N8N instance');
+      console.log('📋 Using default Casel Cloud N8N instance:', N8N_URL);
+      
+      if (!N8N_API_KEY) {
+        console.error('❌ N8N_API_KEY environment variable not set');
+        throw new Error('N8N API key not configured');
+      }
     }
 
     console.log('🔗 N8N Configuration:', {

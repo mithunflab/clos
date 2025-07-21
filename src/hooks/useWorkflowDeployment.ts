@@ -107,8 +107,8 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
       
       console.log('🔍 Existing deployment check:', existingDeployment);
 
-      // Ensure we always pass the current config to the edge function
-      const currentConfig = config || { use_casel_cloud: true };
+      // Always pass the current config to the edge function
+      const currentConfig = config;
       
       console.log('🔧 Using N8N config for deployment:', currentConfig);
 
@@ -207,7 +207,7 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
       console.log('🔌 Activating workflow in N8N:', deploymentStatus.deployment_id);
 
       // Pass current config to activation as well
-      const currentConfig = config || { use_casel_cloud: true };
+      const currentConfig = config;
 
       const { data, error } = await supabase.functions.invoke('generate-n8n-workflow', {
         body: {
