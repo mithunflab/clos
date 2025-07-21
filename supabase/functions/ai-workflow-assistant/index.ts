@@ -501,6 +501,24 @@ async function tryParseWorkflow(jsonStr: string): Promise<any | null> {
     
     console.log('Attempting to parse workflow JSON, length:', trimmed.length);
     
+    // Check if JSON appears complete (basic validation)
+    if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) {
+      console.log('JSON appears incomplete, skipping parse attempt');
+      return null;
+    }
+    
+    // Count braces to check if JSON is balanced
+    let braceCount = 0;
+    for (const char of trimmed) {
+      if (char === '{') braceCount++;
+      if (char === '}') braceCount--;
+    }
+    
+    if (braceCount !== 0) {
+      console.log('JSON braces not balanced, skipping parse attempt');
+      return null;
+    }
+    
     const parsed = JSON.parse(trimmed);
     
     // Validate it looks like an n8n workflow
