@@ -82,12 +82,13 @@ serve(async (req) => {
 
       if (body && method !== 'GET') {
         options.body = JSON.stringify(body);
+        console.log(`📤 Request body:`, JSON.stringify(body, null, 2));
       }
 
       const response = await fetch(url, options);
       const responseText = await response.text();
       
-      console.log(`📥 N8N API Response: ${response.status} ${responseText.substring(0, 200)}${responseText.length > 200 ? '...' : ''}`);
+      console.log(`📥 N8N API Response: ${response.status} ${responseText.substring(0, 500)}${responseText.length > 500 ? '...' : ''}`);
 
       if (!response.ok) {
         throw new Error(`N8N API Error ${response.status}: ${responseText}`);
@@ -105,7 +106,7 @@ serve(async (req) => {
         console.log('🚀 Deploying workflow to n8n:', workflow?.name);
         
         try {
-          // Clean workflow for deployment
+          // Clean workflow for deployment with proper settings
           const cleanWorkflow = {
             name: workflow.name,
             nodes: (workflow.nodes || []).map((node: any) => ({
@@ -124,22 +125,29 @@ serve(async (req) => {
               saveDataErrorExecution: "all",
               saveDataSuccessExecution: "all",
               executionTimeout: 3600,
-              timezone: "UTC"
-            }
+              timezone: "UTC",
+              executionOrder: "v1"
+            },
+            staticData: {},
+            active: false
           };
 
-          console.log('📤 Sending workflow to n8n:', cleanWorkflow.name);
+          console.log('📤 Sending cleaned workflow to n8n API');
 
           const result = await n8nApiCall('workflows', 'POST', cleanWorkflow);
-          console.log('✅ Successfully deployed workflow to n8n:', result.id);
+          console.log('✅ Successfully deployed workflow to n8n:', result);
           
-          // Construct proper URL based on N8N_URL
-          const workflowUrl = `${N8N_URL}/workflow/${result.id}`;
+          // Use the actual workflow ID returned from N8N
+          const actualWorkflowId = result.id;
+          const workflowUrl = `${N8N_URL}/workflow/${actualWorkflowId}`;
+          
+          console.log('🔗 Real workflow URL:', workflowUrl);
+          console.log('🆔 Real workflow ID:', actualWorkflowId);
           
           return new Response(JSON.stringify({
             success: true,
-            workflowId: result.id,
-            message: `Workflow "${workflow.name}" deployed successfully!`,
+            workflowId: actualWorkflowId,
+            message: `Workflow "${workflow.name}" deployed successfully to N8N!`,
             workflowUrl: workflowUrl
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -150,7 +158,7 @@ serve(async (req) => {
           return new Response(JSON.stringify({
             success: false,
             error: error.message,
-            message: 'Failed to deploy workflow to n8n'
+            message: 'Failed to deploy workflow to N8N'
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
@@ -165,7 +173,7 @@ serve(async (req) => {
             throw new Error('Workflow ID is required for update');
           }
 
-          // Clean workflow for update
+          // Clean workflow for update with proper settings
           const cleanWorkflow = {
             name: workflow.name,
             nodes: (workflow.nodes || []).map((node: any) => ({
@@ -184,22 +192,29 @@ serve(async (req) => {
               saveDataErrorExecution: "all",
               saveDataSuccessExecution: "all",
               executionTimeout: 3600,
-              timezone: "UTC"
-            }
+              timezone: "UTC",
+              executionOrder: "v1"
+            },
+            staticData: {},
+            active: false
           };
 
-          console.log('📤 Updating workflow in n8n:', workflowId);
+          console.log('📤 Updating workflow in n8n API');
 
           const result = await n8nApiCall(`workflows/${workflowId}`, 'PUT', cleanWorkflow);
-          console.log('✅ Successfully updated workflow in n8n:', result.id);
+          console.log('✅ Successfully updated workflow in n8n:', result);
           
-          // Construct proper URL based on N8N_URL
-          const workflowUrl = `${N8N_URL}/workflow/${result.id}`;
+          // Use the actual workflow ID returned from N8N
+          const actualWorkflowId = result.id;
+          const workflowUrl = `${N8N_URL}/workflow/${actualWorkflowId}`;
+          
+          console.log('🔗 Updated workflow URL:', workflowUrl);
+          console.log('🆔 Updated workflow ID:', actualWorkflowId);
           
           return new Response(JSON.stringify({
             success: true,
-            workflowId: result.id,
-            message: `Workflow "${workflow.name}" updated successfully!`,
+            workflowId: actualWorkflowId,
+            message: `Workflow "${workflow.name}" updated successfully in N8N!`,
             workflowUrl: workflowUrl
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -210,7 +225,7 @@ serve(async (req) => {
           return new Response(JSON.stringify({
             success: false,
             error: error.message,
-            message: 'Failed to update workflow in n8n'
+            message: 'Failed to update workflow in N8N'
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });

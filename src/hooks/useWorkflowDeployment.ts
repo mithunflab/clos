@@ -64,8 +64,16 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
       nodes: workflow.nodes || [],
       connections: workflow.connections || {},
       settings: {
-        executionOrder: 'v1'
-      }
+        saveExecutionProgress: true,
+        saveManualExecutions: true,
+        saveDataErrorExecution: "all",
+        saveDataSuccessExecution: "all",
+        executionTimeout: 3600,
+        timezone: "UTC",
+        executionOrder: "v1"
+      },
+      staticData: {},
+      active: false
     };
 
     if (cleanWorkflow.nodes) {
@@ -92,7 +100,7 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
 
       await updateLocalDeploymentStatus('deploying');
 
-      console.log('🚀 Deploying workflow to N8N with config:', config);
+      console.log('🚀 Deploying workflow to N8N with real config:', config);
 
       const cleanedWorkflow = cleanWorkflowForN8n(workflow);
 
@@ -122,36 +130,38 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
         throw new Error(data?.error || 'Failed to deploy workflow to N8N');
       }
 
-      const deploymentId = data.workflowId || data.id;
-      let deploymentUrl = data.workflowUrl || data.url;
+      // Use the real workflow ID returned from N8N
+      const realWorkflowId = data.workflowId;
+      let deploymentUrl = data.workflowUrl;
 
       // Construct real deployment URL based on actual config
-      if (config) {
+      if (config && realWorkflowId) {
         if (config.use_casel_cloud) {
           // Use Casel Cloud URL
-          deploymentUrl = `https://n8n.casel.cloud/workflow/${deploymentId}`;
+          deploymentUrl = `https://n8n.casel.cloud/workflow/${realWorkflowId}`;
         } else if (config.n8n_url) {
           // Use custom N8N URL
           const baseUrl = config.n8n_url.replace(/\/$/, ''); // Remove trailing slash
-          deploymentUrl = `${baseUrl}/workflow/${deploymentId}`;
+          deploymentUrl = `${baseUrl}/workflow/${realWorkflowId}`;
         }
       }
 
-      console.log('🔗 Final deployment URL:', deploymentUrl);
+      console.log('🔗 Real N8N deployment URL:', deploymentUrl);
+      console.log('🆔 Real N8N workflow ID:', realWorkflowId);
       
-      // Create or update deployment in database
-      await createOrUpdateDeployment(workflowId, deploymentId, deploymentUrl);
+      // Create or update deployment in database with real IDs
+      await createOrUpdateDeployment(workflowId, realWorkflowId, deploymentUrl);
       
-      await updateLocalDeploymentStatus('deployed', deploymentId);
+      await updateLocalDeploymentStatus('deployed', realWorkflowId);
       console.log('✅ Workflow deployed successfully to N8N:', {
-        deploymentId,
+        deploymentId: realWorkflowId,
         deploymentUrl,
         isUpdate: !!existingDeployment
       });
       
       return {
         success: true,
-        workflowId: deploymentId,
+        workflowId: realWorkflowId,
         workflowUrl: deploymentUrl,
         message: existingDeployment ? 'Workflow updated successfully in N8N' : 'Workflow deployed successfully to N8N'
       };
