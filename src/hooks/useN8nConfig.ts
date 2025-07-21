@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -28,7 +27,7 @@ export const useN8nConfig = () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('user_n8n_config')
+        .from('n8n_configs')
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
@@ -40,7 +39,7 @@ export const useN8nConfig = () => {
       } else {
         // Create default config
         const { data: newConfig, error: createError } = await supabase
-          .from('user_n8n_config')
+          .from('n8n_configs')
           .insert({
             user_id: user.id,
             use_casel_cloud: true
@@ -64,7 +63,7 @@ export const useN8nConfig = () => {
 
     try {
       const { error } = await supabase
-        .from('user_n8n_config')
+        .from('n8n_configs')
         .update(updates)
         .eq('user_id', user.id);
 

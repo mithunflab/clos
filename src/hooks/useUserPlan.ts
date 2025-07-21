@@ -1,19 +1,28 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
 interface UserPlan {
   id: string;
+  user_id: string;
   plan_type: 'free' | 'pro' | 'custom';
-  credits: number;
-  max_credits: number;
-  custom_features: any;
-  expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface UserCredits {
+  id: string;
+  user_id: string;
+  current_credits: number;
+  total_credits_used: number;
+  last_credit_reset: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export const useUserPlan = () => {
   const [plan, setPlan] = useState<UserPlan | null>(null);
+  const [credits, setCredits] = useState<UserCredits | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
@@ -23,14 +32,27 @@ export const useUserPlan = () => {
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      // Fetch user plan
+      const { data: planData, error: planError } = await supabase
         .from('user_plans')
         .select('*')
         .eq('user_id', user.id)
         .single();
 
-      if (error) throw error;
-      setPlan(data);
+      if (planError) throw planError;
+      setPlan(planData);
+
+      // Fetch user credits
+      const { data: creditsData, error: creditsError } = await supabase
+        .from('ai_credits')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (creditsError) throw creditsError;
+      setCredits(creditsData);
+
     } catch (err) {
       console.error('Error fetching user plan:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -39,28 +61,54 @@ export const useUserPlan = () => {
     }
   };
 
-  const deductCredit = async (workflowId?: string, description?: string) => {
+  const deductCredit = async (amount: number = 1) => {
     if (!user) return false;
 
     try {
-      const { data, error } = await supabase.rpc('deduct_credit', {
-        p_user_id: user.id,
-        p_workflow_id: workflowId,
-        p_description: description || 'AI Chat'
-      });
+      // Update credits directly in ai_credits table
+      const { data: currentCredits, error: fetchError } = await supabase
+        .from('ai_credits')
+        .select('current_credits, total_credits_used')
+        .eq('user_id', user.id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const newCredits = Math.max(0, currentCredits.current_credits - amount);
+      const newTotalUsed = currentCredits.total_credits_used + amount;
+      
+      const { error } = await supabase
+        .from('ai_credits')
+        .update({ 
+          current_credits: newCredits,
+          total_credits_used: newTotalUsed
+        })
+        .eq('user_id', user.id);
 
       if (error) throw error;
       
-      if (data) {
-        // Refresh user plan after deducting credit
-        await fetchUserPlan();
-        return true;
-      }
-      return false;
+      // Refresh user plan after deducting credit
+      await fetchUserPlan();
+      return true;
     } catch (err) {
       console.error('Error deducting credit:', err);
       setError(err instanceof Error ? err.message : 'Failed to deduct credit');
       return false;
+    }
+  };
+
+  const getWorkflowLimit = () => {
+    if (!plan) return 5; // Default to free plan
+    
+    switch (plan.plan_type) {
+      case 'free':
+        return 5;
+      case 'pro':
+        return 20;
+      case 'custom':
+        return -1; // Unlimited
+      default:
+        return 5;
     }
   };
 
@@ -70,9 +118,11 @@ export const useUserPlan = () => {
 
   return {
     plan,
+    credits,
     loading,
     error,
     deductCredit,
+    getWorkflowLimit,
     refetch: fetchUserPlan
   };
 };

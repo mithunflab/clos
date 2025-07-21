@@ -154,10 +154,10 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
       
       // Update database with deployment information
       const { error: updateError } = await supabase
-        .from('user_workflows')
+        .from('workflow_data')
         .update({
           n8n_workflow_id: realWorkflowId,
-          deployment_url: deploymentUrl,
+          n8n_url: deploymentUrl,
           deployment_status: 'deployed'
         })
         .eq('workflow_id', workflowId);

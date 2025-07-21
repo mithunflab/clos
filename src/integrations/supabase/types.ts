@@ -14,16 +14,224 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      ai_credits: {
+        Row: {
+          created_at: string
+          current_credits: number
+          id: string
+          last_credit_reset: string | null
+          total_credits_used: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_credits?: number
+          id?: string
+          last_credit_reset?: string | null
+          total_credits_used?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_credits?: number
+          id?: string
+          last_credit_reset?: string | null
+          total_credits_used?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      n8n_configs: {
+        Row: {
+          created_at: string
+          id: string
+          n8n_api_key: string | null
+          n8n_url: string | null
+          updated_at: string
+          use_casel_cloud: boolean
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          n8n_api_key?: string | null
+          n8n_url?: string | null
+          updated_at?: string
+          use_casel_cloud?: boolean
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          n8n_api_key?: string | null
+          n8n_url?: string | null
+          updated_at?: string
+          use_casel_cloud?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
+      n8n_deployments: {
+        Row: {
+          created_at: string
+          deployment_status: string
+          deployment_url: string | null
+          error_message: string | null
+          id: string
+          n8n_workflow_id: string | null
+          updated_at: string
+          user_id: string
+          workflow_id: string
+        }
+        Insert: {
+          created_at?: string
+          deployment_status?: string
+          deployment_url?: string | null
+          error_message?: string | null
+          id?: string
+          n8n_workflow_id?: string | null
+          updated_at?: string
+          user_id: string
+          workflow_id: string
+        }
+        Update: {
+          created_at?: string
+          deployment_status?: string
+          deployment_url?: string | null
+          error_message?: string | null
+          id?: string
+          n8n_workflow_id?: string | null
+          updated_at?: string
+          user_id?: string
+          workflow_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_plans: {
+        Row: {
+          created_at: string
+          id: string
+          plan_type: Database["public"]["Enums"]["plan_type"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          plan_type?: Database["public"]["Enums"]["plan_type"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          plan_type?: Database["public"]["Enums"]["plan_type"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      workflow_data: {
+        Row: {
+          chat_storage_path: string | null
+          created_at: string
+          deployment_status: string | null
+          description: string | null
+          id: string
+          metadata: Json | null
+          n8n_url: string | null
+          n8n_workflow_id: string | null
+          storage_bucket_id: string | null
+          updated_at: string
+          user_id: string
+          workflow_id: string
+          workflow_name: string
+          workflow_storage_path: string | null
+        }
+        Insert: {
+          chat_storage_path?: string | null
+          created_at?: string
+          deployment_status?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          n8n_url?: string | null
+          n8n_workflow_id?: string | null
+          storage_bucket_id?: string | null
+          updated_at?: string
+          user_id: string
+          workflow_id: string
+          workflow_name: string
+          workflow_storage_path?: string | null
+        }
+        Update: {
+          chat_storage_path?: string | null
+          created_at?: string
+          deployment_status?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          n8n_url?: string | null
+          n8n_workflow_id?: string | null
+          storage_bucket_id?: string | null
+          updated_at?: string
+          user_id?: string
+          workflow_id?: string
+          workflow_name?: string
+          workflow_storage_path?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_user_bucket: {
+        Args: { user_id_param: string }
+        Returns: string
+      }
+      get_workflow_limit: {
+        Args: { user_id_param: string }
+        Returns: number
+      }
+      reset_daily_credits: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
-      [_ in never]: never
+      plan_type: "free" | "pro" | "custom"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +358,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      plan_type: ["free", "pro", "custom"],
+    },
   },
 } as const

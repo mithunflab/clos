@@ -32,7 +32,7 @@ const StatCard = ({ icon, title, value, subtitle }: {
 const Dashboard = () => {
   const navigate = useNavigate();
   const { getUserWorkflows } = useWorkflowStorageV2();
-  const { plan } = useUserPlan();
+  const { plan, credits } = useUserPlan();
   const [workflowStats, setWorkflowStats] = useState({
     total: 0,
     active: 0
@@ -97,8 +97,8 @@ const Dashboard = () => {
             <StatCard
               icon={<Clock className="w-6 h-6 text-white" />}
               title="Credits Remaining"
-              value={plan?.credits?.toString() || '0'}
-              subtitle={`Out of ${plan?.max_credits || 0}`}
+              value={credits?.current_credits?.toString() || '0'}
+              subtitle={`${plan?.plan_type || 'free'} plan`}
             />
             <StatCard
               icon={<TrendingUp className="w-6 h-6 text-white" />}

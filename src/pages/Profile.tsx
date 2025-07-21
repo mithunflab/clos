@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const Profile = () => {
   const { user } = useAuth();
-  const { plan, loading: planLoading } = useUserPlan();
+  const { plan, credits, loading: planLoading } = useUserPlan();
   const { profile, loading: profileLoading, updateProfile } = useProfile();
   const { toast } = useToast();
   
@@ -170,13 +170,13 @@ const Profile = () => {
               <div>
                 <p className="text-sm text-white/70">Credits Remaining</p>
                 <p className="text-2xl font-bold text-white">
-                  {plan?.credits || 0}
+                  {credits?.current_credits || 0}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-white/70">Total Credits</p>
+                <p className="text-sm text-white/70">Total Credits Used</p>
                 <p className="text-2xl font-bold text-white/70">
-                  {plan?.max_credits || 0}
+                  {credits?.total_credits_used || 0}
                 </p>
               </div>
             </div>

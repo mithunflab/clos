@@ -37,7 +37,7 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
   onDeploymentMessageShown,
   initialChatHistory = []
 }) => {
-  const { plan, loading: planLoading, deductCredit, refetch: refetchPlan } = useUserPlan();
+  const { plan, credits, loading: planLoading, deductCredit, refetch: refetchPlan } = useUserPlan();
   
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -147,7 +147,7 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
     if (!inputMessage.trim() || isGenerating) return;
 
     // Check if user has credits before processing
-    if (!plan || plan.credits <= 0) {
+    if (!credits || credits.current_credits <= 0) {
       const errorMessage: Message = {
         id: Date.now().toString(),
         content: '❌ **Insufficient Credits** - You need credits to chat with the AI. Please upgrade your plan or wait for daily credit refresh.',
@@ -160,7 +160,7 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
 
     // Deduct credit before processing the message
     console.log('💳 Deducting credit for AI chat...');
-    const creditDeducted = await deductCredit('1', 'AI Chat');
+    const creditDeducted = await deductCredit();
     
     if (!creditDeducted) {
       console.error('❌ Failed to deduct credit');
@@ -493,7 +493,7 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
             <div className="flex items-center space-x-1 bg-white/10 rounded-lg px-2 py-1">
               <Coins className="w-4 h-4 text-yellow-400" />
               <span className="text-white text-sm font-medium">
-                {planLoading ? '...' : `${plan?.credits || 0}/${plan?.max_credits || 0}`}
+                {planLoading ? '...' : `${credits?.current_credits || 0}`}
               </span>
             </div>
             
@@ -586,12 +586,12 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
             onKeyPress={handleKeyPress}
             placeholder="Describe your automation workflow..."
             className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/20 text-sm"
-            disabled={isGenerating || isWritingFile || !plan || plan.credits <= 0}
+            disabled={isGenerating || isWritingFile || !credits || credits.current_credits <= 0}
           />
           <Button
             onClick={sendMessage}
             size="sm"
-            disabled={!inputMessage.trim() || isGenerating || isWritingFile || !plan || plan.credits <= 0}
+            disabled={!inputMessage.trim() || isGenerating || isWritingFile || !credits || credits.current_credits <= 0}
             className="bg-white/10 hover:bg-white/20 text-white border-white/10"
           >
             {isGenerating || isWritingFile ? (
@@ -602,7 +602,7 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
           </Button>
         </div>
         <div className="text-xs text-white/40 mt-2 text-center">
-          {!plan || plan.credits <= 0 ? 'No credits remaining - upgrade or wait for daily refresh' :
+          {!credits || credits.current_credits <= 0 ? 'No credits remaining - upgrade or wait for daily refresh' :
             isWritingFile ? 'Creating workflow file...' : 
             currentWorkflow ? `Editing: ${currentWorkflow.name}` : 
             'Ready to create workflows'}
