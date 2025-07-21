@@ -97,7 +97,7 @@ const Dashboard = () => {
                 <Workflow className="w-5 h-5 mr-3" />
                 View All Workflows
               </Button>
-              <Button variant="outline" className="border-white/20 text-white hover:bg-white/10 justify-start h-12" onClick={() => navigate('/playground')}>
+              <Button variant="outline" onClick={() => navigate('/playground')} className="border-white/20 justify-start h-12 text-stone-950 bg-slate-50 rounded-2xl">
                 <Plus className="w-5 h-5 mr-3" />
                 Create New Workflow
               </Button>
