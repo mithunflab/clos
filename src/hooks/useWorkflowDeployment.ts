@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useN8nDeployments } from './useN8nDeployments';
@@ -143,8 +142,8 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
         if (currentConfig.use_casel_cloud) {
           // Use Casel Cloud URL
           deploymentUrl = `https://n8n.casel.cloud/workflow/${realWorkflowId}`;
-        } else if (currentConfig.n8n_url) {
-          // Use custom N8N URL
+        } else if ('n8n_url' in currentConfig && currentConfig.n8n_url) {
+          // Use custom N8N URL - only if currentConfig has n8n_url property
           const baseUrl = currentConfig.n8n_url.replace(/\/$/, ''); // Remove trailing slash
           deploymentUrl = `${baseUrl}/workflow/${realWorkflowId}`;
         }
