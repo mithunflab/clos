@@ -149,7 +149,21 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
       console.log('🔗 Real N8N deployment URL:', deploymentUrl);
       console.log('🆔 Real N8N workflow ID:', realWorkflowId);
       
-      // Create or update deployment in database with real IDs
+      // Update database with deployment information
+      const { error: updateError } = await supabase
+        .from('user_workflows')
+        .update({
+          n8n_workflow_id: realWorkflowId,
+          deployment_url: deploymentUrl,
+          deployment_status: 'deployed'
+        })
+        .eq('workflow_id', workflowId);
+
+      if (updateError) {
+        console.error('Failed to update workflow deployment status:', updateError);
+      }
+      
+      // Create or update deployment in separate table
       await createOrUpdateDeployment(workflowId, realWorkflowId, deploymentUrl);
       
       await updateLocalDeploymentStatus('deployed', realWorkflowId);

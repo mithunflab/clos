@@ -206,33 +206,45 @@ export type Database = {
       user_workflows: {
         Row: {
           created_at: string
+          deployment_status: string | null
+          deployment_url: string | null
+          error_message: string | null
           github_repo_id: string | null
           github_repo_name: string
           github_repo_url: string
           id: string
           last_updated: string
+          n8n_workflow_id: string | null
           user_id: string
           workflow_id: string
           workflow_name: string
         }
         Insert: {
           created_at?: string
+          deployment_status?: string | null
+          deployment_url?: string | null
+          error_message?: string | null
           github_repo_id?: string | null
           github_repo_name: string
           github_repo_url: string
           id?: string
           last_updated?: string
+          n8n_workflow_id?: string | null
           user_id: string
           workflow_id: string
           workflow_name: string
         }
         Update: {
           created_at?: string
+          deployment_status?: string | null
+          deployment_url?: string | null
+          error_message?: string | null
           github_repo_id?: string | null
           github_repo_name?: string
           github_repo_url?: string
           id?: string
           last_updated?: string
+          n8n_workflow_id?: string | null
           user_id?: string
           workflow_id?: string
           workflow_name?: string
