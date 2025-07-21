@@ -125,7 +125,7 @@ const DashboardLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex relative">
+    <div className="h-screen bg-black text-white flex relative overflow-hidden">
       {/* Aurora Background - Fixed */}
       <div className="fixed inset-0 z-0">
         <div className="aurora-bg absolute inset-0 opacity-40 will-change-transform"></div>
@@ -171,7 +171,7 @@ const DashboardLayout = () => {
         }
       `}</style>
 
-      {/* Mobile Header */}
+      {/* Mobile Header - Fixed */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/10">
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center space-x-2">
@@ -191,9 +191,9 @@ const DashboardLayout = () => {
         </div>
       </div>
 
-      {/* Sidebar */}
+      {/* Sidebar - Fixed */}
       <div className={cn(
-        "fixed left-0 top-0 h-screen bg-black/40 backdrop-blur-md border-r border-white/10 z-40 transition-all duration-300",
+        "fixed left-0 top-0 h-full bg-black/40 backdrop-blur-md border-r border-white/10 z-40 transition-all duration-300",
         "lg:translate-x-0 lg:static lg:z-10",
         sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         isMinimized ? "w-20" : "w-80"
@@ -268,9 +268,9 @@ const DashboardLayout = () => {
         />
       )}
 
-      {/* Main Content */}
-      <div className="flex-1 lg:ml-0 min-h-screen relative z-10">
-        <div className="pt-16 lg:pt-0 min-h-screen">
+      {/* Main Content - Scrollable */}
+      <div className="flex-1 lg:ml-0 h-full relative z-10 overflow-hidden">
+        <div className="pt-16 lg:pt-0 h-full overflow-y-auto">
           <Routes>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/workflows" element={<Workflows />} />
