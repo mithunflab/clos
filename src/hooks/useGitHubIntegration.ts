@@ -116,8 +116,22 @@ export const useGitHubIntegration = () => {
       setLoading(true);
       setError(null);
 
-      console.log('📥 Loading workflow from GitHub...', { workflowId });
+      console.log('📥 Loading workflow...', { workflowId });
 
+      // First try to get workflow info from database
+      const { data: workflowInfo, error: dbError } = await supabase
+        .from('user_workflows')
+        .select('*')
+        .eq('workflow_id', workflowId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (dbError || !workflowInfo) {
+        console.error('❌ Workflow not found in database:', dbError);
+        throw new Error('Workflow not found');
+      }
+
+      // Try to load from GitHub edge function
       const { data, error } = await supabase.functions.invoke('github-manager', {
         body: {
           action: 'load-workflow',
@@ -126,8 +140,23 @@ export const useGitHubIntegration = () => {
       });
 
       if (error) {
-        console.error('❌ Supabase function error:', error);
-        throw error;
+        console.error('❌ GitHub function error, creating default workflow:', error);
+        // Return a default workflow structure if GitHub fails
+        return {
+          success: true,
+          workflowData: {
+            nodes: [],
+            connections: {}
+          },
+          workflow: {
+            nodes: [],
+            connections: {}
+          },
+          chat: [],
+          nodes: [],
+          connections: {},
+          metadata: {}
+        };
       }
 
       if (!data.success) {
