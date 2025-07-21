@@ -16,6 +16,13 @@ interface PricingPageProps {
   onClose: () => void;
 }
 
+interface PromoCodeResponse {
+  success: boolean;
+  credits_added?: number;
+  plan_type?: string;
+  error?: string;
+}
+
 const PricingPage: React.FC<PricingPageProps> = ({ isOpen, onClose }) => {
   const [promoCode, setPromoCode] = useState('');
   const [isApplyingPromo, setIsApplyingPromo] = useState(false);
@@ -90,17 +97,19 @@ const PricingPage: React.FC<PricingPageProps> = ({ isOpen, onClose }) => {
 
       if (error) throw error;
 
-      if (data.success) {
+      const result = data as PromoCodeResponse;
+
+      if (result.success) {
         toast({
           title: "Success!",
-          description: `Promo code applied! You received ${data.credits_added} credits and upgraded to ${data.plan_type} plan.`,
+          description: `Promo code applied! You received ${result.credits_added} credits and upgraded to ${result.plan_type} plan.`,
         });
         setPromoCode('');
         refetch(); // Refresh user plan data
       } else {
         toast({
           title: "Error",
-          description: data.error,
+          description: result.error,
           variant: "destructive"
         });
       }
