@@ -83,10 +83,9 @@ export const useWorkflowConfiguration = (workflowId: string | null) => {
         setConfiguration(configData);
         if (chat) setChatHistory(chat);
         
-        console.log('✅ Configuration saved successfully with GitHub integration:', { 
+        console.log('✅ Configuration saved successfully to Supabase:', { 
           configData, 
-          result,
-          githubRepo: result?.repository
+          result
         });
         
         return true;
