@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Play, Edit, Trash2, Clock, CheckCircle, AlertCircle, Bot, ExternalLink } from 'lucide-react';
+import { Plus, Edit, Trash2, Clock, CheckCircle, AlertCircle, Bot, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -40,7 +40,6 @@ const Workflows = () => {
     try {
       setLoading(true);
       
-      // Load workflows directly from Supabase
       const { data: workflowsData, error } = await supabase
         .from('user_workflows')
         .select('*')
@@ -61,7 +60,7 @@ const Workflows = () => {
           status: (workflow.deployment_status === 'active' ? 'active' : 'draft') as 'active' | 'inactive' | 'draft',
           created_at: workflow.created_at,
           updated_at: workflow.last_updated,
-          workflow_data: null, // Don't load workflow data until editing
+          workflow_data: null,
           n8n_workflow_id: workflow.n8n_workflow_id,
           deployment_url: workflow.deployment_url
         }));
@@ -116,11 +115,11 @@ const Workflows = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active':
-        return 'bg-green-100 text-green-800 border-green-200';
+        return 'bg-green-500/20 text-green-400 border-green-500/30';
       case 'inactive':
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'bg-red-500/20 text-red-400 border-red-500/30';
       default:
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
     }
   };
 
@@ -136,10 +135,40 @@ const Workflows = () => {
 
   if (loading) {
     return (
-      <div className="h-full bg-background">
-        <div className="container mx-auto p-6">
+      <div className="min-h-screen bg-black text-white relative">
+        {/* Aurora Background */}
+        <div className="absolute inset-0 z-0">
+          <div className="aurora-bg absolute inset-0 opacity-40"></div>
+        </div>
+        
+        <style>{`
+          @keyframes aurora {
+            0% { background-position: 0% 0%; transform: translateX(-20px) translateY(0px); }
+            25% { background-position: 25% 15%; transform: translateX(-10px) translateY(25px); }
+            50% { background-position: 50% 30%; transform: translateX(0px) translateY(50px); }
+            75% { background-position: 75% 45%; transform: translateX(10px) translateY(75px); }
+            100% { background-position: 100% 60%; transform: translateX(20px) translateY(100px); }
+          }
+          
+          .aurora-bg {
+            background: repeating-linear-gradient(
+              165deg,
+              #0f172a 3%,
+              #1e293b 6%,
+              #334155 9%,
+              #475569 12%,
+              #000000 15%
+            );
+            background-size: 100% 160%;
+            background-position: 0% 0%;
+            animation: aurora 35s ease-in-out infinite;
+            filter: blur(6px);
+          }
+        `}</style>
+        
+        <div className="relative z-10 container mx-auto p-6">
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
           </div>
         </div>
       </div>
@@ -147,20 +176,53 @@ const Workflows = () => {
   }
 
   return (
-    <div className="h-full bg-background overflow-y-auto">
-      <div className="container mx-auto p-6 max-w-7xl">
+    <div className="min-h-screen bg-black text-white relative">
+      {/* Aurora Background */}
+      <div className="absolute inset-0 z-0">
+        <div className="aurora-bg absolute inset-0 opacity-40"></div>
+      </div>
+      
+      <style>{`
+        @keyframes aurora {
+          0% { background-position: 0% 0%; transform: translateX(-20px) translateY(0px); }
+          25% { background-position: 25% 15%; transform: translateX(-10px) translateY(25px); }
+          50% { background-position: 50% 30%; transform: translateX(0px) translateY(50px); }
+          75% { background-position: 75% 45%; transform: translateX(10px) translateY(75px); }
+          100% { background-position: 100% 60%; transform: translateX(20px) translateY(100px); }
+        }
+        
+        .aurora-bg {
+          background: repeating-linear-gradient(
+            165deg,
+            #0f172a 3%,
+            #1e293b 6%,
+            #334155 9%,
+            #475569 12%,
+            #000000 15%
+          );
+          background-size: 100% 160%;
+          background-position: 0% 0%;
+          animation: aurora 35s ease-in-out infinite;
+          filter: blur(6px);
+        }
+      `}</style>
+
+      <div className="relative z-10 container mx-auto p-6 max-w-7xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-              <Bot className="w-6 h-6 text-primary-foreground" />
+            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
+              <Bot className="w-6 h-6 text-black" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Workflows</h1>
-              <p className="text-muted-foreground">Manage your automation workflows</p>
+              <h1 className="text-3xl font-bold text-white">Workflows</h1>
+              <p className="text-white/70">Manage your automation workflows</p>
             </div>
           </div>
-          <Button onClick={() => navigate('/workflows/new')} className="flex items-center space-x-2">
+          <Button 
+            onClick={() => navigate('/workflows/new')} 
+            className="flex items-center space-x-2 bg-white text-black hover:bg-white/90"
+          >
             <Plus className="w-4 h-4" />
             <span>Create Workflow</span>
           </Button>
@@ -169,14 +231,17 @@ const Workflows = () => {
         {/* Workflows Grid */}
         {workflows.length === 0 ? (
           <div className="text-center py-12">
-            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-              <Bot className="w-8 h-8 text-muted-foreground" />
+            <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Bot className="w-8 h-8 text-white/70" />
             </div>
-            <h3 className="text-xl font-semibold text-foreground mb-2">No workflows yet</h3>
-            <p className="text-muted-foreground mb-6">
+            <h3 className="text-xl font-semibold text-white mb-2">No workflows yet</h3>
+            <p className="text-white/70 mb-6">
               Create your first workflow to get started with automation
             </p>
-            <Button onClick={() => navigate('/workflows/new')}>
+            <Button 
+              onClick={() => navigate('/workflows/new')}
+              className="bg-white text-black hover:bg-white/90"
+            >
               <Plus className="w-4 h-4 mr-2" />
               Create Your First Workflow
             </Button>
@@ -184,12 +249,12 @@ const Workflows = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {workflows.map((workflow) => (
-              <Card key={workflow.id} className="hover:shadow-lg transition-shadow duration-200">
+              <Card key={workflow.id} className="bg-black/40 backdrop-blur-sm border-white/10 hover:bg-black/60 transition-all duration-200">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <CardTitle className="text-lg mb-1">{workflow.name}</CardTitle>
-                      <CardDescription className="text-sm">
+                      <CardTitle className="text-lg mb-1 text-white">{workflow.name}</CardTitle>
+                      <CardDescription className="text-sm text-white/70">
                         {workflow.description}
                       </CardDescription>
                     </div>
@@ -204,7 +269,7 @@ const Workflows = () => {
                 
                 <CardContent>
                   <div className="space-y-3">
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-white/70">
                       <div>Created: {formatDate(workflow.created_at)}</div>
                       {workflow.updated_at && (
                         <div>Updated: {formatDate(workflow.updated_at)}</div>
@@ -216,7 +281,7 @@ const Workflows = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => handleEditWorkflow(workflow.id)}
-                        className="flex-1"
+                        className="flex-1 bg-white/10 border-white/20 text-white hover:bg-white/20"
                       >
                         <Edit className="w-4 h-4 mr-2" />
                         Edit
@@ -227,6 +292,7 @@ const Workflows = () => {
                           variant="outline"
                           size="sm"
                           onClick={() => window.open(workflow.deployment_url, '_blank')}
+                          className="bg-white/10 border-white/20 text-white hover:bg-white/20"
                         >
                           <ExternalLink className="w-4 h-4" />
                         </Button>
@@ -236,7 +302,7 @@ const Workflows = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => handleDeleteWorkflow(workflow.id)}
-                        className="text-red-600 hover:text-red-700"
+                        className="bg-red-500/20 border-red-500/30 text-red-400 hover:bg-red-500/30"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>

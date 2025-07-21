@@ -62,14 +62,6 @@ const SidebarItem = ({ icon, label, to, isActive, onClick, isMinimized }: Sideba
         {icon}
       </div>
       {!isMinimized && <span className="font-medium">{label}</span>}
-      {isActive && (
-        <motion.div
-          layoutId="activeTab"
-          className="absolute inset-0 bg-white/5 rounded-xl border border-white/20"
-          initial={false}
-          transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-        />
-      )}
     </button>
   );
 };
@@ -87,7 +79,6 @@ const DashboardLayout = () => {
                         (location.pathname.includes('/workflows/') && 
                         (location.pathname.includes('/new') || location.pathname.includes('/edit')));
     
-    // Use a small timeout to prevent conflicts with navigation
     const timer = setTimeout(() => {
       setIsMinimized(isPlayground);
     }, 50);
@@ -110,7 +101,6 @@ const DashboardLayout = () => {
     { icon: <User className="w-5 h-5" />, label: 'Profile', to: '/profile' },
   ];
 
-  // Check if current route matches navigation item
   const isActiveRoute = (itemPath: string) => {
     if (itemPath === '/dashboard') {
       return location.pathname === '/dashboard';
@@ -193,7 +183,7 @@ const DashboardLayout = () => {
 
       {/* Sidebar - Fixed */}
       <div className={cn(
-        "fixed left-0 top-0 h-full bg-black/40 backdrop-blur-md border-r border-white/10 z-40 transition-all duration-300",
+        "fixed left-0 top-0 h-full bg-black/60 backdrop-blur-md border-r border-white/10 z-40 transition-all duration-300",
         "lg:translate-x-0 lg:static lg:z-10",
         sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         isMinimized ? "w-20" : "w-80"
