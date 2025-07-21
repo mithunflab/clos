@@ -71,6 +71,7 @@ const WorkflowPlayground = memo(() => {
   const [animationJsonContent, setAnimationJsonContent] = useState('');
   const [showN8nConfig, setShowN8nConfig] = useState(false);
   const [isCreatingRepo, setIsCreatingRepo] = useState(false);
+  const [isLoadingWorkflow, setIsLoadingWorkflow] = useState(false);
 
   // Only initialize hooks when needed to prevent unnecessary computations
   const workflowConfig = useWorkflowConfiguration(workflowId);
@@ -92,6 +93,7 @@ const WorkflowPlayground = memo(() => {
     if (workflowIdFromUrl && !stateData && workflowIdFromUrl !== workflowId) {
       console.log('🔄 Loading workflow from URL parameter:', workflowIdFromUrl);
       setWorkflowId(workflowIdFromUrl);
+      setIsLoadingWorkflow(true);
       
       // Load workflow data
       const loadWorkflowData = async () => {
@@ -100,16 +102,22 @@ const WorkflowPlayground = memo(() => {
           if (result?.success && result.workflowData) {
             console.log('✅ Workflow loaded from GitHub:', result.workflowData);
             await handleWorkflowGenerated(result.workflowData, {});
+          } else {
+            console.log('⚠️ No workflow data found, starting with empty canvas');
           }
         } catch (error) {
           console.error('❌ Failed to load workflow:', error);
+        } finally {
+          setIsLoadingWorkflow(false);
         }
       };
       
       loadWorkflowData();
     } else if (stateData && !workflowId) {
       console.log('✅ Using workflow data from navigation state:', stateData);
+      setIsLoadingWorkflow(true);
       handleWorkflowGenerated(stateData, {});
+      setIsLoadingWorkflow(false);
     }
   }, [searchParams.get('id'), location.state?.workflowData, workflowId]);
 
@@ -251,7 +259,7 @@ const WorkflowPlayground = memo(() => {
 
     try {
       setIsCreatingRepo(true);
-      console.log('🚀 Creating GitHub repository for workflow...');
+      console.log('🚀 Creating/updating GitHub repository for workflow...');
 
       const workflowData = {
         name: generatedWorkflow.name || 'Untitled Workflow',
@@ -266,7 +274,23 @@ const WorkflowPlayground = memo(() => {
         }
       };
 
-      const result = await createWorkflowRepository(workflowData, workflowId || 'temp_id');
+      // Check if we're editing an existing workflow
+      if (workflowId && workflowId.startsWith('workflow_')) {
+        console.log('📝 Updating existing workflow repository...');
+        try {
+          const updateResult = await createWorkflowRepository(workflowData, workflowId);
+          if (updateResult && updateResult.success) {
+            const successMessage = `✅ **GitHub Repository Updated!**\n\n🔗 **Repository URL:** ${updateResult.repository?.url}\n📋 **Repository Name:** ${updateResult.repository?.name}\n\n*Your workflow changes have been synced to GitHub successfully!*`;
+            addDeploymentMessageToChat(successMessage);
+            return;
+          }
+        } catch (updateError) {
+          console.log('⚠️ Update failed, will create new repository:', updateError.message);
+        }
+      }
+
+      // Create new repository if update failed or it's a new workflow
+      const result = await createWorkflowRepository(workflowData, workflowId || `workflow_${Date.now()}`);
       
       if (result && result.success) {
         const successMessage = `✅ **GitHub Repository Created!**\n\n🔗 **Repository URL:** ${result.repository?.url}\n📋 **Repository Name:** ${result.repository?.name}\n\n*Your workflow has been synced to GitHub successfully!*`;
@@ -288,13 +312,13 @@ const WorkflowPlayground = memo(() => {
       }
       
     } catch (error) {
-      console.error('❌ Error creating GitHub repository:', error);
+      console.error('❌ Error with GitHub repository:', error);
       const errorMessage = `❌ **GitHub Sync Failed**\n\n${error.message || 'Unknown error occurred'}\n\nPlease check your GitHub configuration and try again.`;
       addDeploymentMessageToChat(errorMessage, true);
       
       await workflowMonitoring.logRealTimeEvent(
         'error',
-        `Failed to create GitHub repository: ${error.message}`,
+        `Failed to sync GitHub repository: ${error.message}`,
         undefined,
         undefined,
         { error: error.message }
@@ -596,6 +620,18 @@ const WorkflowPlayground = memo(() => {
   };
 
   const renderMainContent = () => {
+    if (isLoadingWorkflow) {
+      return (
+        <div className="w-full h-full bg-black/90 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4"></div>
+            <div className="text-white text-lg">Loading workflow...</div>
+            <div className="text-white/60 text-sm">Fetching data from GitHub repository</div>
+          </div>
+        </div>
+      );
+    }
+
     if (showN8nEngine) {
       return (
         <div className="w-full h-full bg-black/90 p-6">
