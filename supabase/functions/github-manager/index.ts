@@ -268,6 +268,7 @@ serve(async (req) => {
 
         return new Response(JSON.stringify({
           success: true,
+          workflowData: content.workflow,
           workflow: content.workflow,
           chat: content.chat || [],
           nodes: content.nodes || [],
