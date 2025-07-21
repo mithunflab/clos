@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, memo } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Play, 
@@ -51,6 +52,8 @@ const nodeTypes = {
 
 const WorkflowPlayground = memo(() => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('Editor');
   const [workflowName, setWorkflowName] = useState('My workflow');
   const [showCodePreview, setShowCodePreview] = useState(false);
@@ -73,13 +76,42 @@ const WorkflowPlayground = memo(() => {
   const workflowConfig = useWorkflowConfiguration(workflowId);
   const workflowDeployment = useWorkflowDeployment(workflowId);
   const workflowMonitoring = useWorkflowMonitoring(workflowId);
-  const { createWorkflowRepository } = useGitHubIntegration();
+  const { createWorkflowRepository, loadWorkflow } = useGitHubIntegration();
   
   const isActive = workflowDeployment.deploymentStatus?.status === 'active';
   const isDeploying = workflowDeployment.isDeploying;
   
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+  // Load workflow if ID is provided in URL
+  useEffect(() => {
+    const workflowIdFromUrl = searchParams.get('id');
+    const stateData = location.state?.workflowData;
+    
+    if (workflowIdFromUrl && !stateData) {
+      console.log('🔄 Loading workflow from URL parameter:', workflowIdFromUrl);
+      setWorkflowId(workflowIdFromUrl);
+      
+      // Load workflow data
+      const loadWorkflowData = async () => {
+        try {
+          const result = await loadWorkflow(workflowIdFromUrl);
+          if (result?.success && result.workflowData) {
+            console.log('✅ Workflow loaded from GitHub:', result.workflowData);
+            await handleWorkflowGenerated(result.workflowData, {});
+          }
+        } catch (error) {
+          console.error('❌ Failed to load workflow:', error);
+        }
+      };
+      
+      loadWorkflowData();
+    } else if (stateData) {
+      console.log('✅ Using workflow data from navigation state:', stateData);
+      handleWorkflowGenerated(stateData, {});
+    }
+  }, [searchParams, location.state, loadWorkflow]);
 
   // Define callbacks first
   const onConnect = useCallback(
