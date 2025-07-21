@@ -21,23 +21,34 @@ export const useWorkflowStorageV2 = () => {
     
     const bucketName = `user-workflows-${user.id}`;
     
-    // Check if bucket exists, if not create it
+    // Check if bucket exists in our list first
     const { data: buckets } = await supabase.storage.listBuckets();
     const bucketExists = buckets?.some(bucket => bucket.id === bucketName);
     
     if (!bucketExists) {
-      const { error: createError } = await supabase.storage.createBucket(bucketName, {
-        public: false,
-        allowedMimeTypes: ['application/json'],
-        fileSizeLimit: 1024 * 1024 * 10 // 10MB limit
-      });
-      
-      if (createError) {
-        console.error('Error creating bucket:', createError);
-        throw createError;
+      // Use the database function to create the bucket instead of direct API call
+      try {
+        const { data, error } = await supabase.rpc('create_user_bucket', {
+          user_id_param: user.id
+        });
+        
+        if (error) {
+          console.error('Error creating bucket via function:', error);
+          throw error;
+        }
+        
+        console.log('✅ Created user bucket via function:', bucketName);
+      } catch (err) {
+        console.error('Failed to create bucket:', err);
+        // If the function fails, we might already have a bucket created by the trigger
+        // Let's check again
+        const { data: bucketsRetry } = await supabase.storage.listBuckets();
+        const bucketExistsRetry = bucketsRetry?.some(bucket => bucket.id === bucketName);
+        
+        if (!bucketExistsRetry) {
+          throw new Error('Unable to create or access user storage bucket');
+        }
       }
-      
-      console.log('✅ Created user bucket:', bucketName);
     }
     
     return bucketName;
