@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { X, Check, Gift, QrCode, Sparkles, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,16 +10,19 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserPlan } from '@/hooks/useUserPlan';
+
 interface PricingPageProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
 interface PromoCodeResponse {
   success: boolean;
   credits_added?: number;
   plan_type?: string;
   error?: string;
 }
+
 const PricingPage: React.FC<PricingPageProps> = ({
   isOpen,
   onClose
@@ -26,44 +30,42 @@ const PricingPage: React.FC<PricingPageProps> = ({
   const [promoCode, setPromoCode] = useState('');
   const [isApplyingPromo, setIsApplyingPromo] = useState(false);
   const [showQRCode, setShowQRCode] = useState(false);
-  const [showPromoInput, setShowPromoInput] = useState(false);
+  const [showPromoPopup, setShowPromoPopup] = useState(false);
   const [showCongratulations, setShowCongratulations] = useState(false);
-  const {
-    toast
-  } = useToast();
-  const {
-    user
-  } = useAuth();
-  const {
-    plan,
-    credits,
-    refetch
-  } = useUserPlan();
-  const plans = [{
-    name: 'Free',
-    type: 'free',
-    price: '$0',
-    period: 'forever',
-    features: ['5 AI workflows', '10 initial credits', '5 credits daily', 'Basic support', 'Community access'],
-    popular: false,
-    description: 'Perfect for getting started'
-  }, {
-    name: 'Pro',
-    type: 'pro',
-    price: '$29',
-    period: 'month',
-    features: ['20 AI workflows', '50 initial credits', '5 credits daily', 'Priority support', 'Advanced features', 'API access'],
-    popular: true,
-    description: 'Best for professionals'
-  }, {
-    name: 'Custom',
-    type: 'custom',
-    price: 'Custom',
-    period: 'pricing',
-    features: ['Unlimited workflows', '100 initial credits', 'No daily limits', 'Dedicated support', 'Custom integrations', 'Enterprise features'],
-    popular: false,
-    description: 'Tailored for enterprises'
-  }];
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const { plan, credits, refetch } = useUserPlan();
+
+  const plans = [
+    {
+      name: 'Free',
+      type: 'free',
+      price: '$0',
+      period: 'forever',
+      features: ['5 AI workflows', '10 initial credits', '5 credits daily', 'Basic support', 'Community access'],
+      popular: false,
+      description: 'Perfect for getting started'
+    },
+    {
+      name: 'Pro',
+      type: 'pro',
+      price: '$29',
+      period: 'month',
+      features: ['20 AI workflows', '50 initial credits', '5 credits daily', 'Priority support', 'Advanced features', 'API access'],
+      popular: true,
+      description: 'Best for professionals'
+    },
+    {
+      name: 'Custom',
+      type: 'custom',
+      price: 'Custom',
+      period: 'pricing',
+      features: ['Unlimited workflows', '100 initial credits', 'No daily limits', 'Dedicated support', 'Custom integrations', 'Enterprise features'],
+      popular: false,
+      description: 'Tailored for enterprises'
+    }
+  ];
+
   const handleApplyPromoCode = async () => {
     if (!user || !promoCode.trim()) {
       toast({
@@ -73,25 +75,27 @@ const PricingPage: React.FC<PricingPageProps> = ({
       });
       return;
     }
+
     setIsApplyingPromo(true);
     try {
-      const {
-        data,
-        error
-      } = await supabase.rpc('apply_promo_code', {
+      const { data, error } = await supabase.rpc('apply_promo_code', {
         p_user_id: user.id,
         p_promo_code: promoCode.trim().toUpperCase()
       });
+
       if (error) throw error;
+
       const result = data as unknown as PromoCodeResponse;
+
       if (result.success) {
         setShowCongratulations(true);
         setTimeout(() => {
           setShowCongratulations(false);
-          setShowPromoInput(false);
+          setShowPromoPopup(false);
           setPromoCode('');
           refetch();
         }, 3000);
+
         toast({
           title: "Success!",
           description: `Promo code applied! You received ${result.credits_added} credits and upgraded to ${result.plan_type} plan.`
@@ -114,22 +118,27 @@ const PricingPage: React.FC<PricingPageProps> = ({
       setIsApplyingPromo(false);
     }
   };
+
   const handleShowQRCode = () => {
     setShowQRCode(true);
   };
+
   const handleUpgradeClick = (planType: string) => {
     if (planType === 'custom') {
       handleShowQRCode();
     } else if (planType === 'pro') {
-      setShowPromoInput(true);
+      setShowPromoPopup(true);
     }
   };
+
   const getCurrentPlanType = () => {
     return plan?.plan_type || 'free';
   };
+
   const isCurrentPlan = (planType: string) => {
     return getCurrentPlanType() === planType;
   };
+
   const getPlanBadge = (planType: string) => {
     if (isCurrentPlan(planType)) {
       return <Badge variant="secondary" className="ml-2 bg-green-500/20 text-green-400 border-green-500/30">Current</Badge>;
@@ -138,12 +147,13 @@ const PricingPage: React.FC<PricingPageProps> = ({
   };
 
   // Congratulations Animation Component
-  const CongratulationsAnimation = () => <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="bg-gray-800 border border-gray-700 rounded-2xl p-8 text-center animate-scale-in shadow-2xl">
+  const CongratulationsAnimation = () => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+      <div className="bg-gray-900 border border-gray-700 rounded-2xl p-8 text-center animate-scale-in shadow-2xl">
         <div className="flex justify-center mb-4">
           <div className="relative">
-            <Sparkles className="w-16 h-16 text-yellow-400 animate-pulse" />
-            <Star className="w-8 h-8 text-yellow-300 absolute -top-2 -right-2 animate-bounce" />
+            <Sparkles className="w-16 h-16 text-blue-400 animate-pulse" />
+            <Star className="w-8 h-8 text-cyan-300 absolute -top-2 -right-2 animate-bounce" />
           </div>
         </div>
         <h2 className="text-3xl font-bold text-gray-100 mb-2">Congratulations!</h2>
@@ -152,104 +162,160 @@ const PricingPage: React.FC<PricingPageProps> = ({
           <div className="animate-bounce">🎉</div>
         </div>
       </div>
-    </div>;
-  return <>
+    </div>
+  );
+
+  return (
+    <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto bg-gray-900 border-gray-700 shadow-2xl">
+        <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto bg-black border-gray-800/50 shadow-2xl rounded-3xl">
           <DialogHeader className="text-center pb-8">
-            <DialogTitle className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-4">
+            <DialogTitle className="text-5xl font-bold bg-gradient-to-r from-blue-400 via-cyan-300 to-blue-400 bg-clip-text text-transparent mb-6">
               Choose Your Perfect Plan
             </DialogTitle>
-            <div className="bg-gray-800/50 backdrop-blur-sm rounded-lg p-4 mx-auto max-w-md border border-gray-700/50">
-              <p className="text-lg font-semibold text-gray-200">
+            <div className="bg-gray-900/60 backdrop-blur-xl rounded-2xl p-6 mx-auto max-w-md border border-gray-800/50">
+              <p className="text-xl font-semibold text-gray-200 mb-2">
                 Current Credits: <span className="text-blue-400">{credits?.current_credits || 0}</span>
               </p>
-              <p className="text-sm text-gray-400">
-                Current Plan: <span className="uppercase font-medium text-purple-400">{getCurrentPlanType()}</span>
+              <p className="text-lg text-gray-400">
+                Current Plan: <span className="uppercase font-medium text-cyan-400">{getCurrentPlanType()}</span>
               </p>
             </div>
           </DialogHeader>
 
           {/* Pricing Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-            {plans.map(planItem => <Card key={planItem.type} className={`relative transform transition-all duration-300 hover:scale-105 ${planItem.popular ? 'border-2 border-blue-500 shadow-xl bg-gradient-to-br from-blue-900/20 to-purple-900/20' : 'border border-gray-700 shadow-lg bg-gray-800/50 hover:shadow-xl'}`}>
-                {planItem.popular && <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <Badge className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-4 py-1 text-sm font-semibold">
-                      ⭐ Most Popular
-                    </Badge>
-                  </div>}
+            {plans.map((planItem) => (
+              <Card 
+                key={planItem.type} 
+                className={`relative transform transition-all duration-500 hover:scale-105 overflow-hidden ${
+                  planItem.popular 
+                    ? 'border-2 border-blue-500/50 shadow-2xl bg-gray-900/80 animate-pulse' 
+                    : 'border border-gray-800/50 shadow-xl bg-gray-900/60 hover:shadow-2xl'
+                }`}
+                style={{
+                  background: planItem.popular 
+                    ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(147, 51, 234, 0.05) 100%)'
+                    : 'rgba(17, 24, 39, 0.6)'
+                }}
+              >
+                {planItem.popular && (
+                  <>
+                    <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-blue-500/20 via-cyan-500/20 to-blue-500/20 animate-pulse"></div>
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
+                      <Badge className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-6 py-2 text-sm font-bold rounded-full border-2 border-blue-400/50 shadow-lg">
+                        ⭐ Most Popular
+                      </Badge>
+                    </div>
+                  </>
+                )}
                 
-                <CardHeader className="text-center pb-4 bg-black">
-                  <CardTitle className="flex items-center justify-center text-2xl font-bold text-gray-100">
+                <CardHeader className="text-center pb-6 relative z-10">
+                  <CardTitle className="flex items-center justify-center text-3xl font-bold text-gray-100 mb-2">
                     {planItem.name}
                     {getPlanBadge(planItem.type)}
                   </CardTitle>
-                  <p className="text-gray-400 text-sm">{planItem.description}</p>
-                  <div className="text-4xl font-extrabold text-gray-100 mt-4">
+                  <p className="text-gray-400 text-lg">{planItem.description}</p>
+                  <div className="text-5xl font-extrabold text-gray-100 mt-6">
                     {planItem.price}
-                    {planItem.type !== 'custom' && <span className="text-lg font-normal text-gray-400">
+                    {planItem.type !== 'custom' && (
+                      <span className="text-xl font-normal text-gray-400">
                         /{planItem.period}
-                      </span>}
+                      </span>
+                    )}
                   </div>
                 </CardHeader>
                 
-                <CardContent className="pt-0 bg-black">
-                  <ul className="space-y-3 mb-8">
-                    {planItem.features.map((feature, index) => <li key={index} className="flex items-center gap-3">
-                        <Check className="w-5 h-5 text-green-400 flex-shrink-0" />
-                        <span className="text-gray-300">{feature}</span>
-                      </li>)}
+                <CardContent className="pt-0 relative z-10">
+                  <ul className="space-y-4 mb-8">
+                    {planItem.features.map((feature, index) => (
+                      <li key={index} className="flex items-center gap-3">
+                        <Check className="w-6 h-6 text-green-400 flex-shrink-0" />
+                        <span className="text-gray-300 text-lg">{feature}</span>
+                      </li>
+                    ))}
                   </ul>
                   
-                  <Button className={`w-full py-3 text-lg font-semibold transition-all duration-300 ${planItem.popular ? "bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg hover:shadow-xl" : "bg-gray-700 hover:bg-gray-600 text-white border border-gray-600"}`} disabled={isCurrentPlan(planItem.type)} onClick={() => handleUpgradeClick(planItem.type)}>
-                    {isCurrentPlan(planItem.type) ? '✓ Current Plan' : planItem.type === 'custom' ? '📞 Contact Us' : '⚡ Upgrade Now'}
+                  <Button 
+                    className={`w-full py-4 text-xl font-bold transition-all duration-300 rounded-xl ${
+                      planItem.popular 
+                        ? "bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-2xl hover:shadow-blue-500/25" 
+                        : "bg-gray-800/80 hover:bg-gray-700/80 text-white border-2 border-gray-700/50 hover:border-gray-600/50"
+                    }`}
+                    disabled={isCurrentPlan(planItem.type)}
+                    onClick={() => handleUpgradeClick(planItem.type)}
+                  >
+                    {isCurrentPlan(planItem.type) 
+                      ? '✓ Current Plan' 
+                      : planItem.type === 'custom' 
+                        ? '📞 Contact Us' 
+                        : '⚡ Upgrade Now'
+                    }
                   </Button>
                 </CardContent>
-              </Card>)}
+              </Card>
+            ))}
           </div>
 
-          {/* Promo Code Input Section */}
-          {showPromoInput && <Card className="mb-6 bg-gradient-to-r from-green-900/20 to-blue-900/20 border-2 border-green-500/30 animate-fade-in">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-green-400">
-                  <Gift className="w-5 h-5" />
+          {/* Promo Code Popup */}
+          <Dialog open={showPromoPopup} onOpenChange={setShowPromoPopup}>
+            <DialogContent className="max-w-md bg-gray-900/95 backdrop-blur-xl border-gray-800/50 rounded-2xl">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-green-400 text-2xl font-bold">
+                  <Gift className="w-6 h-6" />
                   Enter Your Promo Code
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-3">
-                  <Input placeholder="Enter your promo code" value={promoCode} onChange={e => setPromoCode(e.target.value)} className="flex-1 border-2 border-green-500/30 focus:border-green-400 bg-gray-800/50 text-gray-100 placeholder-gray-500" />
-                  <Button onClick={handleApplyPromoCode} disabled={isApplyingPromo || !promoCode.trim()} className="bg-green-600 hover:bg-green-700 text-white px-6">
-                    {isApplyingPromo ? 'Applying...' : 'Apply Code'}
-                  </Button>
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-6 p-2">
+                <div className="space-y-4">
+                  <Input 
+                    placeholder="Enter your promo code" 
+                    value={promoCode} 
+                    onChange={(e) => setPromoCode(e.target.value)} 
+                    className="h-12 border-2 border-green-500/30 focus:border-green-400 bg-gray-800/50 text-gray-100 placeholder-gray-500 rounded-xl text-lg"
+                  />
+                  <div className="flex gap-3">
+                    <Button 
+                      onClick={handleApplyPromoCode} 
+                      disabled={isApplyingPromo || !promoCode.trim()} 
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold text-lg"
+                    >
+                      {isApplyingPromo ? 'Applying...' : 'Apply Code'}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowPromoPopup(false)} 
+                      className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-800/50 py-3 rounded-xl font-semibold text-lg"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
                 </div>
-                <Button variant="ghost" onClick={() => setShowPromoInput(false)} className="mt-3 text-gray-400 hover:text-gray-200 hover:bg-gray-800/50">
-                  Cancel
-                </Button>
-              </CardContent>
-            </Card>}
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* QR Code Dialog */}
           <Dialog open={showQRCode} onOpenChange={setShowQRCode}>
-            <DialogContent className="max-w-md bg-gray-800 border-gray-700">
+            <DialogContent className="max-w-md bg-gray-900/95 backdrop-blur-xl border-gray-800/50 rounded-2xl">
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-center text-xl font-bold text-gray-100">
-                  <QrCode className="w-6 h-6 text-blue-400" />
+                <DialogTitle className="flex items-center gap-2 text-center text-2xl font-bold text-gray-100">
+                  <QrCode className="w-7 h-7 text-blue-400" />
                   Contact Us for Custom Plan
                 </DialogTitle>
               </DialogHeader>
               <div className="text-center space-y-6 p-4">
-                <div className="bg-gradient-to-br from-gray-700 to-gray-800 p-8 rounded-xl border border-gray-600">
+                <div className="bg-gradient-to-br from-gray-800 to-gray-900 p-8 rounded-2xl border border-gray-700/50">
                   <QrCode className="w-32 h-32 mx-auto text-gray-400" />
                 </div>
                 <div className="space-y-4">
-                  <p className="text-gray-300 leading-relaxed">
+                  <p className="text-gray-300 leading-relaxed text-lg">
                     Get in touch with our team for custom enterprise pricing and solutions tailored to your needs.
                   </p>
-                  <div className="bg-blue-900/20 p-4 rounded-lg space-y-2 border border-blue-500/30">
-                    <p className="font-semibold text-gray-200">Contact Information:</p>
-                    <p className="text-blue-400 font-medium">📧 zenmithun@outlook.com</p>
-                    <p className="text-gray-300">📞 +1 (555) 123-4567</p>
+                  <div className="bg-blue-900/20 p-6 rounded-xl space-y-3 border border-blue-500/30">
+                    <p className="font-semibold text-gray-200 text-lg">Contact Information:</p>
+                    <p className="text-blue-400 font-medium text-lg">📧 zenmithun@outlook.com</p>
+                    <p className="text-gray-300 text-lg">📞 +1 (555) 123-4567</p>
                   </div>
                 </div>
               </div>
@@ -260,6 +326,8 @@ const PricingPage: React.FC<PricingPageProps> = ({
 
       {/* Congratulations Animation */}
       {showCongratulations && <CongratulationsAnimation />}
-    </>;
+    </>
+  );
 };
+
 export default PricingPage;
