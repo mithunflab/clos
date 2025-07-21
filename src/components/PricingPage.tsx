@@ -179,7 +179,7 @@ const PricingPage: React.FC<PricingPageProps> = ({
                     </Badge>
                   </div>}
                 
-                <CardHeader className="text-center pb-4">
+                <CardHeader className="text-center pb-4 bg-black">
                   <CardTitle className="flex items-center justify-center text-2xl font-bold text-gray-100">
                     {planItem.name}
                     {getPlanBadge(planItem.type)}
