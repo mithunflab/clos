@@ -72,8 +72,7 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
         timezone: "UTC",
         executionOrder: "v1"
       },
-      staticData: {},
-      active: false
+      staticData: {}
     };
 
     if (cleanWorkflow.nodes) {
@@ -100,7 +99,7 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
 
       await updateLocalDeploymentStatus('deploying');
 
-      console.log('🚀 Deploying workflow to N8N with real config:', config);
+      console.log('🚀 Deploying workflow to N8N with config:', config);
 
       const cleanedWorkflow = cleanWorkflowForN8n(workflow);
 
@@ -109,13 +108,18 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
       
       console.log('🔍 Existing deployment check:', existingDeployment);
 
+      // Ensure we always pass the current config to the edge function
+      const currentConfig = config || { use_casel_cloud: true };
+      
+      console.log('🔧 Using N8N config for deployment:', currentConfig);
+
       // Call the N8N deployment function with proper configuration
       const { data, error } = await supabase.functions.invoke('generate-n8n-workflow', {
         body: {
           action: existingDeployment ? 'update' : 'deploy',
           workflow: cleanedWorkflow,
           workflowId: existingDeployment?.n8n_workflow_id || undefined,
-          n8nConfig: config || { use_casel_cloud: true } // Ensure we always have config
+          n8nConfig: currentConfig // Always pass current config
         }
       });
 
@@ -135,13 +139,13 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
       let deploymentUrl = data.workflowUrl;
 
       // Construct real deployment URL based on actual config
-      if (config && realWorkflowId) {
-        if (config.use_casel_cloud) {
+      if (currentConfig && realWorkflowId) {
+        if (currentConfig.use_casel_cloud) {
           // Use Casel Cloud URL
           deploymentUrl = `https://n8n.casel.cloud/workflow/${realWorkflowId}`;
-        } else if (config.n8n_url) {
+        } else if (currentConfig.n8n_url) {
           // Use custom N8N URL
-          const baseUrl = config.n8n_url.replace(/\/$/, ''); // Remove trailing slash
+          const baseUrl = currentConfig.n8n_url.replace(/\/$/, ''); // Remove trailing slash
           deploymentUrl = `${baseUrl}/workflow/${realWorkflowId}`;
         }
       }
@@ -203,10 +207,14 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
 
       console.log('🔌 Activating workflow in N8N:', deploymentStatus.deployment_id);
 
+      // Pass current config to activation as well
+      const currentConfig = config || { use_casel_cloud: true };
+
       const { data, error } = await supabase.functions.invoke('generate-n8n-workflow', {
         body: {
           action: 'activate',
-          workflowId: deploymentStatus.deployment_id
+          workflowId: deploymentStatus.deployment_id,
+          n8nConfig: currentConfig
         }
       });
 
@@ -231,7 +239,7 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
     } finally {
       setIsDeploying(false);
     }
-  }, [workflowId, deploymentStatus, updateLocalDeploymentStatus]);
+  }, [workflowId, deploymentStatus, updateLocalDeploymentStatus, config]);
 
   const loadDeploymentStatus = useCallback(async () => {
     if (!workflowId) return;

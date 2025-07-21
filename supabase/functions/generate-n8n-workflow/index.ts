@@ -35,14 +35,14 @@ serve(async (req) => {
     if (n8nConfig) {
       console.log('🔧 Using N8N config from request:', n8nConfig);
       
-      if (n8nConfig.use_casel_cloud) {
+      if (n8nConfig.use_casel_cloud === true) {
         // Use Casel Cloud with environment credentials
         N8N_URL = 'https://n8n.casel.cloud';
         N8N_API_KEY = Deno.env.get('N8N_API_KEY')!;
         console.log('🌐 Using Casel Cloud N8N instance');
-      } else if (n8nConfig.n8n_url && n8nConfig.n8n_api_key) {
+      } else if (n8nConfig.use_casel_cloud === false && n8nConfig.n8n_url && n8nConfig.n8n_api_key) {
         // Use user's own N8N instance
-        N8N_URL = n8nConfig.n8n_url;
+        N8N_URL = n8nConfig.n8n_url.replace(/\/$/, ''); // Remove trailing slash
         N8N_API_KEY = n8nConfig.n8n_api_key;
         console.log('🏠 Using user\'s own N8N instance:', N8N_URL);
       } else {
@@ -61,7 +61,8 @@ serve(async (req) => {
     console.log('🔗 N8N Configuration:', {
       url: N8N_URL,
       hasApiKey: !!N8N_API_KEY,
-      source: n8nConfig ? 'request' : 'environment'
+      source: n8nConfig ? 'request' : 'environment',
+      useCaselCloud: n8nConfig?.use_casel_cloud
     });
 
     if (!N8N_URL || !N8N_API_KEY) {
@@ -136,7 +137,6 @@ serve(async (req) => {
               executionOrder: "v1"
             },
             staticData: {}
-            // Removed 'active' field as it's read-only for N8N API
           };
 
           console.log('📤 Sending cleaned workflow to n8n API');
@@ -202,7 +202,6 @@ serve(async (req) => {
               executionOrder: "v1"
             },
             staticData: {}
-            // Removed 'active' field as it's read-only for N8N API
           };
 
           console.log('📤 Updating workflow in n8n API');
@@ -238,6 +237,7 @@ serve(async (req) => {
         }
       }
 
+      
       case 'activate': {
         console.log('🔌 Activating workflow:', workflowId);
         
@@ -554,8 +554,7 @@ Return ONLY valid JSON in this exact format:
     "executionTimeout": 3600,
     "timezone": "UTC"
   },
-  "staticData": {},
-  "active": false
+  "staticData": {}
 }`;
 
         try {
