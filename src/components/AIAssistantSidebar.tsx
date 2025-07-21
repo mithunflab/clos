@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Send, MessageCircle, Code, MessageSquare, Loader2, Settings, CheckCircle, FileCode, Coins } from 'lucide-react';
@@ -40,7 +41,7 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      content: 'Hello! I\'m CaselAI, your automation architect! 🚀\n\n**What I can help you with:**\n\n🔧 **Create Workflows** - Describe your automation needs and I\'ll generate complete n8n workflows that appear on the canvas\n💬 **Natural Conversation** - Ask questions, discuss automation strategies, get expert advice\n🔍 **Analyze & Optimize** - Review existing workflows and suggest improvements\n🎯 **Problem Solving** - Help troubleshoot automation challenges\n\n**How it works:**\n- I generate workflow JSON files that display on your canvas\n- Chat stays clean with explanations and guidance\n- I\'ll tell you what credentials you need and how to get them\n\nWhat would you like to automate today?',
+      content: 'Hello! I\'m CaselAI, your automation architect! 🚀\n\n**What I can help you with:**\n\n🔧 **Create Workflows** - Describe your automation needs and I\'ll generate complete n8n workflows\n💬 **Natural Conversation** - Ask questions, discuss automation strategies, get expert advice\n🔍 **Analyze & Optimize** - Review existing workflows and suggest improvements\n🎯 **Problem Solving** - Help troubleshoot automation challenges\n\n**How it works:**\n- I generate workflow JSON files that automatically save to your account\n- Chat stays clean with explanations and guidance\n- Files are created with animated writing effects\n\nWhat would you like to automate today?',
       role: 'assistant',
       timestamp: new Date(),
     }
@@ -96,9 +97,11 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
         : msg
     ));
     
+    // Animate file writing line by line
     for (let i = 0; i < lines.length; i++) {
       currentContent += lines[i] + (i < lines.length - 1 ? '\n' : '');
       
+      // Call onFileGenerated for each line to create the file progressively
       onFileGenerated(fileName, currentContent);
       
       if (i % 10 === 0 || i === lines.length - 1) {
@@ -115,7 +118,7 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
     
     setMessages(prev => prev.map(msg => 
       msg.id === assistantMessageId 
-        ? { ...msg, content: msg.content.replace(/✨ \*\*Writing JSON structure.*?\*\*/, '✅ **File creation complete!**\n\n💾 **File saved to preview - check the code section**') }
+        ? { ...msg, content: msg.content.replace(/✨ \*\*Writing JSON structure.*?\*\*/, '✅ **File created and saved to Supabase!**\n\n💾 **Auto-saved to your account - check the code preview**') }
         : msg
     ));
     
@@ -256,7 +259,7 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
                   fullData: workflowData
                 });
                 
-                if (workflowData && onFileGenerated) {
+                if (workflowData) {
                   const workflowJson = JSON.stringify(workflowData, null, 2);
                   const fileName = `${workflowData.name?.replace(/[^a-zA-Z0-9]/g, '_') || 'workflow'}_${Date.now()}.json`;
                   
@@ -268,8 +271,10 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
                       : msg
                   ));
                   
+                  // Start the animated file writing
                   await animateFileWriting(fileName, workflowJson, assistantMessage.id);
                   
+                  // After animation completes, call onWorkflowGenerated
                   if (onWorkflowGenerated) {
                     console.log('🎯 Calling onWorkflowGenerated after animated file save');
                     onWorkflowGenerated(workflowData, {
@@ -278,7 +283,7 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
                     });
                   }
                 } else {
-                  console.error('❌ Missing workflowData or onFileGenerated callback');
+                  console.error('❌ Missing workflowData');
                 }
               } else if (data.type === 'error') {
                 console.error('❌ Stream error:', data.content);
@@ -394,19 +399,14 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
                         <div className="flex items-center space-x-2 mb-2">
                           <FileCode className="w-4 h-4 text-green-300" />
                           <div className="text-sm font-medium text-green-300">
-                            Workflow Generated Successfully
+                            Workflow Generated & Saved
                           </div>
                         </div>
                         <div className="text-xs text-green-300/80 space-y-1">
                           <div>📋 Name: {message.workflowData.name}</div>
                           <div>🔧 Nodes: {message.workflowData.nodes?.length || 0}</div>
-                          <div>🎯 Status: Ready for canvas display</div>
-                          {message.workflowData.deployment?.success && (
-                            <div className="flex items-center space-x-1">
-                              <CheckCircle className="w-3 h-3" />
-                              <span>Deployed to n8n</span>
-                            </div>
-                          )}
+                          <div>💾 Status: Auto-saved to Supabase</div>
+                          <div>🎯 Ready for canvas display</div>
                         </div>
                       </div>
                     )}
@@ -453,9 +453,9 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
         </div>
         <div className="text-xs text-white/40 mt-2 text-center">
           {!plan || plan.credits <= 0 ? 'No credits remaining - upgrade or wait for daily refresh' :
-            isWritingFile ? 'Writing file with animation...' : 
-            currentWorkflow ? `Working with: ${currentWorkflow.name}` : 
-            'Ready to create workflows on canvas'}
+            isWritingFile ? 'Creating workflow file...' : 
+            currentWorkflow ? `Editing: ${currentWorkflow.name}` : 
+            'Ready to create workflows'}
         </div>
       </div>
     </div>

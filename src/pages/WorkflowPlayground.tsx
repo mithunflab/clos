@@ -101,67 +101,62 @@ const WorkflowPlayground = memo(() => {
       return;
     }
 
-    // For loaded workflows, don't create new files - just set the data
-    if (isWorkflowLoaded) {
-      setGeneratedWorkflow(workflow);
-      setGeneratedCode(code);
-      setWorkflowName(workflow.name || 'Loaded Workflow');
-      
-      try {
-        const { nodes: parsedNodes, edges: parsedEdges } = parseN8nWorkflowToReactFlow(workflow);
-        setNodes(parsedNodes);
-        setEdges(parsedEdges);
-        setShowCodePreview(true);
-      } catch (error) {
-        console.error('❌ Error parsing loaded workflow:', error);
-      }
-      return;
-    }
-
-    // For new workflows, create files and animate
-    const workflowJson = JSON.stringify(workflow, null, 2);
-    const timestamp = Date.now();
-    const fileName = `${(workflow.name || 'generated_workflow').replace(/[^a-zA-Z0-9]/g, '_')}_${timestamp}.json`;
-    
-    console.log('📝 Creating new workflow JSON file:', fileName);
-    
-    setAnimationJsonContent(workflowJson);
-    setShowJsonAnimation(true);
-
+    // Set the workflow data
     setGeneratedWorkflow(workflow);
-    setGeneratedCode({
-      ...code,
-      workflowJson: workflowJson
-    });
-    setWorkflowName(workflow.name || 'AI Generated Workflow');
+    setGeneratedCode(code);
+    setWorkflowName(workflow.name || 'Generated Workflow');
     
-    const newWorkflowId = workflow.deployment?.workflowId || `workflow_${timestamp}`;
-    setWorkflowId(newWorkflowId);
+    // Generate workflow ID if not exists
+    const currentWorkflowId = workflowId || `workflow_${Date.now()}`;
+    setWorkflowId(currentWorkflowId);
     
     if (workflow.deployment?.workflowId) {
       setN8nWorkflowId(workflow.deployment.workflowId);
     }
     
-    // Only add to liveFiles for new workflows
+    // Create the JSON file for preview
+    const workflowJson = JSON.stringify(workflow, null, 2);
+    const fileName = `${(workflow.name || 'workflow').replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.json`;
+    
+    console.log('📝 Creating workflow JSON file:', fileName);
+    
+    // Add to liveFiles for code preview
     setLiveFiles(prev => ({
       ...prev,
       [fileName]: workflowJson
     }));
     
-    // Save configuration
-    await workflowConfig.saveConfiguration({
-      name: workflow.name,
-      description: workflow.description || '',
-      ai_generated: true,
-      nodes_count: workflow.nodes?.length || 0,
-      nodes: workflow.nodes,
-      connections: workflow.connections || {}
-    }, undefined, workflowConfig.chatHistory);
-    
-    if (workflow.nodes) {
-      await workflowConfig.saveNodes(workflow.nodes);
+    // Auto-save to Supabase
+    try {
+      console.log('💾 Auto-saving workflow to Supabase...');
+      const workflowData = {
+        name: workflow.name || 'Generated Workflow',
+        workflow: workflow,
+        chat: workflowConfig.chatHistory || []
+      };
+      
+      await saveWorkflow(workflowData, currentWorkflowId);
+      console.log('✅ Workflow auto-saved to Supabase');
+      
+      // Update workflow configuration
+      await workflowConfig.saveConfiguration({
+        name: workflow.name,
+        description: workflow.description || '',
+        ai_generated: true,
+        nodes_count: workflow.nodes?.length || 0,
+        nodes: workflow.nodes,
+        connections: workflow.connections || {}
+      }, undefined, workflowConfig.chatHistory);
+      
+      if (workflow.nodes) {
+        await workflowConfig.saveNodes(workflow.nodes);
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to auto-save workflow:', error);
     }
     
+    // Parse and display on canvas
     try {
       console.log('🚀 Parsing workflow for canvas display...');
       const { nodes: parsedNodes, edges: parsedEdges } = parseN8nWorkflowToReactFlow(workflow);
@@ -205,7 +200,7 @@ const WorkflowPlayground = memo(() => {
         { error: error.message, workflow: workflow }
       );
     }
-  }, [isWorkflowLoaded, workflowConfig, workflowMonitoring, setNodes, setEdges]);
+  }, [isWorkflowLoaded, workflowConfig, workflowMonitoring, setNodes, setEdges, workflowId, saveWorkflow]);
 
   // Load workflow if ID is provided in URL - wait for auth to complete
   useEffect(() => {
@@ -224,15 +219,22 @@ const WorkflowPlayground = memo(() => {
         try {
           console.log('🔄 Loading workflow from Supabase...', workflowIdFromUrl);
           
-          // Load workflow directly from Supabase
           const result = await loadWorkflow(workflowIdFromUrl);
           
           if (result?.success && result.workflowData) {
             console.log('✅ Workflow loaded from Supabase:', result.workflowData);
             
-            // Set the loaded workflow directly without creating new files
+            // Set the loaded workflow
             setGeneratedWorkflow(result.workflowData);
             setWorkflowName(result.workflowData.name || 'Loaded Workflow');
+            
+            // Create JSON file for preview
+            const workflowJson = JSON.stringify(result.workflowData, null, 2);
+            const fileName = `${(result.workflowData.name || 'workflow').replace(/[^a-zA-Z0-9]/g, '_')}_loaded.json`;
+            
+            setLiveFiles({
+              [fileName]: workflowJson
+            });
             
             // Set deployment info if available
             if (result.n8nWorkflowId) {
@@ -251,12 +253,10 @@ const WorkflowPlayground = memo(() => {
           } else {
             console.log('⚠️ No workflow data found or failed to load');
             setIsWorkflowLoaded(false);
-            console.warn('Workflow could not be loaded, starting with empty canvas');
           }
         } catch (error) {
           console.error('❌ Failed to load workflow from Supabase:', error);
           setIsWorkflowLoaded(false);
-          console.warn('Unable to load workflow from Supabase, starting with empty canvas');
         } finally {
           setIsLoadingWorkflow(false);
         }
@@ -270,7 +270,7 @@ const WorkflowPlayground = memo(() => {
       handleWorkflowGenerated(stateData, {});
       setIsLoadingWorkflow(false);
     }
-  }, [searchParams, location.state, workflowId, loadWorkflow, authLoading, user, handleWorkflowGenerated]);
+  }, [searchParams, location.state, workflowId, loadWorkflow, authLoading, user, handleWorkflowGenerated, setNodes, setEdges]);
 
   // Define callbacks first
   const onConnect = useCallback(
@@ -326,21 +326,16 @@ const WorkflowPlayground = memo(() => {
       const updatedWorkflow = updateWorkflowFromNode(generatedWorkflow, nodeId, nodeData);
       setGeneratedWorkflow(updatedWorkflow);
       
-      // Only create new files for actual edits, not loaded workflows
-      if (!isWorkflowLoaded) {
-        const workflowJson = JSON.stringify(updatedWorkflow, null, 2);
-        const fileName = `workflow_edit_${Date.now()}.json`;
-        
-        setAnimationJsonContent(workflowJson);
-        setShowJsonAnimation(true);
-        
-        setLiveFiles(prev => ({ ...prev, [fileName]: workflowJson }));
-      }
+      // Update JSON file
+      const workflowJson = JSON.stringify(updatedWorkflow, null, 2);
+      const fileName = `workflow_edit_${Date.now()}.json`;
       
+      setLiveFiles(prev => ({ ...prev, [fileName]: workflowJson }));
       setHasUnsavedChanges(true);
+      
       console.log('✅ Workflow updated');
     }
-  }, [setNodes, generatedWorkflow, isWorkflowLoaded]);
+  }, [setNodes, generatedWorkflow]);
 
   const handleJsonUpdate = useCallback((updateData: any) => {
     console.log('🔄 Handling JSON update:', updateData);
@@ -355,18 +350,13 @@ const WorkflowPlayground = memo(() => {
       setGeneratedWorkflow(updatedWorkflow);
       setHasUnsavedChanges(true);
       
-      // Only create new files for actual edits, not loaded workflows
-      if (!isWorkflowLoaded) {
-        const workflowJson = JSON.stringify(updatedWorkflow, null, 2);
-        const fileName = `workflow_live_${Date.now()}.json`;
-        
-        setAnimationJsonContent(workflowJson);
-        setShowJsonAnimation(true);
-        
-        setLiveFiles(prev => ({ ...prev, [fileName]: workflowJson }));
-      }
+      // Update JSON file
+      const workflowJson = JSON.stringify(updatedWorkflow, null, 2);
+      const fileName = `workflow_live_${Date.now()}.json`;
+      
+      setLiveFiles(prev => ({ ...prev, [fileName]: workflowJson }));
     }
-  }, [generatedWorkflow, isWorkflowLoaded]);
+  }, [generatedWorkflow]);
 
   const autoRedeploy = useCallback(async () => {
     if (!generatedWorkflow || !n8nWorkflowId || !hasUnsavedChanges) return;
@@ -495,26 +485,23 @@ const WorkflowPlayground = memo(() => {
       isWorkflowLoaded
     });
     
-    // Only process file generation for new workflows, not loaded ones
-    if (!isWorkflowLoaded) {
-      if (fileName.includes('.json')) {
-        setAnimationJsonContent(content);
-        setShowJsonAnimation(true);
-      }
-      
-      setLiveFiles(prev => ({
-        ...prev,
-        [fileName]: content
-      }));
-      
-      if (!showCodePreview) {
-        console.log('🔄 Auto-switching to code preview');
-        setShowCodePreview(true);
-        setShowN8nEngine(false);
-      }
+    // Process file generation for both new and loaded workflows
+    if (fileName.includes('.json')) {
+      setAnimationJsonContent(content);
+      setShowJsonAnimation(true);
+    }
+    
+    setLiveFiles(prev => ({
+      ...prev,
+      [fileName]: content
+    }));
+    
+    if (!showCodePreview) {
+      console.log('🔄 Auto-switching to code preview');
+      setShowCodePreview(true);
+      setShowN8nEngine(false);
     }
   }, [isWorkflowLoaded, showCodePreview]);
-
 
   const getDeployButtonText = () => {
     if (isDeploying) {
@@ -752,10 +739,11 @@ const WorkflowPlayground = memo(() => {
         onFileGenerated={handleFileGenerated}
         deploymentMessage={deploymentMessage}
         onDeploymentMessageShown={() => setDeploymentMessage(null)}
+        currentWorkflow={generatedWorkflow}
       />
 
       <div className="flex-1 flex flex-col min-h-0">
-        {/* Enhanced Top Header with GitHub button */}
+        {/* Enhanced Top Header */}
         <div className="bg-black/30 backdrop-blur-sm border-b border-white/10 p-4 shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
