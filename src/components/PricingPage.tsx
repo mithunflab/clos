@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { X, Check, Gift, QrCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -97,7 +96,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ isOpen, onClose }) => {
 
       if (error) throw error;
 
-      const result = data as PromoCodeResponse;
+      const result = data as unknown as PromoCodeResponse;
 
       if (result.success) {
         toast({
