@@ -137,6 +137,74 @@ export type Database = {
         }
         Relationships: []
       }
+      promo_code_usage: {
+        Row: {
+          id: string
+          promo_code_id: string
+          used_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          promo_code_id: string
+          used_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          promo_code_id?: string
+          used_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_code_usage_promo_code_id_fkey"
+            columns: ["promo_code_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promo_codes: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          credits_to_add: number
+          current_uses: number
+          expires_at: string | null
+          id: string
+          max_uses: number | null
+          plan_type: Database["public"]["Enums"]["plan_type"]
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          credits_to_add?: number
+          current_uses?: number
+          expires_at?: string | null
+          id?: string
+          max_uses?: number | null
+          plan_type: Database["public"]["Enums"]["plan_type"]
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          credits_to_add?: number
+          current_uses?: number
+          expires_at?: string | null
+          id?: string
+          max_uses?: number | null
+          plan_type?: Database["public"]["Enums"]["plan_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_plans: {
         Row: {
           created_at: string
@@ -217,6 +285,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_promo_code: {
+        Args: { p_user_id: string; p_promo_code: string }
+        Returns: Json
+      }
       create_user_bucket: {
         Args: { user_id_param: string }
         Returns: string
