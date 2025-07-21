@@ -98,7 +98,7 @@ const Workflows = () => {
   };
 
   const handleEditWorkflow = (workflowId: string) => {
-    navigate(`/workflows/${workflowId}/edit`);
+    navigate(`/playground?id=${workflowId}`);
   };
 
   const getStatusIcon = (status: string) => {
@@ -297,15 +297,6 @@ const Workflows = () => {
                           <ExternalLink className="w-4 h-4" />
                         </Button>
                       )}
-                      
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeleteWorkflow(workflow.id)}
-                        className="bg-red-500/20 border-red-500/30 text-red-400 hover:bg-red-500/30"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
                     </div>
                   </div>
                 </CardContent>
