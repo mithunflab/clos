@@ -20,21 +20,50 @@ export const useGitHubWorkflowLoader = () => {
       const owner = urlParts[urlParts.length - 2];
       const repo = urlParts[urlParts.length - 1];
 
-      // Fetch workflow.json directly from GitHub's raw content API
-      const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/workflow.json`;
-      
-      console.log('📥 Fetching from:', rawUrl);
+      // Try multiple possible file locations and branch names
+      const possiblePaths = [
+        `https://raw.githubusercontent.com/${owner}/${repo}/main/workflow.json`,
+        `https://raw.githubusercontent.com/${owner}/${repo}/master/workflow.json`,
+        `https://raw.githubusercontent.com/${owner}/${repo}/main/src/workflow.json`,
+        `https://raw.githubusercontent.com/${owner}/${repo}/master/src/workflow.json`
+      ];
 
-      const response = await fetch(rawUrl);
-      
-      if (!response.ok) {
-        console.error('❌ Failed to fetch workflow from GitHub:', response.status, response.statusText);
-        throw new Error(`Failed to load workflow from GitHub: ${response.status}`);
+      let workflowContent = null;
+      let lastError = null;
+
+      for (const rawUrl of possiblePaths) {
+        try {
+          console.log('📥 Trying to fetch from:', rawUrl);
+          const response = await fetch(rawUrl);
+          
+          if (response.ok) {
+            workflowContent = await response.json();
+            console.log('✅ Workflow loaded successfully from GitHub:', workflowContent);
+            break;
+          } else {
+            console.log(`❌ Failed to fetch from ${rawUrl}: ${response.status}`);
+            lastError = `Failed to load workflow from GitHub: ${response.status}`;
+          }
+        } catch (fetchError) {
+          console.log(`❌ Error fetching from ${rawUrl}:`, fetchError);
+          lastError = fetchError instanceof Error ? fetchError.message : 'Network error';
+        }
       }
 
-      const workflowContent = await response.json();
-      
-      console.log('✅ Workflow loaded successfully from GitHub:', workflowContent);
+      if (!workflowContent) {
+        // If no workflow.json found, return empty structure but don't throw error
+        console.log('⚠️ No workflow.json found, returning empty workflow structure');
+        return {
+          success: false,
+          workflowData: { nodes: [], connections: {} },
+          workflow: { nodes: [], connections: {} },
+          chat: [],
+          nodes: [],
+          connections: {},
+          metadata: {},
+          error: 'Workflow file not found in repository'
+        };
+      }
 
       return {
         success: true,
@@ -50,7 +79,18 @@ export const useGitHubWorkflowLoader = () => {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load workflow from GitHub';
       console.error('❌ GitHub workflow load failed:', errorMessage);
       setError(errorMessage);
-      throw new Error(errorMessage);
+      
+      // Return empty structure instead of throwing
+      return {
+        success: false,
+        workflowData: { nodes: [], connections: {} },
+        workflow: { nodes: [], connections: {} },
+        chat: [],
+        nodes: [],
+        connections: {},
+        metadata: {},
+        error: errorMessage
+      };
     } finally {
       setLoading(false);
     }
