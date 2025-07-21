@@ -1,6 +1,7 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useWorkflowStorage } from './useWorkflowStorage';
+import { useAutoSave } from './useAutoSave';
 
 interface WorkflowConfiguration {
   id: string;
@@ -30,8 +31,27 @@ export const useWorkflowConfiguration = (workflowId: string | null) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [chatHistory, setChatHistory] = useState<any[]>([]);
+  const [workflowData, setWorkflowData] = useState<any>(null);
   
-  const { saveWorkflow, updateDeploymentStatus, loadWorkflow, getUserWorkflows } = useWorkflowStorage();
+  const { loadWorkflow, updateDeploymentStatus } = useWorkflowStorage();
+
+  // Auto-save functionality
+  const { saving } = useAutoSave({
+    workflowId: workflowId || '',
+    workflowData,
+    chatHistory,
+    delay: 2000
+  });
+
+  const updateWorkflowData = useCallback((newData: any) => {
+    console.log('🔄 Updating workflow data:', newData);
+    setWorkflowData(newData);
+  }, []);
+
+  const updateChatHistory = useCallback((newChat: any[]) => {
+    console.log('🔄 Updating chat history:', newChat.length, 'messages');
+    setChatHistory(newChat);
+  }, []);
 
   const saveConfiguration = useCallback(async (config: any, deploymentSettings?: any, chat?: any[]) => {
     if (!workflowId) return false;
@@ -40,7 +60,7 @@ export const useWorkflowConfiguration = (workflowId: string | null) => {
       setIsLoading(true);
       setError(null);
 
-      console.log('💾 Saving workflow configuration with GitHub integration:', { 
+      console.log('💾 Saving workflow configuration:', { 
         workflowId, 
         config, 
         chat: chat?.length || 0,
@@ -57,44 +77,12 @@ export const useWorkflowConfiguration = (workflowId: string | null) => {
         updated_at: new Date().toISOString()
       };
 
-      // Enhanced workflow data for GitHub storage
-      const workflowData = {
-        name: config.name || 'Untitled Workflow',
-        workflow: config,
-        chat: chat || chatHistory,
-        nodes: config.nodes || [],
-        connections: config.connections || {},
-        metadata: {
-          created_at: new Date().toISOString(),
-          workflow_id: workflowId,
-          ai_model: 'gemini-2.0-flash-exp',
-          version: '1.0.0',
-          description: config.description || 'AI Generated Workflow'
-        }
-      };
-
-      console.log('🔄 Syncing workflow to GitHub (will update existing repo if available)...');
+      setConfiguration(configData);
+      setWorkflowData(config);
+      if (chat) setChatHistory(chat);
       
-      try {
-        // Save workflow to Supabase storage
-        const result = await saveWorkflow(workflowData, workflowId);
-        console.log('✅ Workflow synced successfully with GitHub:', result);
-        
-        setConfiguration(configData);
-        if (chat) setChatHistory(chat);
-        
-        console.log('✅ Configuration saved successfully to Supabase:', { 
-          configData, 
-          result
-        });
-        
-        return true;
-      } catch (githubError: any) {
-        console.warn('⚠️ GitHub sync failed, but continuing without it:', githubError.message);
-        setConfiguration(configData);
-        if (chat) setChatHistory(chat);
-        return true; // Still return true as local save succeeded
-      }
+      console.log('✅ Configuration saved successfully to local state');
+      return true;
       
     } catch (err: any) {
       console.error('❌ Error saving configuration:', err);
@@ -103,7 +91,7 @@ export const useWorkflowConfiguration = (workflowId: string | null) => {
     } finally {
       setIsLoading(false);
     }
-  }, [workflowId, saveWorkflow, chatHistory]);
+  }, [workflowId]);
 
   const saveNodes = useCallback(async (workflowNodes: any[]) => {
     if (!workflowId) return false;
@@ -126,7 +114,7 @@ export const useWorkflowConfiguration = (workflowId: string | null) => {
 
       setNodes(nodesToSave);
       
-      console.log('✅ Nodes processed and ready for GitHub sync:', nodesToSave);
+      console.log('✅ Nodes processed and ready for auto-save:', nodesToSave);
       return true;
     } catch (err: any) {
       console.error('❌ Error saving nodes:', err);
@@ -144,7 +132,7 @@ export const useWorkflowConfiguration = (workflowId: string | null) => {
       setIsLoading(true);
       setError(null);
 
-      console.log('📥 Loading workflow configuration from GitHub:', workflowId);
+      console.log('📥 Loading workflow configuration from Supabase:', workflowId);
 
       const data = await loadWorkflow(workflowId);
       
@@ -160,14 +148,27 @@ export const useWorkflowConfiguration = (workflowId: string | null) => {
         };
         
         setConfiguration(configData);
+        setWorkflowData(data.workflow);
         setChatHistory(data.chat || []);
-        console.log('✅ Configuration loaded from GitHub:', configData);
+        console.log('✅ Configuration loaded from Supabase:', configData);
       } else {
         console.log('ℹ️ No existing configuration found for workflow:', workflowId);
+        // Initialize empty workflow data
+        setWorkflowData({
+          name: 'Untitled Workflow',
+          nodes: [],
+          connections: {}
+        });
       }
     } catch (err: any) {
       console.error('❌ Error loading configuration:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
+      // Initialize empty workflow data on error
+      setWorkflowData({
+        name: 'Untitled Workflow',
+        nodes: [],
+        connections: {}
+      });
     } finally {
       setIsLoading(false);
     }
@@ -178,15 +179,26 @@ export const useWorkflowConfiguration = (workflowId: string | null) => {
     console.log('✅ Nodes loaded with configuration');
   }, [workflowId]);
 
+  // Auto-load configuration when workflowId changes
+  useEffect(() => {
+    if (workflowId) {
+      loadConfiguration();
+    }
+  }, [workflowId, loadConfiguration]);
+
   return {
     configuration,
     nodes,
-    isLoading,
+    isLoading: isLoading || saving,
     error,
     chatHistory,
+    workflowData,
     saveConfiguration,
     saveNodes,
     loadConfiguration,
-    loadNodes
+    loadNodes,
+    updateWorkflowData,
+    updateChatHistory,
+    saving
   };
 };

@@ -142,6 +142,7 @@ export type Database = {
           expires_at: string | null
           id: string
           max_credits: number
+          max_workflows: number | null
           plan_type: Database["public"]["Enums"]["plan_type"]
           updated_at: string
           user_id: string
@@ -153,6 +154,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           max_credits?: number
+          max_workflows?: number | null
           plan_type?: Database["public"]["Enums"]["plan_type"]
           updated_at?: string
           user_id: string
@@ -164,6 +166,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           max_credits?: number
+          max_workflows?: number | null
           plan_type?: Database["public"]["Enums"]["plan_type"]
           updated_at?: string
           user_id?: string
@@ -301,6 +304,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_workflow_limit: {
+        Args: { p_user_id: string }
+        Returns: boolean
+      }
+      cleanup_old_workflows: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       deduct_credit: {
         Args: {
           p_user_id: string

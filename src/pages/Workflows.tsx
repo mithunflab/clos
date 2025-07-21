@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { useWorkflowStorage } from '@/hooks/useWorkflowStorage';
+import { useUserPlan } from '@/hooks/useUserPlan';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -25,26 +26,38 @@ interface WorkflowItem {
 const Workflows = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { deleteWorkflow } = useWorkflowStorage();
+  const { plan } = useUserPlan();
+  const { deleteWorkflow, getUserWorkflowCount, getWorkflowLimit } = useWorkflowStorage();
   const [workflows, setWorkflows] = useState<WorkflowItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [workflowCount, setWorkflowCount] = useState(0);
   const { toast } = useToast();
 
   useEffect(() => {
     if (user) {
       loadWorkflows();
+      loadWorkflowCount();
     }
   }, [user]);
+
+  const loadWorkflowCount = async () => {
+    try {
+      const count = await getUserWorkflowCount();
+      setWorkflowCount(count);
+    } catch (error) {
+      console.error('Error loading workflow count:', error);
+    }
+  };
 
   const loadWorkflows = async () => {
     try {
       setLoading(true);
       
       const { data: workflowsData, error } = await supabase
-        .from('user_workflows')
+        .from('workflow_data')
         .select('*')
         .eq('user_id', user?.id)
-        .order('created_at', { ascending: false });
+        .order('updated_at', { ascending: false });
       
       if (error) {
         console.error('❌ Error loading workflows from Supabase:', error);
@@ -56,13 +69,13 @@ const Workflows = () => {
         const formattedWorkflows = workflowsData.map((workflow: any) => ({
           id: workflow.workflow_id,
           name: workflow.workflow_name || 'Untitled Workflow',
-          description: workflow.description || 'Automation workflow',
+          description: workflow.metadata?.description || 'Automation workflow',
           status: (workflow.deployment_status === 'active' ? 'active' : 'draft') as 'active' | 'inactive' | 'draft',
           created_at: workflow.created_at,
-          updated_at: workflow.last_updated,
+          updated_at: workflow.updated_at,
           workflow_data: null,
           n8n_workflow_id: workflow.n8n_workflow_id,
-          deployment_url: workflow.deployment_url
+          deployment_url: workflow.n8n_url
         }));
         
         setWorkflows(formattedWorkflows);
@@ -83,6 +96,7 @@ const Workflows = () => {
     try {
       await deleteWorkflow(workflowId);
       setWorkflows(workflows.filter(w => w.id !== workflowId));
+      await loadWorkflowCount(); // Refresh count
       toast({
         title: "Success",
         description: "Workflow deleted successfully",
@@ -99,6 +113,21 @@ const Workflows = () => {
 
   const handleEditWorkflow = (workflowId: string) => {
     navigate(`/playground?id=${workflowId}`);
+  };
+
+  const handleCreateWorkflow = () => {
+    const workflowLimit = getWorkflowLimit();
+    
+    if (workflowLimit !== -1 && workflowCount >= workflowLimit) {
+      toast({
+        title: "Workflow Limit Reached",
+        description: `You have reached the maximum number of workflows (${workflowLimit}) for your ${plan?.plan_type} plan. Please upgrade to create more workflows.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    navigate('/playground');
   };
 
   const getStatusIcon = (status: string) => {
@@ -131,6 +160,20 @@ const Workflows = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const getWorkflowLimitText = () => {
+    const limit = getWorkflowLimit();
+    if (limit === -1) return 'Unlimited';
+    return `${workflowCount}/${limit}`;
+  };
+
+  const getWorkflowLimitColor = () => {
+    const limit = getWorkflowLimit();
+    if (limit === -1) return 'text-green-400';
+    if (workflowCount >= limit) return 'text-red-400';
+    if (workflowCount >= limit * 0.8) return 'text-yellow-400';
+    return 'text-green-400';
   };
 
   if (loading) {
@@ -216,11 +259,16 @@ const Workflows = () => {
             </div>
             <div>
               <h1 className="text-3xl font-bold text-white">Workflows</h1>
-              <p className="text-white/70">Manage your automation workflows</p>
+              <p className="text-white/70">
+                Manage your automation workflows 
+                <span className={`ml-2 font-medium ${getWorkflowLimitColor()}`}>
+                  ({getWorkflowLimitText()})
+                </span>
+              </p>
             </div>
           </div>
           <Button 
-            onClick={() => navigate('/workflows/new')} 
+            onClick={handleCreateWorkflow}
             className="flex items-center space-x-2 bg-white text-black hover:bg-white/90"
           >
             <Plus className="w-4 h-4" />
@@ -239,7 +287,7 @@ const Workflows = () => {
               Create your first workflow to get started with automation
             </p>
             <Button 
-              onClick={() => navigate('/workflows/new')}
+              onClick={handleCreateWorkflow}
               className="bg-white text-black hover:bg-white/90"
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -285,6 +333,15 @@ const Workflows = () => {
                       >
                         <Edit className="w-4 h-4 mr-2" />
                         Edit
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteWorkflow(workflow.id)}
+                        className="bg-red-500/20 border-red-500/30 text-red-400 hover:bg-red-500/30"
+                      >
+                        <Trash2 className="w-4 h-4" />
                       </Button>
                       
                       {workflow.deployment_url && (

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from './useAuth';
+import { useUserPlan } from './useUserPlan';
 import { supabase } from '@/integrations/supabase/client';
 
 // Compression utilities
@@ -25,6 +26,27 @@ export const useWorkflowStorage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
+  const { plan } = useUserPlan();
+
+  const checkWorkflowLimit = async () => {
+    if (!user) return false;
+
+    try {
+      const { data, error } = await supabase.rpc('check_workflow_limit', {
+        p_user_id: user.id
+      });
+
+      if (error) {
+        console.error('Error checking workflow limit:', error);
+        return false;
+      }
+
+      return data;
+    } catch (err) {
+      console.error('Error checking workflow limit:', err);
+      return false;
+    }
+  };
 
   const saveWorkflow = async (workflowData: WorkflowData, workflowId: string) => {
     if (!user) throw new Error('User not authenticated');
@@ -34,6 +56,28 @@ export const useWorkflowStorage = () => {
       setError(null);
 
       console.log('💾 Saving workflow to Supabase...', { workflowId, name: workflowData.name });
+
+      // Check if this is a new workflow (not an update)
+      const { data: existingWorkflow } = await supabase
+        .from('workflow_data')
+        .select('id')
+        .eq('workflow_id', workflowId)
+        .eq('user_id', user.id)
+        .single();
+
+      // If it's a new workflow, check limits
+      if (!existingWorkflow) {
+        const canCreate = await checkWorkflowLimit();
+        if (!canCreate) {
+          const limitMessage = plan?.plan_type === 'free' 
+            ? 'Free plan allows maximum 5 workflows. Please upgrade to create more.'
+            : plan?.plan_type === 'pro' 
+            ? 'Pro plan allows maximum 10 workflows. Please upgrade to custom plan for unlimited workflows.'
+            : 'Workflow limit exceeded for your plan.';
+          
+          throw new Error(limitMessage);
+        }
+      }
 
       // Compress the workflow JSON and chat history
       const compressedWorkflow = compressJSON(workflowData.workflow);
@@ -263,6 +307,42 @@ export const useWorkflowStorage = () => {
     }
   };
 
+  const getUserWorkflowCount = async () => {
+    if (!user) return 0;
+
+    try {
+      const { count, error } = await supabase
+        .from('workflow_data')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error getting workflow count:', error);
+        return 0;
+      }
+
+      return count || 0;
+    } catch (err) {
+      console.error('Error getting workflow count:', err);
+      return 0;
+    }
+  };
+
+  const getWorkflowLimit = () => {
+    if (!plan) return 5;
+    
+    switch (plan.plan_type) {
+      case 'free':
+        return 5;
+      case 'pro':
+        return 10;
+      case 'custom':
+        return -1; // unlimited
+      default:
+        return 5;
+    }
+  };
+
   return {
     loading,
     error,
@@ -270,6 +350,9 @@ export const useWorkflowStorage = () => {
     loadWorkflow,
     getUserWorkflows,
     deleteWorkflow,
-    updateDeploymentStatus
+    updateDeploymentStatus,
+    checkWorkflowLimit,
+    getUserWorkflowCount,
+    getWorkflowLimit
   };
 };
