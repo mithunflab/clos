@@ -1,7 +1,7 @@
 import { useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useUserPlan } from './useUserPlan';
-import { supabase } from '@/integrations/supabase/client';
 
 export interface WorkflowData {
   name: string;
@@ -15,7 +15,80 @@ export const useWorkflowStorageV2 = () => {
   const { user } = useAuth();
   const { plan } = useUserPlan();
 
-  const checkWorkflowLimit = async () => {
+  // Get or create user-specific bucket
+  const getUserBucket = async (): Promise<string> => {
+    if (!user) throw new Error('User not authenticated');
+    
+    const bucketName = `user-workflows-${user.id}`;
+    
+    // Check if bucket exists, if not create it
+    const { data: buckets } = await supabase.storage.listBuckets();
+    const bucketExists = buckets?.some(bucket => bucket.id === bucketName);
+    
+    if (!bucketExists) {
+      const { error: createError } = await supabase.storage.createBucket(bucketName, {
+        public: false,
+        allowedMimeTypes: ['application/json'],
+        fileSizeLimit: 1024 * 1024 * 10 // 10MB limit
+      });
+      
+      if (createError) {
+        console.error('Error creating bucket:', createError);
+        throw createError;
+      }
+      
+      console.log('✅ Created user bucket:', bucketName);
+    }
+    
+    return bucketName;
+  };
+
+  // Count workflows by counting JSON files in user's bucket
+  const getUserWorkflowCount = async (): Promise<number> => {
+    if (!user) return 0;
+
+    try {
+      const bucketName = await getUserBucket();
+      const { data: files, error } = await supabase.storage
+        .from(bucketName)
+        .list('', {
+          limit: 100,
+          offset: 0
+        });
+
+      if (error) {
+        console.error('Error listing files:', error);
+        return 0;
+      }
+
+      // Count only workflow JSON files (not chat files)
+      const workflowFiles = files?.filter(file => 
+        file.name.endsWith('.json') && !file.name.includes('_chat')
+      ) || [];
+
+      return workflowFiles.length;
+    } catch (err) {
+      console.error('Error getting workflow count:', err);
+      return 0;
+    }
+  };
+
+  const getWorkflowLimit = (): number => {
+    if (!plan) return 5;
+    
+    switch (plan.plan_type) {
+      case 'free':
+        return 5;
+      case 'pro':
+        return 10;
+      case 'custom':
+        return -1; // unlimited
+      default:
+        return 5;
+    }
+  };
+
+  const checkWorkflowLimit = async (): Promise<boolean> => {
     if (!user) return false;
 
     try {
@@ -42,18 +115,22 @@ export const useWorkflowStorageV2 = () => {
       setLoading(true);
       setError(null);
 
-      console.log('💾 Saving workflow to user-specific bucket...', { workflowId, name: workflowData.name });
+      console.log('💾 Saving workflow to user bucket...', { workflowId, name: workflowData.name });
 
-      // Check if this is a new workflow (not an update)
-      const { data: existingWorkflow } = await supabase
-        .from('workflow_data')
-        .select('id, workflow_storage_path, chat_storage_path')
-        .eq('workflow_id', workflowId)
-        .eq('user_id', user.id)
-        .single();
+      // Check if this is a new workflow (check if file exists)
+      const bucketName = await getUserBucket();
+      const workflowFileName = `${workflowId}.json`;
+      
+      const { data: existingFile } = await supabase.storage
+        .from(bucketName)
+        .list('', {
+          search: workflowFileName
+        });
+
+      const isNewWorkflow = !existingFile || existingFile.length === 0;
 
       // If it's a new workflow, check limits
-      if (!existingWorkflow) {
+      if (isNewWorkflow) {
         const canCreate = await checkWorkflowLimit();
         if (!canCreate) {
           const limitMessage = plan?.plan_type === 'free' 
@@ -66,22 +143,21 @@ export const useWorkflowStorageV2 = () => {
         }
       }
 
-      // Get or create user-specific bucket
-      const { data: bucketName, error: bucketError } = await supabase.rpc('get_user_bucket', {
-        user_id_param: user.id
-      });
+      // Create workflow JSON file with proper formatting
+      const workflowFileContent = {
+        name: workflowData.name,
+        workflow: workflowData.workflow,
+        metadata: {
+          workflowId,
+          userId: user.id,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          version: '2.0.0'
+        }
+      };
 
-      if (bucketError) {
-        console.error('❌ Bucket creation error:', bucketError);
-        throw new Error(`Failed to create user bucket: ${bucketError.message}`);
-      }
-
-      // Create unique file names (without timestamp if updating existing workflow)
-      const workflowFileName = `${workflowId}.json`;
-      const chatFileName = `${workflowId}_chat.json`;
-
-      // Upload workflow JSON to user-specific bucket
-      const workflowBlob = new Blob([JSON.stringify(workflowData.workflow, null, 2)], {
+      // Upload workflow JSON to user bucket
+      const workflowBlob = new Blob([JSON.stringify(workflowFileContent, null, 2)], {
         type: 'application/json'
       });
 
@@ -97,12 +173,23 @@ export const useWorkflowStorageV2 = () => {
         throw new Error(`Failed to upload workflow: ${workflowUploadError.message}`);
       }
 
-      console.log('✅ Workflow JSON uploaded to user bucket:', workflowFileName);
+      console.log('✅ Workflow JSON saved to bucket:', workflowFileName);
 
-      // Upload chat history if exists
+      // Save chat history if exists
       let chatStoragePath = null;
       if (workflowData.chat && workflowData.chat.length > 0) {
-        const chatBlob = new Blob([JSON.stringify(workflowData.chat, null, 2)], {
+        const chatFileName = `${workflowId}_chat.json`;
+        const chatFileContent = {
+          workflowId,
+          messages: workflowData.chat,
+          metadata: {
+            userId: user.id,
+            createdAt: new Date().toISOString(),
+            messageCount: workflowData.chat.length
+          }
+        };
+
+        const chatBlob = new Blob([JSON.stringify(chatFileContent, null, 2)], {
           type: 'application/json'
         });
 
@@ -119,10 +206,10 @@ export const useWorkflowStorageV2 = () => {
         }
 
         chatStoragePath = chatFileName;
-        console.log('✅ Chat history uploaded to user bucket:', chatFileName);
+        console.log('✅ Chat history saved to bucket:', chatFileName);
       }
 
-      // Save metadata to database
+      // Save minimal metadata to database
       const { data, error: upsertError } = await supabase
         .from('workflow_data')
         .upsert({
@@ -131,12 +218,10 @@ export const useWorkflowStorageV2 = () => {
           workflow_name: workflowData.name,
           workflow_storage_path: workflowFileName,
           chat_storage_path: chatStoragePath,
-          compressed_workflow_json: null, // Not used in storage version
-          compressed_chat_history: null, // Not used in storage version
           metadata: {
-            created_at: new Date().toISOString(),
-            version: '2.0.0',
-            storage_based: true
+            bucket: bucketName,
+            storage_based: true,
+            version: '2.0.0'
           }
         }, {
           onConflict: 'user_id,workflow_id'
@@ -149,13 +234,14 @@ export const useWorkflowStorageV2 = () => {
         throw new Error(`Failed to save workflow metadata: ${upsertError.message}`);
       }
 
-      console.log('✅ Workflow saved successfully:', data);
+      console.log('✅ Workflow saved successfully');
 
       return {
         success: true,
         message: 'Workflow saved successfully',
         workflowId: data.workflow_id,
-        id: data.id
+        id: data.id,
+        filePath: workflowFileName
       };
 
     } catch (err: any) {
@@ -175,103 +261,65 @@ export const useWorkflowStorageV2 = () => {
       setLoading(true);
       setError(null);
 
-      console.log('📥 Loading workflow from Supabase Storage...', { workflowId });
+      console.log('📥 Loading workflow from user bucket...', { workflowId });
 
-      // Get workflow metadata from database
-      const { data, error: loadError } = await supabase
+      const bucketName = await getUserBucket();
+      const workflowFileName = `${workflowId}.json`;
+      const chatFileName = `${workflowId}_chat.json`;
+
+      // Load workflow JSON from storage
+      const { data: workflowFile, error: workflowDownloadError } = await supabase.storage
+        .from(bucketName)
+        .download(workflowFileName);
+
+      if (workflowDownloadError) {
+        console.error('❌ Workflow download error:', workflowDownloadError);
+        throw new Error(`Failed to download workflow: ${workflowDownloadError.message}`);
+      }
+
+      const workflowText = await workflowFile.text();
+      const workflowFileData = JSON.parse(workflowText);
+      console.log('✅ Workflow JSON loaded from bucket');
+
+      // Load chat history from storage if exists
+      let chatHistory = [];
+      const { data: chatFile, error: chatDownloadError } = await supabase.storage
+        .from(bucketName)
+        .download(chatFileName);
+
+      if (!chatDownloadError && chatFile) {
+        try {
+          const chatText = await chatFile.text();
+          const chatFileData = JSON.parse(chatText);
+          chatHistory = chatFileData.messages || [];
+          console.log('✅ Chat history loaded from bucket:', chatHistory.length, 'messages');
+        } catch (chatParseError) {
+          console.warn('Could not parse chat history, continuing without it');
+        }
+      }
+
+      // Get metadata from database if exists
+      const { data: dbData } = await supabase
         .from('workflow_data')
         .select('*')
         .eq('workflow_id', workflowId)
         .eq('user_id', user.id)
         .single();
 
-      if (loadError) {
-        console.error('❌ Database error:', loadError);
-        throw new Error(`Failed to load workflow: ${loadError.message}`);
-      }
-
-      if (!data) {
-        throw new Error('Workflow not found');
-      }
-
-      console.log('🔍 Workflow metadata loaded:', {
-        workflowId: data.workflow_id,
-        workflowName: data.workflow_name,
-        workflowStoragePath: data.workflow_storage_path,
-        chatStoragePath: data.chat_storage_path,
-        hasWorkflowPath: !!data.workflow_storage_path,
-        hasChatPath: !!data.chat_storage_path
-      });
-
-      let workflowData = null;
-      let chatHistory = [];
-
-      // Get user bucket name
-      const { data: bucketName, error: bucketError } = await supabase.rpc('get_user_bucket', {
-        user_id_param: user.id
-      });
-
-      if (bucketError) {
-        console.error('❌ Bucket error:', bucketError);
-        throw new Error(`Failed to get user bucket: ${bucketError.message}`);
-      }
-
-      // Load workflow JSON from storage
-      if (data.workflow_storage_path) {
-        console.log('📥 Downloading workflow JSON from user bucket...');
-        const { data: workflowFile, error: workflowDownloadError } = await supabase.storage
-          .from(bucketName)
-          .download(data.workflow_storage_path);
-
-        if (workflowDownloadError) {
-          console.error('❌ Workflow download error:', workflowDownloadError);
-          throw new Error(`Failed to download workflow: ${workflowDownloadError.message}`);
-        }
-
-        const workflowText = await workflowFile.text();
-        workflowData = JSON.parse(workflowText);
-        console.log('✅ Workflow JSON loaded from user bucket');
-      }
-
-      // Load chat history from storage if exists
-      if (data.chat_storage_path) {
-        console.log('📥 Downloading chat history from user bucket...');
-        const { data: chatFile, error: chatDownloadError } = await supabase.storage
-          .from(bucketName)
-          .download(data.chat_storage_path);
-
-        if (chatDownloadError) {
-          console.error('❌ Chat download error:', chatDownloadError);
-          // Don't throw error for chat, just log it
-          console.warn('Chat history could not be loaded, continuing without it');
-        } else {
-          const chatText = await chatFile.text();
-          chatHistory = JSON.parse(chatText);
-          console.log('✅ Chat history loaded from user bucket:', chatHistory.length, 'messages');
-        }
-      }
-
-      console.log('✅ Workflow loaded successfully from storage:', {
-        workflowName: data.workflow_name,
-        workflowNodesCount: workflowData?.nodes?.length || 0,
-        chatHistoryLength: chatHistory.length,
-        hasConnections: !!workflowData?.connections
-      });
-
       return {
         success: true,
         workflowData: {
-          name: data.workflow_name,
-          workflow: workflowData,
-          ...workflowData
+          name: workflowFileData.name,
+          workflow: workflowFileData.workflow
         },
-        workflow: workflowData,
+        workflow: workflowFileData.workflow,
         chat: chatHistory,
-        nodes: workflowData?.nodes || [],
-        connections: workflowData?.connections || {},
-        metadata: data.metadata || {},
-        n8nWorkflowId: data.n8n_workflow_id,
-        deploymentStatus: data.deployment_status
+        nodes: workflowFileData.workflow?.nodes || [],
+        connections: workflowFileData.workflow?.connections || {},
+        metadata: workflowFileData.metadata || {},
+        n8nWorkflowId: dbData?.n8n_workflow_id,
+        deploymentStatus: dbData?.deployment_status,
+        filePath: workflowFileName
       };
 
     } catch (err: any) {
@@ -291,34 +339,71 @@ export const useWorkflowStorageV2 = () => {
       setLoading(true);
       setError(null);
 
-      console.log('📋 Fetching user workflows from database...');
+      console.log('📋 Fetching user workflows from bucket...');
 
-      const { data, error: fetchError } = await supabase
-        .from('workflow_data')
-        .select(`
-          id,
-          workflow_id,
-          workflow_name,
-          n8n_workflow_id,
-          n8n_url,
-          deployment_status,
-          created_at,
-          updated_at,
-          metadata,
-          workflow_storage_path,
-          chat_storage_path
-        `)
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: false });
+      const bucketName = await getUserBucket();
+      const { data: files, error: listError } = await supabase.storage
+        .from(bucketName)
+        .list('', {
+          limit: 100,
+          offset: 0
+        });
 
-      if (fetchError) {
-        console.error('❌ Database error fetching workflows:', fetchError);
-        throw new Error(`Database error: ${fetchError.message}`);
+      if (listError) {
+        throw new Error(`Failed to list files: ${listError.message}`);
       }
 
-      console.log('✅ Successfully fetched workflows:', data?.length || 0);
+      // Filter workflow files (not chat files)
+      const workflowFiles = files?.filter(file => 
+        file.name.endsWith('.json') && !file.name.includes('_chat')
+      ) || [];
 
-      return data || [];
+      const workflows = [];
+
+      // Load each workflow file to get metadata
+      for (const file of workflowFiles) {
+        try {
+          const { data: fileData, error: downloadError } = await supabase.storage
+            .from(bucketName)
+            .download(file.name);
+
+          if (!downloadError && fileData) {
+            const content = await fileData.text();
+            const workflowData = JSON.parse(content);
+            const workflowId = file.name.replace('.json', '');
+
+            // Get deployment info from database if exists
+            const { data: dbData } = await supabase
+              .from('workflow_data')
+              .select('deployment_status, n8n_workflow_id, n8n_url, created_at, updated_at')
+              .eq('workflow_id', workflowId)
+              .eq('user_id', user.id)
+              .single();
+
+            workflows.push({
+              id: workflowId,
+              workflow_id: workflowId,
+              workflow_name: workflowData.name,
+              deployment_status: dbData?.deployment_status || 'pending',
+              n8n_workflow_id: dbData?.n8n_workflow_id,
+              n8n_url: dbData?.n8n_url,
+              created_at: dbData?.created_at || workflowData.metadata?.createdAt,
+              updated_at: dbData?.updated_at || workflowData.metadata?.updatedAt || file.updated_at,
+              metadata: workflowData.metadata,
+              workflow_storage_path: file.name,
+              chat_storage_path: `${workflowId}_chat.json`
+            });
+          }
+        } catch (err) {
+          console.warn(`Could not load workflow file ${file.name}:`, err);
+        }
+      }
+
+      // Sort by updated_at descending
+      workflows.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+
+      console.log('✅ Successfully fetched workflows:', workflows.length);
+      return workflows;
 
     } catch (err: any) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch workflows';
@@ -339,37 +424,30 @@ export const useWorkflowStorageV2 = () => {
 
       console.log('🗑️ Deleting workflow...', { workflowId });
 
-      // Get workflow metadata first to delete storage files
-      const { data: workflowData } = await supabase
-        .from('workflow_data')
-        .select('workflow_storage_path, chat_storage_path')
-        .eq('workflow_id', workflowId)
-        .eq('user_id', user.id)
-        .single();
+      const bucketName = await getUserBucket();
+      const workflowFileName = `${workflowId}.json`;
+      const chatFileName = `${workflowId}_chat.json`;
 
-      // Get user bucket name
-      const { data: bucketName, error: bucketError } = await supabase.rpc('get_user_bucket', {
-        user_id_param: user.id
-      });
+      // Delete workflow file
+      const { error: workflowDeleteError } = await supabase.storage
+        .from(bucketName)
+        .remove([workflowFileName]);
 
-      if (bucketError) {
-        console.error('❌ Bucket error:', bucketError);
-        throw new Error(`Failed to get user bucket: ${bucketError.message}`);
+      if (workflowDeleteError) {
+        console.warn('Could not delete workflow file:', workflowDeleteError);
+      } else {
+        console.log('✅ Workflow file deleted from bucket');
       }
 
-      // Delete storage files if they exist
-      if (workflowData?.workflow_storage_path) {
-        await supabase.storage
-          .from(bucketName)
-          .remove([workflowData.workflow_storage_path]);
-        console.log('✅ Workflow JSON deleted from user bucket');
-      }
+      // Delete chat file
+      const { error: chatDeleteError } = await supabase.storage
+        .from(bucketName)
+        .remove([chatFileName]);
 
-      if (workflowData?.chat_storage_path) {
-        await supabase.storage
-          .from(bucketName)
-          .remove([workflowData.chat_storage_path]);
-        console.log('✅ Chat history deleted from user bucket');
+      if (chatDeleteError) {
+        console.warn('Could not delete chat file:', chatDeleteError);
+      } else {
+        console.log('✅ Chat file deleted from bucket');
       }
 
       // Delete database record
@@ -380,8 +458,9 @@ export const useWorkflowStorageV2 = () => {
         .eq('user_id', user.id);
 
       if (deleteError) {
-        console.error('❌ Database error:', deleteError);
-        throw new Error(`Failed to delete workflow: ${deleteError.message}`);
+        console.warn('Could not delete database record:', deleteError);
+      } else {
+        console.log('✅ Database record deleted');
       }
 
       console.log('✅ Workflow deleted successfully');
@@ -426,7 +505,6 @@ export const useWorkflowStorageV2 = () => {
       }
 
       console.log('✅ Deployment status updated successfully');
-
       return { success: true };
 
     } catch (err: any) {
@@ -437,39 +515,27 @@ export const useWorkflowStorageV2 = () => {
     }
   };
 
-  const getUserWorkflowCount = async () => {
-    if (!user) return 0;
+  // Get workflow file content for CodePreview
+  const getWorkflowFileContent = async (workflowId: string): Promise<string | null> => {
+    if (!user) return null;
 
     try {
-      const { count, error } = await supabase
-        .from('workflow_data')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
+      const bucketName = await getUserBucket();
+      const workflowFileName = `${workflowId}.json`;
 
-      if (error) {
-        console.error('Error getting workflow count:', error);
-        return 0;
+      const { data: fileData, error } = await supabase.storage
+        .from(bucketName)
+        .download(workflowFileName);
+
+      if (error || !fileData) {
+        console.error('Error downloading workflow file:', error);
+        return null;
       }
 
-      return count || 0;
+      return await fileData.text();
     } catch (err) {
-      console.error('Error getting workflow count:', err);
-      return 0;
-    }
-  };
-
-  const getWorkflowLimit = () => {
-    if (!plan) return 5;
-    
-    switch (plan.plan_type) {
-      case 'free':
-        return 5;
-      case 'pro':
-        return 10;
-      case 'custom':
-        return -1; // unlimited
-      default:
-        return 5;
+      console.error('Error getting workflow file content:', err);
+      return null;
     }
   };
 
@@ -483,6 +549,8 @@ export const useWorkflowStorageV2 = () => {
     updateDeploymentStatus,
     checkWorkflowLimit,
     getUserWorkflowCount,
-    getWorkflowLimit
+    getWorkflowLimit,
+    getWorkflowFileContent,
+    getUserBucket
   };
 };

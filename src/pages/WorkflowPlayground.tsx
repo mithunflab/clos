@@ -234,8 +234,13 @@ const WorkflowPlayground = memo(() => {
           if (result?.success && result.workflowData) {
             console.log('✅ Workflow loaded from Supabase:', result.workflowData);
             
-            // Set the loaded workflow
-            setGeneratedWorkflow(result.workflowData);
+            // Set the loaded workflow with proper type structure
+            const workflowWithNodes = {
+              ...result.workflowData,
+              nodes: result.workflowData.workflow?.nodes || result.nodes || [],
+              connections: result.workflowData.workflow?.connections || result.connections || {}
+            };
+            setGeneratedWorkflow(workflowWithNodes);
             setWorkflowName(result.workflowData.name || 'Loaded Workflow');
             
             // Create JSON file for preview - use the loaded workflow data directly
@@ -265,7 +270,7 @@ const WorkflowPlayground = memo(() => {
             }
             
             // Parse and display on canvas
-            const { nodes: parsedNodes, edges: parsedEdges } = parseN8nWorkflowToReactFlow(result.workflowData);
+            const { nodes: parsedNodes, edges: parsedEdges } = parseN8nWorkflowToReactFlow(workflowWithNodes);
             if (parsedNodes.length > 0) {
               setNodes(parsedNodes);
               setEdges(parsedEdges);
@@ -691,10 +696,9 @@ const WorkflowPlayground = memo(() => {
       return (
         <div className="w-full h-full bg-black/90">
           <CodePreview 
-            generatedWorkflow={generatedWorkflow}
+            workflow={generatedWorkflow}
             generatedCode={generatedCode}
-            liveFiles={liveFiles}
-            workflowId={workflowId}
+            liveFiles={Object.entries(liveFiles).map(([fileName, content]) => ({ fileName, content }))}
           />
         </div>
       );
