@@ -268,6 +268,23 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      upsert_workflow: {
+        Args: {
+          p_workflow_id: string
+          p_workflow_name: string
+          p_user_id: string
+          p_github_repo_name: string
+          p_github_repo_url: string
+          p_github_repo_id?: string
+        }
+        Returns: {
+          id: string
+          workflow_id: string
+          workflow_name: string
+          github_repo_name: string
+          github_repo_url: string
+        }[]
+      }
     }
     Enums: {
       plan_type: "free" | "pro" | "custom"

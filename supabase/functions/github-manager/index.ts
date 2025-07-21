@@ -177,19 +177,15 @@ serve(async (req) => {
           })
         }
 
-        // Store in Supabase with upsert to handle duplicates
+        // Store in Supabase with upsert to handle duplicates using the new unique constraint
         const { error: dbError } = await supabaseClient
-          .from('user_workflows')
-          .upsert({
-            user_id: user.id,
-            workflow_id: workflowId,
-            workflow_name: workflowData.name || 'Untitled Workflow',
-            github_repo_name: uniqueRepoName,
-            github_repo_url: repo.html_url,
-            github_repo_id: repo.id.toString(),
-            last_updated: new Date().toISOString()
-          }, {
-            onConflict: 'user_id,workflow_id'
+          .rpc('upsert_workflow', {
+            p_workflow_id: workflowId,
+            p_workflow_name: workflowData.name || 'Untitled Workflow', 
+            p_user_id: user.id,
+            p_github_repo_name: uniqueRepoName,
+            p_github_repo_url: repo.html_url,
+            p_github_repo_id: repo.id.toString()
           })
 
         if (dbError) {
