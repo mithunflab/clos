@@ -28,26 +28,27 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get N8N configuration from request or environment
-    let N8N_URL = null;
-    let N8N_API_KEY = null;
+    // Get N8N configuration - Always use Casel Cloud credentials for deployment
+    let N8N_URL = 'https://n8n.casel.cloud';
+    let N8N_API_KEY = Deno.env.get('N8N_API_KEY');
 
     if (n8nConfig) {
       console.log('🔧 Using N8N config from request:', n8nConfig);
       
       if (n8nConfig.use_casel_cloud) {
+        // Use Casel Cloud with environment credentials
         N8N_URL = 'https://n8n.casel.cloud';
-        N8N_API_KEY = n8nConfig.n8n_api_key || Deno.env.get('N8N_API_KEY');
-      } else if (n8nConfig.n8n_url) {
+        N8N_API_KEY = Deno.env.get('N8N_API_KEY');
+      } else if (n8nConfig.n8n_url && n8nConfig.n8n_api_key) {
+        // Use user's own N8N instance
         N8N_URL = n8nConfig.n8n_url;
-        N8N_API_KEY = n8nConfig.n8n_api_key || Deno.env.get('N8N_API_KEY');
+        N8N_API_KEY = n8nConfig.n8n_api_key;
       }
     }
 
-    // Fallback to environment variables if no config provided
-    if (!N8N_URL || !N8N_API_KEY) {
-      console.log('🔧 Using environment variables for N8N config');
-      N8N_URL = Deno.env.get('N8N_URL');
+    // Always ensure we have valid credentials
+    if (!N8N_API_KEY) {
+      console.log('🔧 Using environment N8N API key');
       N8N_API_KEY = Deno.env.get('N8N_API_KEY');
     }
 
@@ -77,6 +78,7 @@ serve(async (req) => {
         headers: {
           'Content-Type': 'application/json',
           'X-N8N-API-KEY': N8N_API_KEY,
+          'Accept': 'application/json',
         },
       };
 

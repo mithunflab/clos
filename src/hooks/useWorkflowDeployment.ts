@@ -115,7 +115,7 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
           action: existingDeployment ? 'update' : 'deploy',
           workflow: cleanedWorkflow,
           workflowId: existingDeployment?.n8n_workflow_id || undefined,
-          n8nConfig: config // Pass the real N8N config
+          n8nConfig: config || { use_casel_cloud: true } // Ensure we always have config
         }
       });
 

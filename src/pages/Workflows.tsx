@@ -61,7 +61,7 @@ const Workflows = () => {
           updated_at: workflow.last_updated || workflow.updated_at,
           workflow_data: workflow.workflow_data,
           n8n_workflow_id: workflow.n8n_workflow_id,
-          deployment_url: workflow.deployment_url
+          deployment_url: workflow.deployment_url || (workflow.n8n_workflow_id ? `https://n8n.casel.cloud/workflow/${workflow.n8n_workflow_id}` : null)
         }));
         
         setWorkflows(formattedWorkflows);
