@@ -217,6 +217,8 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
       const decoder = new TextDecoder();
       let assistantContent = '';
       let workflowData: any = null;
+      let isCapturingJson = false;
+      let jsonBuffer = '';
 
       setMessages(prev => prev.filter(msg => !msg.isGenerating));
 
@@ -228,6 +230,19 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+
+      const checkForJsonStart = (text: string) => {
+        // Look for JSON patterns that indicate workflow generation
+        return text.includes('```json') || 
+               text.includes('"nodes":') || 
+               text.includes('"connections":') ||
+               (text.includes('{') && text.includes('"name"') && text.includes('"active"'));
+      };
+
+      const checkForJsonEnd = (text: string) => {
+        return text.includes('```') || 
+               (text.includes('}') && jsonBuffer.split('{').length === jsonBuffer.split('}').length);
+      };
 
       while (true) {
         const { done, value } = await reader.read();
@@ -243,7 +258,91 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
               console.log('📥 Received stream data:', data.type, data.content?.slice ? data.content.slice(0, 100) : 'no content');
               
               if (data.type === 'text') {
-                assistantContent += data.content;
+                const textContent = data.content;
+                
+                // Check if we're starting to capture JSON
+                if (!isCapturingJson && checkForJsonStart(textContent)) {
+                  console.log('🎯 Detected JSON start - beginning file creation');
+                  isCapturingJson = true;
+                  jsonBuffer = '';
+                  
+                  // Show writing animation in chat instead of JSON
+                  setMessages(prev => prev.map(msg => 
+                    msg.id === assistantMessage.id 
+                      ? { ...msg, content: assistantContent + '\n\n📄 **Creating workflow.json**\n🔄 **Writing JSON structure...**' }
+                      : msg
+                  ));
+                  
+                  setIsWritingFile(true);
+                  continue;
+                }
+                
+                // If we're capturing JSON, add to buffer instead of chat
+                if (isCapturingJson) {
+                  jsonBuffer += textContent;
+                  
+                  // Update progress in chat
+                  const progress = Math.min(Math.round((jsonBuffer.length / 1000) * 100), 99);
+                  setMessages(prev => prev.map(msg => 
+                    msg.id === assistantMessage.id 
+                      ? { ...msg, content: assistantContent + `\n\n📄 **Creating workflow.json**\n✨ **Writing JSON structure... ${progress}% complete**` }
+                      : msg
+                  ));
+                  
+                  // Check if JSON is complete
+                  if (checkForJsonEnd(textContent)) {
+                    console.log('🎯 Detected JSON end - processing workflow');
+                    
+                    try {
+                      // Clean the JSON buffer
+                      let cleanJson = jsonBuffer
+                        .replace(/```json/g, '')
+                        .replace(/```/g, '')
+                        .trim();
+                      
+                      // Try to parse the workflow
+                      const workflow = JSON.parse(cleanJson);
+                      
+                      if (workflow && (workflow.nodes || workflow.name)) {
+                        workflowData = workflow;
+                        console.log('🎯 Successfully parsed workflow from stream');
+                        
+                        // Create the file with animation
+                        const fileName = `${workflowData.name?.replace(/[^a-zA-Z0-9]/g, '_') || 'workflow'}_${Date.now()}.json`;
+                        
+                        setMessages(prev => prev.map(msg => 
+                          msg.id === assistantMessage.id 
+                            ? { ...msg, content: assistantContent + '\n\n✅ **Workflow file created and saved to Supabase!**\n\n💾 **Auto-saved to your account - check the code preview**', workflowData }
+                            : msg
+                        ));
+                        
+                        // Generate the file
+                        if (onFileGenerated) {
+                          onFileGenerated(fileName, JSON.stringify(workflowData, null, 2));
+                        }
+                        
+                        // Call workflow generated callback
+                        if (onWorkflowGenerated) {
+                          onWorkflowGenerated(workflowData, {
+                            workflowJson: JSON.stringify(workflowData, null, 2),
+                            fileName: fileName
+                          });
+                        }
+                      }
+                    } catch (e) {
+                      console.error('❌ Failed to parse JSON from stream:', e);
+                      console.log('Raw JSON buffer:', jsonBuffer);
+                    }
+                    
+                    isCapturingJson = false;
+                    jsonBuffer = '';
+                    setIsWritingFile(false);
+                  }
+                  continue;
+                }
+                
+                // Normal text content (not JSON)
+                assistantContent += textContent;
                 
                 setMessages(prev => prev.map(msg => 
                   msg.id === assistantMessage.id 
