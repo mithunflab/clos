@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, memo } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Play, 
@@ -80,7 +80,22 @@ const WorkflowPlayground = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  // Memoize the ReactFlow props to prevent unnecessary re-renders
+  // Define callbacks first
+  const onConnect = useCallback(
+    (params: Connection) => {
+      setEdges((eds) => addEdge(params, eds));
+    },
+    [setEdges]
+  );
+
+  const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setSelectedNode(node);
+    setShowNodeEditor(true);
+  }, []);
+
+  // Memoize the ReactFlow props and prevent all re-renders unless absolutely necessary
   const reactFlowProps = useMemo(() => ({
     nodes,
     edges,
@@ -92,18 +107,10 @@ const WorkflowPlayground = () => {
     nodesDraggable: true,
     nodesConnectable: true,
     elementsSelectable: true,
+    preventScrolling: false,
+    deleteKeyCode: null, // Prevent accidental deletions
+    multiSelectionKeyCode: null, // Disable multi-selection to reduce complexity
   }), [nodes, edges, onNodesChange, onEdgesChange]);
-
-  const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges]
-  );
-
-  const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-    console.log('Node clicked:', node);
-    setSelectedNode(node);
-    setShowNodeEditor(true);
-  }, []);
 
   const handleSaveNodeProperties = useCallback((nodeId: string, nodeData: any) => {
     console.log('💾 Saving node properties:', nodeId, nodeData);
@@ -587,6 +594,7 @@ const WorkflowPlayground = () => {
           onConnect={onConnect}
           onNodeClick={onNodeClick}
           className="w-full h-full"
+          key="workflow-canvas"
         >
           <Background 
             variant={BackgroundVariant.Dots} 

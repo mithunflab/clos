@@ -77,12 +77,18 @@ const DashboardLayout = () => {
   const { signOut } = useAuth();
   const navigate = useNavigate();
 
-  // Auto-minimize sidebar when in playground
+  // Auto-minimize sidebar when in playground - with proper cleanup
   useEffect(() => {
     const isPlayground = location.pathname.includes('/playground') || 
                         (location.pathname.includes('/workflows/') && 
                         (location.pathname.includes('/new') || location.pathname.includes('/edit')));
-    setIsMinimized(isPlayground);
+    
+    // Use a small timeout to prevent conflicts with navigation
+    const timer = setTimeout(() => {
+      setIsMinimized(isPlayground);
+    }, 50);
+    
+    return () => clearTimeout(timer);
   }, [location.pathname]);
 
   const handleSignOut = async () => {
