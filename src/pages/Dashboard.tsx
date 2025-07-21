@@ -93,7 +93,7 @@ const Dashboard = () => {
           <div className="bg-black/30 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
             <h2 className="text-2xl font-bold text-white mb-6">Quick Actions</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Button variant="outline" onClick={() => navigate('/workflows')} className="border-white/20 justify-start h-12 bg-slate-50 text-stone-950 font-extralight text-base rounded-2xl">
+              <Button variant="outline" onClick={() => navigate('/workflows')} className="border-white/20 justify-start h-12 bg-slate-50 text-stone-950 text-base rounded-2xl font-medium">
                 <Workflow className="w-5 h-5 mr-3" />
                 View All Workflows
               </Button>
