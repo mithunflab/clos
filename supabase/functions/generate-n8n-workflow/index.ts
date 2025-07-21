@@ -1,5 +1,5 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,24 +12,56 @@ serve(async (req) => {
   }
 
   try {
-    const { message, action, workflowId, workflow, executionId, credentials, limit } = await req.json();
+    const { message, action, workflowId, workflow, executionId, credentials, limit, n8nConfig } = await req.json();
     
     console.log('📨 Received request:', {
       message: message?.substring(0, 100),
       action,
       workflowId,
       executionId: executionId,
-      limit
+      limit,
+      n8nConfig: n8nConfig ? 'Present' : 'Missing'
     });
 
-    const N8N_URL = Deno.env.get('N8N_URL');
-    const N8N_API_KEY = Deno.env.get('N8N_API_KEY');
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Get N8N configuration from request or environment
+    let N8N_URL = null;
+    let N8N_API_KEY = null;
+
+    if (n8nConfig) {
+      console.log('🔧 Using N8N config from request:', n8nConfig);
+      
+      if (n8nConfig.use_casel_cloud) {
+        N8N_URL = 'https://n8n.casel.cloud';
+        N8N_API_KEY = n8nConfig.n8n_api_key || Deno.env.get('N8N_API_KEY');
+      } else if (n8nConfig.n8n_url) {
+        N8N_URL = n8nConfig.n8n_url;
+        N8N_API_KEY = n8nConfig.n8n_api_key || Deno.env.get('N8N_API_KEY');
+      }
+    }
+
+    // Fallback to environment variables if no config provided
+    if (!N8N_URL || !N8N_API_KEY) {
+      console.log('🔧 Using environment variables for N8N config');
+      N8N_URL = Deno.env.get('N8N_URL');
+      N8N_API_KEY = Deno.env.get('N8N_API_KEY');
+    }
+
+    console.log('🔗 N8N Configuration:', {
+      url: N8N_URL,
+      hasApiKey: !!N8N_API_KEY,
+      source: n8nConfig ? 'request' : 'environment'
+    });
 
     if (!N8N_URL || !N8N_API_KEY) {
       console.error('❌ N8N credentials not configured');
       return new Response(JSON.stringify({
         success: false,
-        error: 'N8N credentials not configured in environment'
+        error: 'N8N credentials not configured. Please check your N8N configuration.'
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -73,7 +105,7 @@ serve(async (req) => {
         console.log('🚀 Deploying workflow to n8n:', workflow?.name);
         
         try {
-          // Clean workflow for deployment - remove ALL unsupported properties
+          // Clean workflow for deployment
           const cleanWorkflow = {
             name: workflow.name,
             nodes: (workflow.nodes || []).map((node: any) => ({
@@ -96,16 +128,19 @@ serve(async (req) => {
             }
           };
 
-          console.log('📤 Sending clean workflow to n8n');
+          console.log('📤 Sending workflow to n8n:', cleanWorkflow.name);
 
           const result = await n8nApiCall('workflows', 'POST', cleanWorkflow);
           console.log('✅ Successfully deployed workflow to n8n:', result.id);
+          
+          // Construct proper URL based on N8N_URL
+          const workflowUrl = `${N8N_URL}/workflow/${result.id}`;
           
           return new Response(JSON.stringify({
             success: true,
             workflowId: result.id,
             message: `Workflow "${workflow.name}" deployed successfully!`,
-            workflowUrl: `${N8N_URL}/workflow/${result.id}`
+            workflowUrl: workflowUrl
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
@@ -116,6 +151,66 @@ serve(async (req) => {
             success: false,
             error: error.message,
             message: 'Failed to deploy workflow to n8n'
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+
+      case 'update': {
+        console.log('🔄 Updating existing workflow:', workflowId);
+        
+        try {
+          if (!workflowId) {
+            throw new Error('Workflow ID is required for update');
+          }
+
+          // Clean workflow for update
+          const cleanWorkflow = {
+            name: workflow.name,
+            nodes: (workflow.nodes || []).map((node: any) => ({
+              id: node.id,
+              name: node.name,
+              type: node.type,
+              typeVersion: node.typeVersion || 1,
+              position: node.position,
+              parameters: node.parameters || {},
+              ...(node.credentials && { credentials: node.credentials })
+            })),
+            connections: workflow.connections || {},
+            settings: {
+              saveExecutionProgress: true,
+              saveManualExecutions: true,
+              saveDataErrorExecution: "all",
+              saveDataSuccessExecution: "all",
+              executionTimeout: 3600,
+              timezone: "UTC"
+            }
+          };
+
+          console.log('📤 Updating workflow in n8n:', workflowId);
+
+          const result = await n8nApiCall(`workflows/${workflowId}`, 'PUT', cleanWorkflow);
+          console.log('✅ Successfully updated workflow in n8n:', result.id);
+          
+          // Construct proper URL based on N8N_URL
+          const workflowUrl = `${N8N_URL}/workflow/${result.id}`;
+          
+          return new Response(JSON.stringify({
+            success: true,
+            workflowId: result.id,
+            message: `Workflow "${workflow.name}" updated successfully!`,
+            workflowUrl: workflowUrl
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+
+        } catch (error) {
+          console.error('❌ Error updating workflow in n8n:', error);
+          return new Response(JSON.stringify({
+            success: false,
+            error: error.message,
+            message: 'Failed to update workflow in n8n'
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });

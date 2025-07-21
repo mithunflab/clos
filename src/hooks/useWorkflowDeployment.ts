@@ -92,52 +92,62 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
 
       await updateLocalDeploymentStatus('deploying');
 
-      console.log('🚀 Deploying workflow to N8N:', workflowId);
-      console.log('N8N Config:', config);
+      console.log('🚀 Deploying workflow to N8N with config:', config);
 
       const cleanedWorkflow = cleanWorkflowForN8n(workflow);
 
       // Check if we have an existing deployment
       const existingDeployment = await getDeployment(workflowId);
       
-      // Call the real N8N deployment function
+      console.log('🔍 Existing deployment check:', existingDeployment);
+
+      // Call the N8N deployment function with proper configuration
       const { data, error } = await supabase.functions.invoke('generate-n8n-workflow', {
         body: {
           action: existingDeployment ? 'update' : 'deploy',
           workflow: cleanedWorkflow,
-          workflowId: existingDeployment?.n8n_workflow_id || workflowId,
-          n8nConfig: config
+          workflowId: existingDeployment?.n8n_workflow_id || undefined,
+          n8nConfig: config // Pass the real N8N config
         }
       });
+
+      console.log('📡 N8N API Response:', { data, error });
 
       if (error) {
         console.error('❌ N8N deployment error:', error);
         throw new Error(error.message || 'Failed to deploy to N8N');
       }
 
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to deploy workflow to N8N');
+      if (!data || !data.success) {
+        throw new Error(data?.error || 'Failed to deploy workflow to N8N');
       }
 
       const deploymentId = data.workflowId || data.id;
       let deploymentUrl = data.workflowUrl || data.url;
 
-      // Construct real deployment URL based on config
-      if (!deploymentUrl) {
-        if (config?.use_casel_cloud) {
+      // Construct real deployment URL based on actual config
+      if (config) {
+        if (config.use_casel_cloud) {
+          // Use Casel Cloud URL
           deploymentUrl = `https://n8n.casel.cloud/workflow/${deploymentId}`;
-        } else if (config?.n8n_url) {
-          deploymentUrl = `${config.n8n_url}/workflow/${deploymentId}`;
-        } else {
-          deploymentUrl = `https://n8n.example.com/workflow/${deploymentId}`;
+        } else if (config.n8n_url) {
+          // Use custom N8N URL
+          const baseUrl = config.n8n_url.replace(/\/$/, ''); // Remove trailing slash
+          deploymentUrl = `${baseUrl}/workflow/${deploymentId}`;
         }
       }
+
+      console.log('🔗 Final deployment URL:', deploymentUrl);
       
       // Create or update deployment in database
       await createOrUpdateDeployment(workflowId, deploymentId, deploymentUrl);
       
       await updateLocalDeploymentStatus('deployed', deploymentId);
-      console.log('✅ Workflow deployed successfully to N8N:', deploymentId);
+      console.log('✅ Workflow deployed successfully to N8N:', {
+        deploymentId,
+        deploymentUrl,
+        isUpdate: !!existingDeployment
+      });
       
       return {
         success: true,
