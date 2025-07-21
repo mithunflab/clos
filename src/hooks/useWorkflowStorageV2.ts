@@ -42,12 +42,12 @@ export const useWorkflowStorageV2 = () => {
       setLoading(true);
       setError(null);
 
-      console.log('💾 Saving workflow to Supabase Storage...', { workflowId, name: workflowData.name });
+      console.log('💾 Saving workflow to user-specific bucket...', { workflowId, name: workflowData.name });
 
       // Check if this is a new workflow (not an update)
       const { data: existingWorkflow } = await supabase
         .from('workflow_data')
-        .select('id')
+        .select('id, workflow_storage_path, chat_storage_path')
         .eq('workflow_id', workflowId)
         .eq('user_id', user.id)
         .single();
@@ -66,18 +66,27 @@ export const useWorkflowStorageV2 = () => {
         }
       }
 
-      // Create unique file paths
-      const timestamp = Date.now();
-      const workflowFileName = `${user.id}/${workflowId}/workflow_${timestamp}.json`;
-      const chatFileName = `${user.id}/${workflowId}/chat_${timestamp}.json`;
+      // Get or create user-specific bucket
+      const { data: bucketName, error: bucketError } = await supabase.rpc('get_user_bucket', {
+        user_id_param: user.id
+      });
 
-      // Upload workflow JSON to storage
+      if (bucketError) {
+        console.error('❌ Bucket creation error:', bucketError);
+        throw new Error(`Failed to create user bucket: ${bucketError.message}`);
+      }
+
+      // Create unique file names (without timestamp if updating existing workflow)
+      const workflowFileName = `${workflowId}.json`;
+      const chatFileName = `${workflowId}_chat.json`;
+
+      // Upload workflow JSON to user-specific bucket
       const workflowBlob = new Blob([JSON.stringify(workflowData.workflow, null, 2)], {
         type: 'application/json'
       });
 
       const { error: workflowUploadError } = await supabase.storage
-        .from('workflows')
+        .from(bucketName)
         .upload(workflowFileName, workflowBlob, {
           upsert: true,
           contentType: 'application/json'
@@ -88,7 +97,7 @@ export const useWorkflowStorageV2 = () => {
         throw new Error(`Failed to upload workflow: ${workflowUploadError.message}`);
       }
 
-      console.log('✅ Workflow JSON uploaded to storage:', workflowFileName);
+      console.log('✅ Workflow JSON uploaded to user bucket:', workflowFileName);
 
       // Upload chat history if exists
       let chatStoragePath = null;
@@ -98,7 +107,7 @@ export const useWorkflowStorageV2 = () => {
         });
 
         const { error: chatUploadError } = await supabase.storage
-          .from('workflows')
+          .from(bucketName)
           .upload(chatFileName, chatBlob, {
             upsert: true,
             contentType: 'application/json'
@@ -110,7 +119,7 @@ export const useWorkflowStorageV2 = () => {
         }
 
         chatStoragePath = chatFileName;
-        console.log('✅ Chat history uploaded to storage:', chatFileName);
+        console.log('✅ Chat history uploaded to user bucket:', chatFileName);
       }
 
       // Save metadata to database
@@ -197,11 +206,21 @@ export const useWorkflowStorageV2 = () => {
       let workflowData = null;
       let chatHistory = [];
 
+      // Get user bucket name
+      const { data: bucketName, error: bucketError } = await supabase.rpc('get_user_bucket', {
+        user_id_param: user.id
+      });
+
+      if (bucketError) {
+        console.error('❌ Bucket error:', bucketError);
+        throw new Error(`Failed to get user bucket: ${bucketError.message}`);
+      }
+
       // Load workflow JSON from storage
       if (data.workflow_storage_path) {
-        console.log('📥 Downloading workflow JSON from storage...');
+        console.log('📥 Downloading workflow JSON from user bucket...');
         const { data: workflowFile, error: workflowDownloadError } = await supabase.storage
-          .from('workflows')
+          .from(bucketName)
           .download(data.workflow_storage_path);
 
         if (workflowDownloadError) {
@@ -211,14 +230,14 @@ export const useWorkflowStorageV2 = () => {
 
         const workflowText = await workflowFile.text();
         workflowData = JSON.parse(workflowText);
-        console.log('✅ Workflow JSON loaded from storage');
+        console.log('✅ Workflow JSON loaded from user bucket');
       }
 
       // Load chat history from storage if exists
       if (data.chat_storage_path) {
-        console.log('📥 Downloading chat history from storage...');
+        console.log('📥 Downloading chat history from user bucket...');
         const { data: chatFile, error: chatDownloadError } = await supabase.storage
-          .from('workflows')
+          .from(bucketName)
           .download(data.chat_storage_path);
 
         if (chatDownloadError) {
@@ -228,7 +247,7 @@ export const useWorkflowStorageV2 = () => {
         } else {
           const chatText = await chatFile.text();
           chatHistory = JSON.parse(chatText);
-          console.log('✅ Chat history loaded from storage:', chatHistory.length, 'messages');
+          console.log('✅ Chat history loaded from user bucket:', chatHistory.length, 'messages');
         }
       }
 
@@ -328,19 +347,29 @@ export const useWorkflowStorageV2 = () => {
         .eq('user_id', user.id)
         .single();
 
+      // Get user bucket name
+      const { data: bucketName, error: bucketError } = await supabase.rpc('get_user_bucket', {
+        user_id_param: user.id
+      });
+
+      if (bucketError) {
+        console.error('❌ Bucket error:', bucketError);
+        throw new Error(`Failed to get user bucket: ${bucketError.message}`);
+      }
+
       // Delete storage files if they exist
       if (workflowData?.workflow_storage_path) {
         await supabase.storage
-          .from('workflows')
+          .from(bucketName)
           .remove([workflowData.workflow_storage_path]);
-        console.log('✅ Workflow JSON deleted from storage');
+        console.log('✅ Workflow JSON deleted from user bucket');
       }
 
       if (workflowData?.chat_storage_path) {
         await supabase.storage
-          .from('workflows')
+          .from(bucketName)
           .remove([workflowData.chat_storage_path]);
-        console.log('✅ Chat history deleted from storage');
+        console.log('✅ Chat history deleted from user bucket');
       }
 
       // Delete database record

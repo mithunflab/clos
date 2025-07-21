@@ -318,6 +318,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      create_user_bucket: {
+        Args: { user_id_param: string }
+        Returns: string
+      }
       deduct_credit: {
         Args: {
           p_user_id: string
@@ -325,6 +329,10 @@ export type Database = {
           p_description?: string
         }
         Returns: boolean
+      }
+      get_user_bucket: {
+        Args: { user_id_param: string }
+        Returns: string
       }
       replenish_daily_credits: {
         Args: Record<PropertyKey, never>
