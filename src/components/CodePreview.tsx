@@ -26,8 +26,9 @@ const CodePreview: React.FC<CodePreviewProps> = ({
 
   // Track when files are being updated for animation - only for genuinely new files
   useEffect(() => {
+    // Only show updates if we have live files and they're actually new
     const newFiles = Object.keys(liveFiles).filter(key => !processedFiles.has(key));
-    if (newFiles.length > 0) {
+    if (newFiles.length > 0 && workflowId && !workflowId.startsWith('workflow_')) {
       setIsUpdating(true);
       setLastUpdateTime(new Date());
       setProcessedFiles(prev => new Set([...prev, ...newFiles]));
@@ -35,7 +36,7 @@ const CodePreview: React.FC<CodePreviewProps> = ({
       const timer = setTimeout(() => setIsUpdating(false), 1000);
       return () => clearTimeout(timer);
     }
-  }, [Object.keys(liveFiles).join(','), processedFiles]);
+  }, [Object.keys(liveFiles).join(','), processedFiles, workflowId]);
 
   // Get the current workflow JSON - prioritize actual workflow data over empty structures
   const currentWorkflowJson = useMemo(() => {

@@ -140,23 +140,8 @@ export const useGitHubIntegration = () => {
       });
 
       if (error) {
-        console.error('❌ GitHub function error, creating default workflow:', error);
-        // Return a default workflow structure if GitHub fails
-        return {
-          success: true,
-          workflowData: {
-            nodes: [],
-            connections: {}
-          },
-          workflow: {
-            nodes: [],
-            connections: {}
-          },
-          chat: [],
-          nodes: [],
-          connections: {},
-          metadata: {}
-        };
+        console.error('❌ GitHub function error:', error);
+        throw error;
       }
 
       if (!data.success) {

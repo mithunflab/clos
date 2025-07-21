@@ -226,7 +226,19 @@ const WorkflowPlayground = memo(() => {
           const result = await loadWorkflow(workflowIdFromUrl);
           if (result?.success && result.workflowData) {
             console.log('✅ Workflow loaded from GitHub:', result.workflowData);
-            await handleWorkflowGenerated(result.workflowData, {});
+            
+            // Set the loaded workflow directly without creating new files
+            setGeneratedWorkflow(result.workflowData);
+            
+            // Parse and display on canvas
+            const { nodes: parsedNodes, edges: parsedEdges } = parseN8nWorkflowToReactFlow(result.workflowData);
+            if (parsedNodes.length > 0) {
+              setNodes(parsedNodes);
+              setEdges(parsedEdges);
+            }
+            
+            setShowCodePreview(true);
+            setShowN8nEngine(false);
           } else {
             console.log('⚠️ No workflow data found, starting with empty canvas');
             setIsWorkflowLoaded(false);
