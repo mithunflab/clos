@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Send, MessageCircle, Code, MessageSquare, Loader2, Settings, CheckCircle, FileCode, Coins } from 'lucide-react';
@@ -24,6 +23,7 @@ interface AIAssistantSidebarProps {
   currentWorkflow?: any;
   deploymentMessage?: string | null;
   onDeploymentMessageShown?: () => void;
+  initialChatHistory?: any[];
 }
 
 const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({ 
@@ -34,7 +34,8 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
   onFileGenerated,
   currentWorkflow,
   deploymentMessage,
-  onDeploymentMessageShown
+  onDeploymentMessageShown,
+  initialChatHistory = []
 }) => {
   const { plan, loading: planLoading, deductCredit, refetch: refetchPlan } = useUserPlan();
   
@@ -51,6 +52,22 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
   const [isWritingFile, setIsWritingFile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  // Load initial chat history if provided
+  useEffect(() => {
+    if (initialChatHistory && initialChatHistory.length > 0) {
+      console.log('📝 Loading initial chat history:', initialChatHistory.length, 'messages');
+      
+      const historyMessages: Message[] = initialChatHistory.map((msg, index) => ({
+        id: `history-${index}`,
+        content: msg.content || msg.message || '',
+        role: msg.role || 'user',
+        timestamp: new Date(msg.timestamp || Date.now()),
+      }));
+      
+      setMessages(prev => [...prev, ...historyMessages]);
+    }
+  }, [initialChatHistory]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
