@@ -78,8 +78,31 @@ const Workflows = () => {
     }
   };
 
-  const handleEditWorkflow = (workflowId: string) => {
-    navigate(`/workflow-playground?id=${workflowId}`);
+  const handleEditWorkflow = async (workflowId: string) => {
+    try {
+      console.log('🔄 Loading workflow for editing:', workflowId);
+      
+      // Load workflow data from GitHub
+      const { loadWorkflow } = useGitHubIntegration();
+      const workflowData = await loadWorkflow(workflowId);
+      
+      if (workflowData?.success) {
+        // Navigate with workflow data
+        navigate(`/workflow-playground?id=${workflowId}`, {
+          state: { 
+            workflowData: workflowData.workflowData,
+            isEditing: true 
+          }
+        });
+      } else {
+        // Fallback navigation
+        navigate(`/workflow-playground?id=${workflowId}`);
+      }
+    } catch (error) {
+      console.error('❌ Error loading workflow for edit:', error);
+      // Fallback navigation
+      navigate(`/workflow-playground?id=${workflowId}`);
+    }
   };
 
   const handleDeleteWorkflow = async (workflowId: string) => {

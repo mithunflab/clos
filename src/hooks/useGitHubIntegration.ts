@@ -187,11 +187,15 @@ export const useGitHubIntegration = () => {
     if (!user) return [];
 
     try {
+      setLoading(true);
       console.log('📋 Fetching user workflows from database...');
       
       const { data, error } = await supabase
         .from('user_workflows')
-        .select('*')
+        .select(`
+          *,
+          workflow_data:github_repo_name
+        `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -205,6 +209,8 @@ export const useGitHubIntegration = () => {
     } catch (err) {
       console.error('❌ Error fetching user workflows:', err);
       return [];
+    } finally {
+      setLoading(false);
     }
   };
 

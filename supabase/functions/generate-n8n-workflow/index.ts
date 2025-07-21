@@ -108,7 +108,7 @@ serve(async (req) => {
         console.log('🚀 Deploying workflow to n8n:', workflow?.name);
         
         try {
-          // Clean workflow for deployment with proper settings
+          // Clean workflow for deployment - remove read-only fields
           const cleanWorkflow = {
             name: workflow.name,
             nodes: (workflow.nodes || []).map((node: any) => ({
@@ -117,8 +117,7 @@ serve(async (req) => {
               type: node.type,
               typeVersion: node.typeVersion || 1,
               position: node.position,
-              parameters: node.parameters || {},
-              ...(node.credentials && { credentials: node.credentials })
+              parameters: node.parameters || {}
             })),
             connections: workflow.connections || {},
             settings: {
@@ -130,8 +129,8 @@ serve(async (req) => {
               timezone: "UTC",
               executionOrder: "v1"
             },
-            staticData: {},
-            active: false
+            staticData: {}
+            // Removed 'active' field as it's read-only for N8N API
           };
 
           console.log('📤 Sending cleaned workflow to n8n API');
@@ -175,7 +174,7 @@ serve(async (req) => {
             throw new Error('Workflow ID is required for update');
           }
 
-          // Clean workflow for update with proper settings
+          // Clean workflow for update - remove read-only fields
           const cleanWorkflow = {
             name: workflow.name,
             nodes: (workflow.nodes || []).map((node: any) => ({
@@ -184,8 +183,7 @@ serve(async (req) => {
               type: node.type,
               typeVersion: node.typeVersion || 1,
               position: node.position,
-              parameters: node.parameters || {},
-              ...(node.credentials && { credentials: node.credentials })
+              parameters: node.parameters || {}
             })),
             connections: workflow.connections || {},
             settings: {
@@ -197,8 +195,8 @@ serve(async (req) => {
               timezone: "UTC",
               executionOrder: "v1"
             },
-            staticData: {},
-            active: false
+            staticData: {}
+            // Removed 'active' field as it's read-only for N8N API
           };
 
           console.log('📤 Updating workflow in n8n API');
