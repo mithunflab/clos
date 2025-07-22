@@ -57,6 +57,69 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
     }
   }, [workflowId, updateDeploymentStatus]);
 
+  const validateWorkflowNodes = (workflow: any) => {
+    if (!workflow.nodes) return { isValid: true, unsupportedNodes: [] };
+
+    const unsupportedNodeTypes = [
+      'n8n-nodes-base.groq', // Groq node might not be available
+      // Add other potentially unsupported nodes here
+    ];
+
+    const unsupportedNodes = workflow.nodes.filter((node: any) => 
+      unsupportedNodeTypes.includes(node.type)
+    );
+
+    return {
+      isValid: unsupportedNodes.length === 0,
+      unsupportedNodes: unsupportedNodes.map((node: any) => ({
+        name: node.name,
+        type: node.type
+      }))
+    };
+  };
+
+  const replaceUnsupportedNodes = (workflow: any) => {
+    if (!workflow.nodes) return workflow;
+
+    const nodeReplacements: { [key: string]: any } = {
+      'n8n-nodes-base.groq': {
+        type: 'n8n-nodes-base.httpRequest',
+        name: 'Groq API',
+        parameters: {
+          url: 'https://api.groq.com/openai/v1/chat/completions',
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer {{ $credentials.groqApi.apiKey }}',
+            'Content-Type': 'application/json'
+          },
+          body: {
+            model: 'llama3-8b-8192',
+            messages: '{{ $json.messages }}',
+            temperature: 0.7
+          }
+        }
+      }
+    };
+
+    const updatedWorkflow = { ...workflow };
+    updatedWorkflow.nodes = workflow.nodes.map((node: any) => {
+      if (nodeReplacements[node.type]) {
+        const replacement = nodeReplacements[node.type];
+        return {
+          ...node,
+          type: replacement.type,
+          parameters: {
+            ...node.parameters,
+            ...replacement.parameters
+          }
+        };
+      }
+      return node;
+    });
+
+    return updatedWorkflow;
+  };
+
   const cleanWorkflowForN8n = (workflow: any) => {
     const cleanWorkflow = {
       name: workflow.name,
@@ -100,6 +163,15 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
 
       console.log('🚀 Deploying workflow to N8N with config:', config);
 
+      // Validate workflow nodes
+      const validation = validateWorkflowNodes(workflow);
+      if (!validation.isValid) {
+        console.warn('⚠️ Unsupported nodes detected:', validation.unsupportedNodes);
+        // Replace unsupported nodes with compatible alternatives
+        workflow = replaceUnsupportedNodes(workflow);
+        console.log('🔄 Replaced unsupported nodes with HTTP Request alternatives');
+      }
+
       const cleanedWorkflow = cleanWorkflowForN8n(workflow);
 
       // Check if we have an existing deployment
@@ -126,6 +198,13 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
 
       if (error) {
         console.error('❌ N8N deployment error:', error);
+        
+        // Check if the error is about unrecognized node types
+        if (error.message && error.message.includes('Unrecognized node type')) {
+          const nodeType = error.message.match(/Unrecognized node type: ([^\s"]+)/)?.[1];
+          throw new Error(`Unsupported node type "${nodeType}". This node is not available in the current N8N instance. Please use alternative nodes or install the required community package.`);
+        }
+        
         throw new Error(error.message || 'Failed to deploy to N8N');
       }
 
@@ -218,11 +297,23 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
       });
 
       if (error) {
-        throw new Error(error.message);
+        console.error('❌ Activation error:', error);
+        
+        // Provide more specific error messages
+        if (error.message && error.message.includes('Unrecognized node type')) {
+          const nodeType = error.message.match(/Unrecognized node type: ([^\s"]+)/)?.[1];
+          throw new Error(`Cannot activate workflow: Unsupported node type "${nodeType}". Please redeploy the workflow with compatible nodes.`);
+        }
+        
+        if (error.message && error.message.includes('404')) {
+          throw new Error('Workflow not found in N8N. Please redeploy the workflow first.');
+        }
+        
+        throw new Error(error.message || 'Failed to activate workflow');
       }
 
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to activate workflow');
+      if (!data || !data.success) {
+        throw new Error(data?.error || 'Failed to activate workflow');
       }
 
       await updateLocalDeploymentStatus('active');
