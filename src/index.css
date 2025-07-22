@@ -98,7 +98,7 @@ All colors MUST be HSL.
   }
 }
 
-/* Canvas dotted background pattern */
+/* Canvas dotted background pattern - DARK MODE */
 .canvas-background {
   background-color: #000000;
   background-image: 
@@ -107,29 +107,41 @@ All colors MUST be HSL.
   background-attachment: fixed;
 }
 
-/* Light mode canvas backgrounds - colorful and vibrant */
+/* LIGHT MODE - Clean solid backgrounds */
 .light .canvas-background {
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 25%, #f0f8ff 50%, #fef3f2 75%, #f0f9ff 100%);
+  background-color: #ffffff;
+  background-image: none;
   background-attachment: fixed;
 }
 
-/* Light mode dashboard page - vibrant gradient */
+/* Light mode dashboard page - clean white */
 .light .dashboard-page {
-  background: linear-gradient(135deg, #fef7cd 0%, #fed7d7 25%, #ddd6fe 50%, #bfdbfe 75%, #ecfdf5 100%);
+  background-color: #ffffff;
+  background-image: none;
   background-attachment: fixed;
 }
 
-/* Light mode workflows page - colorful gradient */
+/* Light mode workflows page - clean white */
 .light .workflows-page {
-  background: linear-gradient(135deg, #fce7f3 0%, #e0e7ff 25%, #f0f9ff 50%, #ecfdf5 75%, #fef3c7 100%);
+  background-color: #ffffff;
+  background-image: none;
   background-attachment: fixed;
 }
 
 /* Light mode playground - white canvas with black dots */
 .light .playground-canvas {
-  background-color: #ffffff;
+  background-color: #ffffff !important;
   background-image: 
-    radial-gradient(circle at 1px 1px, rgba(0,0,0,0.3) 1px, transparent 0);
+    radial-gradient(circle at 1px 1px, rgba(0,0,0,0.15) 1px, transparent 0) !important;
+  background-size: 20px 20px !important;
+  background-attachment: fixed !important;
+}
+
+/* Dark mode playground - keep existing dark style */
+.dark .playground-canvas {
+  background-color: #000000;
+  background-image: 
+    radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0);
   background-size: 20px 20px;
   background-attachment: fixed;
 }
@@ -141,6 +153,16 @@ All colors MUST be HSL.
     radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0);
   background-size: 20px 20px;
   background-attachment: fixed;
+}
+
+/* Auth page blur loading effect */
+.auth-image-loading {
+  filter: blur(10px);
+  transition: filter 0.3s ease-out;
+}
+
+.auth-image-loaded {
+  filter: blur(0px);
 }
 
 /* Custom animations for the sign-in page */

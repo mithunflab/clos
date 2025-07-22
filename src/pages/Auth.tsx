@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Bot, Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -24,18 +23,6 @@ const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
-const LoadingSpinner = () => (
-  <div className="flex items-center justify-center min-h-screen bg-black">
-    <div className="flex flex-col items-center space-y-4">
-      <div className="relative">
-        <div className="w-16 h-16 border-4 border-gray-800 border-t-red-500 rounded-full animate-spinner"></div>
-        <div className="w-12 h-12 border-4 border-transparent border-t-red-300 rounded-full animate-spinner absolute top-2 left-2" style={{animationDuration: '0.8s', animationDirection: 'reverse'}}></div>
-      </div>
-      <div className="text-white text-lg font-medium animate-pulse">Loading...</div>
-    </div>
-  </div>
-);
-
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -44,8 +31,8 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [pageLoaded, setPageLoaded] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [showBlur, setShowBlur] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -65,19 +52,19 @@ const Auth = () => {
       }
     });
 
-    // Preload the background image with proper loading handling
+    // Preload the image with immediate blur removal
     const img = new Image();
     img.onload = () => {
       setImageLoaded(true);
-      // Small delay to ensure smooth transition
+      // Remove blur immediately when image loads
       setTimeout(() => {
-        setPageLoaded(true);
-      }, 100);
+        setShowBlur(false);
+      }, 50);
     };
     img.onerror = () => {
-      // If image fails to load, still show the page
+      // If image fails to load, still remove blur
       setImageLoaded(true);
-      setPageLoaded(true);
+      setShowBlur(false);
     };
     img.src = '/lovable-uploads/f64f8323-0f7f-46cf-8e49-f083f09ef9ff.png';
 
@@ -161,11 +148,6 @@ const Auth = () => {
       });
     }
   };
-
-  // Show loading spinner until everything is loaded
-  if (!pageLoaded || !imageLoaded) {
-    return <LoadingSpinner />;
-  }
 
   return (
     <div className="h-[100dvh] flex flex-col md:flex-row w-[100dvw] bg-black text-white auth-bg">
@@ -330,7 +312,9 @@ const Auth = () => {
         transition={{ duration: 0.8, delay: 0.3 }}
       >
         <div 
-          className="absolute inset-0 bg-cover bg-center rounded-l-3xl" 
+          className={`absolute inset-0 bg-cover bg-center rounded-l-3xl transition-all duration-300 ${
+            showBlur ? 'auth-image-loading' : 'auth-image-loaded'
+          }`}
           style={{ backgroundImage: `url(/lovable-uploads/f64f8323-0f7f-46cf-8e49-f083f09ef9ff.png)` }}
         ></div>
       </motion.section>
