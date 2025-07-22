@@ -10,7 +10,6 @@ import { useWorkflowStorageV2 } from '@/hooks/useWorkflowStorageV2';
 import { useUserPlan } from '@/hooks/useUserPlan';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { GlowingEffect } from '@/components/ui/glowing-effect';
 
 interface WorkflowItem {
   id: string;
@@ -238,78 +237,66 @@ const Workflows = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {workflows.map((workflow) => (
-              <div key={workflow.id} className="relative min-h-[18rem]">
-                <div className="relative h-full rounded-[1.25rem] border-[0.75px] border-border p-2">
-                  <GlowingEffect
-                    spread={40}
-                    glow={true}
-                    disabled={false}
-                    proximity={64}
-                    inactiveZone={0.01}
-                    borderWidth={3}
-                  />
-                  <Card className="relative h-full bg-card/50 backdrop-blur-sm border border-border hover:bg-card/70 transition-all duration-200 rounded-xl shadow-sm">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <CardTitle className="text-lg mb-1 text-card-foreground">{workflow.name}</CardTitle>
-                          <CardDescription className="text-sm text-muted-foreground">
-                            {workflow.description}
-                          </CardDescription>
-                        </div>
-                        <Badge className={getStatusColor(workflow.status)}>
-                          <div className="flex items-center space-x-1">
-                            {getStatusIcon(workflow.status)}
-                            <span className="capitalize">{workflow.status}</span>
-                          </div>
-                        </Badge>
+              <Card key={workflow.id} className="bg-card border-border hover:bg-card/80 transition-all duration-200 shadow-sm">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="text-lg mb-1 text-card-foreground">{workflow.name}</CardTitle>
+                      <CardDescription className="text-sm text-muted-foreground">
+                        {workflow.description}
+                      </CardDescription>
+                    </div>
+                    <Badge className={getStatusColor(workflow.status)}>
+                      <div className="flex items-center space-x-1">
+                        {getStatusIcon(workflow.status)}
+                        <span className="capitalize">{workflow.status}</span>
                       </div>
-                    </CardHeader>
+                    </Badge>
+                  </div>
+                </CardHeader>
+                
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="text-xs text-muted-foreground">
+                      <div>Created: {formatDate(workflow.created_at)}</div>
+                      {workflow.updated_at && (
+                        <div>Updated: {formatDate(workflow.updated_at)}</div>
+                      )}
+                    </div>
                     
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div className="text-xs text-muted-foreground">
-                          <div>Created: {formatDate(workflow.created_at)}</div>
-                          {workflow.updated_at && (
-                            <div>Updated: {formatDate(workflow.updated_at)}</div>
-                          )}
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditWorkflow(workflow.id)}
-                            className="flex-1"
-                          >
-                            <Edit className="w-4 h-4 mr-2" />
-                            Edit
-                          </Button>
-                          
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteWorkflow(workflow.id)}
-                            className="bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                          
-                          {workflow.deployment_url && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => window.open(workflow.deployment_url, '_blank')}
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditWorkflow(workflow.id)}
+                        className="flex-1"
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        Edit
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteWorkflow(workflow.id)}
+                        className="bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                      
+                      {workflow.deployment_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(workflow.deployment_url, '_blank')}
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}

@@ -30,17 +30,17 @@ const StatCard = ({
           inactiveZone={0.01}
           borderWidth={2}
         />
-        <div className="relative h-full bg-black/30 backdrop-blur-sm border border-white/10 rounded-2xl p-6 hover:bg-black/40 transition-all duration-300">
+        <div className="relative h-full bg-card backdrop-blur-sm border border-border rounded-2xl p-6 hover:bg-card/80 transition-all duration-300">
           <div className="flex items-center space-x-4 mb-4">
-            <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center">
+            <div className="w-12 h-12 bg-muted rounded-xl flex items-center justify-center">
               {icon}
             </div>
             <div>
-              <h3 className="text-white font-semibold text-lg">{title}</h3>
-              <p className="text-white/60 text-sm">{subtitle}</p>
+              <h3 className="text-card-foreground font-semibold text-lg">{title}</h3>
+              <p className="text-muted-foreground text-sm">{subtitle}</p>
             </div>
           </div>
-          <div className="text-3xl font-bold text-white">{value}</div>
+          <div className="text-3xl font-bold text-card-foreground">{value}</div>
         </div>
       </div>
     </div>
@@ -72,7 +72,7 @@ const Dashboard = () => {
   }, [getUserWorkflows]);
 
   return (
-    <div className="min-h-screen text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="relative z-10 p-6 lg:p-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -82,14 +82,14 @@ const Dashboard = () => {
         >
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-4xl font-bold text-white mb-2">Welcome back</h1>
-            <p className="text-white/70 text-lg">Monitor and manage your autonomous workflows</p>
+            <h1 className="text-4xl font-bold text-foreground mb-2">Welcome back</h1>
+            <p className="text-muted-foreground text-lg">Monitor and manage your autonomous workflows</p>
           </div>
 
           {/* Quick Actions */}
           <div className="mb-8">
             <Button
-              className="bg-white text-black hover:bg-white/90 px-6 py-3"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-3"
               onClick={() => navigate('/playground')}
             >
               <Plus className="w-5 h-5 mr-2" />
@@ -100,25 +100,25 @@ const Dashboard = () => {
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <StatCard
-              icon={<Workflow className="w-6 h-6 text-white" />}
+              icon={<Workflow className="w-6 h-6 text-foreground" />}
               title="Total Workflows"
               value={workflowStats.total.toString()}
               subtitle="Created workflows"
             />
             <StatCard
-              icon={<Zap className="w-6 h-6 text-white" />}
+              icon={<Zap className="w-6 h-6 text-foreground" />}
               title="Active Workflows"
               value={workflowStats.active.toString()}
               subtitle="Currently running"
             />
             <StatCard
-              icon={<Clock className="w-6 h-6 text-white" />}
+              icon={<Clock className="w-6 h-6 text-foreground" />}
               title="Credits Remaining"
               value={credits?.current_credits?.toString() || '0'}
               subtitle={`${plan?.plan_type || 'free'} plan`}
             />
             <StatCard
-              icon={<TrendingUp className="w-6 h-6 text-white" />}
+              icon={<TrendingUp className="w-6 h-6 text-foreground" />}
               title="Plan Type"
               value={plan?.plan_type?.toUpperCase() || 'FREE'}
               subtitle="Current subscription"
@@ -136,13 +136,13 @@ const Dashboard = () => {
                 inactiveZone={0.01}
                 borderWidth={2}
               />
-              <div className="relative bg-black/30 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-                <h2 className="text-2xl font-bold text-white mb-6">Quick Actions</h2>
+              <div className="relative bg-card backdrop-blur-sm border border-border rounded-2xl p-6">
+                <h2 className="text-2xl font-bold text-card-foreground mb-6">Quick Actions</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Button
                     variant="outline"
                     onClick={() => navigate('/workflows')}
-                    className="border-white/20 justify-start h-12 bg-slate-50 text-stone-950 text-base rounded-2xl font-medium"
+                    className="justify-start h-12 text-base rounded-2xl font-medium"
                   >
                     <Workflow className="w-5 h-5 mr-3" />
                     View All Workflows
@@ -150,7 +150,7 @@ const Dashboard = () => {
                   <Button
                     variant="outline"
                     onClick={() => navigate('/playground')}
-                    className="border-white/20 justify-start h-12 text-stone-950 bg-slate-50 rounded-2xl"
+                    className="justify-start h-12 rounded-2xl"
                   >
                     <Plus className="w-5 h-5 mr-3" />
                     Create New Workflow

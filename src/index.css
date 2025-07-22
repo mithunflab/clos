@@ -98,13 +98,14 @@ All colors MUST be HSL.
   }
 }
 
-/* CLEAN BACKGROUNDS - Theme appropriate */
-.light body {
-  background-color: hsl(0 0% 100%);
+/* CLEAN LIGHT MODE - NO EFFECTS */
+body {
+  background-color: hsl(var(--background));
   background-image: none;
   min-height: 100vh;
 }
 
+/* Dark mode gets the pattern */
 .dark body {
   background-color: hsl(222.2 84% 4.9%);
   background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0);
