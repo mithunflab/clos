@@ -20,6 +20,7 @@ import CodePreview from '@/components/CodePreview';
 import RealTimeN8nEngine from '@/components/RealTimeN8nEngine';
 import WorkflowNode from '@/components/WorkflowNode';
 import NodePropertyEditor from '@/components/NodePropertyEditor';
+import PlaygroundCanvas from '@/components/PlaygroundCanvas';
 import { parseN8nWorkflowToReactFlow, N8nWorkflow, updateWorkflowFromNode } from '@/utils/workflowParser';
 import { useWorkflowConfiguration } from '@/hooks/useWorkflowConfiguration';
 import { useWorkflowDeployment } from '@/hooks/useWorkflowDeployment';
@@ -27,6 +28,7 @@ import { useWorkflowMonitoring } from '@/hooks/useWorkflowMonitoring';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useWorkflowStorageV2 } from '@/hooks/useWorkflowStorageV2';
 import { useAuth } from '@/hooks/useAuth';
+import { useTheme } from '@/hooks/useTheme';
 import N8nConfigToggle from '@/components/N8nConfigToggle';
 import {
   ReactFlow,
@@ -55,6 +57,7 @@ const WorkflowPlayground = memo(() => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState('Editor');
   const [workflowName, setWorkflowName] = useState('My workflow');
   const [showCodePreview, setShowCodePreview] = useState(false);
@@ -670,11 +673,11 @@ const WorkflowPlayground = memo(() => {
   const renderMainContent = () => {
     if (isLoadingWorkflow) {
       return (
-        <div className="w-full h-full bg-black/90 flex items-center justify-center">
+        <div className="w-full h-full flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4"></div>
-            <div className="text-white text-lg">Loading workflow...</div>
-            <div className="text-white/60 text-sm">Fetching data from Supabase</div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-foreground mb-4"></div>
+            <div className="text-foreground text-lg">Loading workflow...</div>
+            <div className="text-muted-foreground text-sm">Fetching data from Supabase</div>
           </div>
         </div>
       );
@@ -682,7 +685,7 @@ const WorkflowPlayground = memo(() => {
 
     if (showN8nEngine) {
       return (
-        <div className="w-full h-full bg-black/90 p-6">
+        <div className="w-full h-full p-6">
           <RealTimeN8nEngine 
             workflowId={n8nWorkflowId || workflowId}
             workflowName={generatedWorkflow?.name}
@@ -693,7 +696,7 @@ const WorkflowPlayground = memo(() => {
 
     if (showCodePreview) {
       return (
-        <div className="w-full h-full bg-black/90">
+        <div className="w-full h-full">
           <CodePreview 
             workflow={generatedWorkflow}
             generatedCode={generatedCode}
@@ -704,7 +707,7 @@ const WorkflowPlayground = memo(() => {
     }
 
     return (
-      <div className="w-full h-full bg-background">
+      <div className="w-full h-full">
         <ReactFlow
           {...reactFlowProps}
           onConnect={onConnect}
@@ -716,14 +719,24 @@ const WorkflowPlayground = memo(() => {
             variant={BackgroundVariant.Dots} 
             gap={20} 
             size={1} 
-            color="rgba(255, 255, 255, 0.3)"
+            color={theme === 'light' ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.3)'}
           />
           <Controls 
-            className="bg-black/40 backdrop-blur-sm border border-white/10 text-white [&>button]:text-white [&>button]:border-white/10 [&>button]:bg-transparent [&>button:hover]:bg-white/10"
+            className={`
+              ${theme === 'light' 
+                ? 'bg-white/90 backdrop-blur-sm border border-border text-foreground [&>button]:text-foreground [&>button]:border-border [&>button]:bg-white [&>button:hover]:bg-accent' 
+                : 'bg-black/90 backdrop-blur-sm border border-border text-white [&>button]:text-white [&>button]:border-white/10 [&>button]:bg-transparent [&>button:hover]:bg-white/10'
+              }
+            `}
           />
           <MiniMap 
-            className="bg-black/40 backdrop-blur-sm border border-white/10"
-            maskColor="rgba(0, 0, 0, 0.6)"
+            className={`
+              ${theme === 'light'
+                ? 'bg-white/90 backdrop-blur-sm border border-border'
+                : 'bg-black/90 backdrop-blur-sm border border-border'
+              }
+            `}
+            maskColor={theme === 'light' ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)'}
           />
         </ReactFlow>
         
@@ -771,46 +784,46 @@ const WorkflowPlayground = memo(() => {
 
       <div className="flex-1 flex flex-col min-h-0">
         {/* Enhanced Top Header */}
-        <div className="bg-black/30 backdrop-blur-sm border-b border-white/10 p-4 shrink-0">
+        <div className="bg-background border-b border-border p-4 shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => navigate('/dashboard')}
-                className="text-white/60 hover:text-white hover:bg-white/10 p-2"
+                className="text-muted-foreground hover:text-foreground hover:bg-accent p-2"
                 title="Back to Dashboard"
               >
                 <Home className="w-5 h-5" />
               </Button>
               <div className="flex items-center space-x-2">
-                <User className="w-4 h-4 text-white/60" />
-                <span className="text-white/60 text-sm">Personal</span>
+                <User className="w-4 h-4 text-muted-foreground" />
+                <span className="text-muted-foreground text-sm">Personal</span>
               </div>
-              <div className="text-white/40">›</div>
+              <div className="text-muted-foreground">›</div>
               <input
                 type="text"
                 value={workflowName}
                 onChange={(e) => setWorkflowName(e.target.value)}
-                className="bg-transparent text-white font-medium focus:outline-none border-b border-transparent focus:border-white/30 transition-colors"
+                className="bg-transparent text-foreground font-medium focus:outline-none border-b border-transparent focus:border-border transition-colors"
               />
               {hasUnsavedChanges && (
                 <div className="flex items-center space-x-2">
-                  <span className="text-yellow-400 text-xs">● Unsaved changes</span>
-                  <span className="text-white/40 text-xs">Auto-updating...</span>
+                  <span className="text-yellow-500 text-xs">● Unsaved changes</span>
+                  <span className="text-muted-foreground text-xs">Auto-updating...</span>
                 </div>
               )}
             </div>
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <span className="text-white/60 text-sm">
+                <span className="text-muted-foreground text-sm">
                   {isActive ? 'Active' : 'Inactive'}
                 </span>
                 <button
                   onClick={handleActivateWorkflow}
                   disabled={!n8nWorkflowId || isDeploying}
                   className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:opacity-50 ${
-                    isActive ? 'bg-blue-600' : 'bg-white/20'
+                    isActive ? 'bg-green-600' : 'bg-muted'
                   }`}
                 >
                   <span
@@ -824,7 +837,7 @@ const WorkflowPlayground = memo(() => {
                 onClick={handleSaveWorkflow}
                 disabled={!generatedWorkflow || isCreatingRepo}
                 variant="outline"
-                className="text-white hover:bg-white/10 bg-white/5 border-white/20 px-4"
+                className="px-4"
                 title="Save Workflow"
               >
                 {isCreatingRepo ? (
@@ -837,16 +850,15 @@ const WorkflowPlayground = memo(() => {
               <Button
                 onClick={() => setShowN8nConfig(true)}
                 variant="outline"
-                className="text-white hover:bg-white/10 bg-white/5 border-white/20 p-2"
+                className="p-2"
                 title="Configure N8n Instance"
               >
                 <Settings className="w-4 h-4" />
               </Button>
               <Button
                 onClick={handleToggleN8nEngine}
-                className={`text-white hover:bg-white/10 px-4 ${
-                  showN8nEngine ? 'bg-white/10' : 'bg-transparent'
-                }`}
+                variant={showN8nEngine ? "default" : "outline"}
+                className="px-4"
                 title="Toggle Real-time N8n Engine"
               >
                 <Play className="w-4 h-4 mr-2" />
@@ -866,8 +878,11 @@ const WorkflowPlayground = memo(() => {
           </div>
         </div>
 
-        <div className="flex-1 relative overflow-hidden min-h-0">
-          {renderMainContent()}
+        {/* Canvas Area */}
+        <div className="flex-1 p-6 overflow-hidden min-h-0">
+          <PlaygroundCanvas className="w-full h-full">
+            {renderMainContent()}
+          </PlaygroundCanvas>
         </div>
         
         {showNodeEditor && selectedNode && (
