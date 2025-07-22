@@ -1,25 +1,40 @@
-
 import * as React from "react"
-
+import { GlowingEffect } from "@/components/ui/glowing-effect"
 import { cn } from "@/lib/utils"
 
 const Card = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement> & { glowVariant?: 'default' | 'primary' | 'secondary' | 'accent' | 'none' }
->(({ className, glowVariant = 'default', ...props }, ref) => (
+  React.HTMLAttributes<HTMLDivElement> & { 
+    glowVariant?: 'default' | 'primary' | 'secondary' | 'accent' | 'none' | 'premium'
+    enableGlowEffect?: boolean
+  }
+>(({ className, glowVariant = 'default', enableGlowEffect = false, children, ...props }, ref) => (
   <div
     ref={ref}
     className={cn(
-      "rounded-lg bg-card text-card-foreground shadow-sm",
+      "relative rounded-lg bg-card text-card-foreground shadow-sm",
       glowVariant === 'default' && "glow-card",
       glowVariant === 'primary' && "glow-border-primary",
       glowVariant === 'secondary' && "glow-border-secondary", 
       glowVariant === 'accent' && "glow-border-accent",
+      glowVariant === 'premium' && "border-[0.75px] border-border",
       glowVariant === 'none' && "border border-border",
       className
     )}
     {...props}
-  />
+  >
+    {enableGlowEffect && glowVariant === 'premium' && (
+      <GlowingEffect
+        spread={30}
+        glow={true}
+        disabled={false}
+        proximity={48}
+        inactiveZone={0.1}
+        borderWidth={2}
+      />
+    )}
+    {children}
+  </div>
 ))
 Card.displayName = "Card"
 
