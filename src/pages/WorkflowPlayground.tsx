@@ -43,7 +43,6 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { JsonWritingAnimation } from '@/components/JsonWritingAnimation';
-import PlaygroundCanvas from '@/components/PlaygroundCanvas';
 
 const initialNodes: Node[] = [];
 const initialEdges: Edge[] = [];
@@ -76,6 +75,7 @@ const WorkflowPlayground = memo(() => {
   const [isLoadingWorkflow, setIsLoadingWorkflow] = useState(false);
   const [isWorkflowLoaded, setIsWorkflowLoaded] = useState(false);
 
+  // Only initialize hooks when needed to prevent unnecessary computations
   const workflowConfig = useWorkflowConfiguration(workflowId);
   const workflowDeployment = useWorkflowDeployment(workflowId);
   const workflowMonitoring = useWorkflowMonitoring(workflowId);
@@ -88,6 +88,7 @@ const WorkflowPlayground = memo(() => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
+  // Add auto-save for workflow changes
   const { saving } = useAutoSave({
     workflowId: workflowId || '',
     workflowData: generatedWorkflow,
@@ -95,6 +96,7 @@ const WorkflowPlayground = memo(() => {
     delay: 2000
   });
 
+  // Define handleWorkflowGenerated with proper memoization to prevent loops
   const handleWorkflowGenerated = useCallback(async (workflow: any, code: any) => {
     console.log('🎯 Processing workflow generation:', {
       workflowName: workflow?.name,
@@ -108,10 +110,12 @@ const WorkflowPlayground = memo(() => {
       return;
     }
 
+    // Set the workflow data
     setGeneratedWorkflow(workflow);
     setGeneratedCode(code);
     setWorkflowName(workflow.name || 'Generated Workflow');
     
+    // Generate workflow ID if not exists
     const currentWorkflowId = workflowId || `workflow_${Date.now()}`;
     setWorkflowId(currentWorkflowId);
     
@@ -119,16 +123,19 @@ const WorkflowPlayground = memo(() => {
       setN8nWorkflowId(workflow.deployment.workflowId);
     }
     
+    // Create the JSON file for preview
     const workflowJson = JSON.stringify(workflow, null, 2);
     const fileName = `${(workflow.name || 'workflow').replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.json`;
     
     console.log('📝 Creating workflow JSON file:', fileName);
     
+    // Add to liveFiles for code preview
     setLiveFiles(prev => ({
       ...prev,
       [fileName]: workflowJson
     }));
     
+    // Auto-save to Supabase
     try {
       console.log('💾 Auto-saving workflow to Supabase...');
       const workflowData = {
@@ -140,6 +147,7 @@ const WorkflowPlayground = memo(() => {
       await saveWorkflow(workflowData, currentWorkflowId);
       console.log('✅ Workflow auto-saved to Supabase');
       
+      // Update workflow configuration
       await workflowConfig.saveConfiguration({
         name: workflow.name,
         description: workflow.description || '',
@@ -157,6 +165,7 @@ const WorkflowPlayground = memo(() => {
       console.error('❌ Failed to auto-save workflow:', error);
     }
     
+    // Parse and display on canvas
     try {
       console.log('🚀 Parsing workflow for canvas display...');
       const { nodes: parsedNodes, edges: parsedEdges } = parseN8nWorkflowToReactFlow(workflow);
@@ -202,6 +211,7 @@ const WorkflowPlayground = memo(() => {
     }
   }, [isWorkflowLoaded, workflowConfig, workflowMonitoring, setNodes, setEdges, workflowId, saveWorkflow]);
 
+  // Load workflow if ID is provided in URL - wait for auth to complete
   useEffect(() => {
     const workflowIdFromUrl = searchParams.get('id');
     const stateData = location.state?.workflowData;
@@ -223,6 +233,7 @@ const WorkflowPlayground = memo(() => {
           if (result?.success && result.workflowData) {
             console.log('✅ Workflow loaded from Supabase:', result.workflowData);
             
+            // Set the loaded workflow with proper type structure
             const workflowWithNodes = {
               ...result.workflowData,
               nodes: result.workflowData.workflow?.nodes || result.nodes || [],
@@ -231,6 +242,7 @@ const WorkflowPlayground = memo(() => {
             setGeneratedWorkflow(workflowWithNodes);
             setWorkflowName(result.workflowData.name || 'Loaded Workflow');
             
+            // Create JSON file for preview - use the loaded workflow data directly
             const workflowData = result.workflowData || result.workflow;
             console.log('📝 Full result from loadWorkflow:', result);
             console.log('📝 Workflow data to display:', workflowData);
@@ -245,15 +257,18 @@ const WorkflowPlayground = memo(() => {
               [fileName]: workflowJson
             });
             
+            // Set deployment info if available
             if (result.n8nWorkflowId) {
               setN8nWorkflowId(result.n8nWorkflowId);
             }
             
+            // Update chat history from loaded data
             if (result.chat && Array.isArray(result.chat)) {
               console.log('📝 Restoring chat history:', result.chat.length, 'messages');
               workflowConfig.updateChatHistory(result.chat);
             }
             
+            // Parse and display on canvas
             const { nodes: parsedNodes, edges: parsedEdges } = parseN8nWorkflowToReactFlow(workflowWithNodes);
             if (parsedNodes.length > 0) {
               setNodes(parsedNodes);
@@ -284,6 +299,7 @@ const WorkflowPlayground = memo(() => {
     }
   }, [searchParams, location.state, workflowId, loadWorkflow, authLoading, user, handleWorkflowGenerated, setNodes, setEdges, workflowConfig]);
 
+  // Define callbacks first
   const onConnect = useCallback(
     (params: Connection) => {
       setEdges((eds) => addEdge(params, eds));
@@ -298,6 +314,7 @@ const WorkflowPlayground = memo(() => {
     setShowNodeEditor(true);
   }, []);
 
+  // Memoize the ReactFlow props and prevent all re-renders unless absolutely necessary
   const reactFlowProps = useMemo(() => ({
     nodes,
     edges,
@@ -310,8 +327,8 @@ const WorkflowPlayground = memo(() => {
     nodesConnectable: true,
     elementsSelectable: true,
     preventScrolling: false,
-    deleteKeyCode: null,
-    multiSelectionKeyCode: null,
+    deleteKeyCode: null, // Prevent accidental deletions
+    multiSelectionKeyCode: null, // Disable multi-selection to reduce complexity
   }), [nodes, edges, onNodesChange, onEdgesChange]);
 
   const handleSaveNodeProperties = useCallback((nodeId: string, nodeData: any) => {
@@ -336,6 +353,7 @@ const WorkflowPlayground = memo(() => {
       const updatedWorkflow = updateWorkflowFromNode(generatedWorkflow, nodeId, nodeData);
       setGeneratedWorkflow(updatedWorkflow);
       
+      // Update JSON file
       const workflowJson = JSON.stringify(updatedWorkflow, null, 2);
       const fileName = `workflow_edit_${Date.now()}.json`;
       
@@ -359,6 +377,7 @@ const WorkflowPlayground = memo(() => {
       setGeneratedWorkflow(updatedWorkflow);
       setHasUnsavedChanges(true);
       
+      // Update JSON file
       const workflowJson = JSON.stringify(updatedWorkflow, null, 2);
       const fileName = `workflow_live_${Date.now()}.json`;
       
@@ -429,6 +448,7 @@ const WorkflowPlayground = memo(() => {
         const successMessage = `✅ **Workflow Saved!**\n\n📋 **Workflow Name:** ${workflowData.name}\n💾 **Storage:** Supabase\n\n*Your workflow has been saved successfully!*`;
         addDeploymentMessageToChat(successMessage);
         
+        // Update workflow ID if it was generated
         if (!workflowId) {
           setWorkflowId(currentWorkflowId);
         }
@@ -482,7 +502,7 @@ const WorkflowPlayground = memo(() => {
     setShowCodePreview(true);
     setShowN8nEngine(false);
     setLiveFiles({});
-    setIsWorkflowLoaded(false);
+    setIsWorkflowLoaded(false); // Reset for new generation
   }, []);
 
   const handleFileGenerated = useCallback((fileName: string, content: string) => {
@@ -492,6 +512,7 @@ const WorkflowPlayground = memo(() => {
       isWorkflowLoaded
     });
     
+    // Process file generation for both new and loaded workflows
     if (fileName.includes('.json')) {
       setAnimationJsonContent(content);
       setShowJsonAnimation(true);
@@ -649,41 +670,41 @@ const WorkflowPlayground = memo(() => {
   const renderMainContent = () => {
     if (isLoadingWorkflow) {
       return (
-        <PlaygroundCanvas className="flex items-center justify-center">
+        <div className="w-full h-full bg-black/90 flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mb-4 mx-auto"></div>
-            <div className="text-black text-lg">Loading workflow...</div>
-            <div className="text-gray-600 text-sm">Fetching data from Supabase</div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4"></div>
+            <div className="text-white text-lg">Loading workflow...</div>
+            <div className="text-white/60 text-sm">Fetching data from Supabase</div>
           </div>
-        </PlaygroundCanvas>
+        </div>
       );
     }
 
     if (showN8nEngine) {
       return (
-        <PlaygroundCanvas className="p-6">
+        <div className="w-full h-full bg-black/90 p-6">
           <RealTimeN8nEngine 
             workflowId={n8nWorkflowId || workflowId}
             workflowName={generatedWorkflow?.name}
           />
-        </PlaygroundCanvas>
+        </div>
       );
     }
 
     if (showCodePreview) {
       return (
-        <PlaygroundCanvas>
+        <div className="w-full h-full bg-black/90">
           <CodePreview 
             workflow={generatedWorkflow}
             generatedCode={generatedCode}
             liveFiles={Object.entries(liveFiles).map(([fileName, content]) => ({ fileName, content }))}
           />
-        </PlaygroundCanvas>
+        </div>
       );
     }
 
     return (
-      <PlaygroundCanvas>
+      <div className="w-full h-full bg-background">
         <ReactFlow
           {...reactFlowProps}
           onConnect={onConnect}
@@ -695,38 +716,38 @@ const WorkflowPlayground = memo(() => {
             variant={BackgroundVariant.Dots} 
             gap={20} 
             size={1} 
-            color="rgba(0, 0, 0, 0.1)"
+            color="rgba(255, 255, 255, 0.3)"
           />
           <Controls 
-            className="bg-white border border-gray-200 shadow-lg [&>button]:text-gray-700 [&>button]:border-gray-200 [&>button]:bg-white [&>button:hover]:bg-gray-50"
+            className="bg-black/40 backdrop-blur-sm border border-white/10 text-white [&>button]:text-white [&>button]:border-white/10 [&>button]:bg-transparent [&>button:hover]:bg-white/10"
           />
           <MiniMap 
-            className="bg-white border border-gray-200 shadow-lg"
-            maskColor="rgba(255, 255, 255, 0.8)"
+            className="bg-black/40 backdrop-blur-sm border border-white/10"
+            maskColor="rgba(0, 0, 0, 0.6)"
           />
         </ReactFlow>
         
         {nodes.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="text-center">
-              <div className="text-gray-700 text-lg mb-2">AI Workflow Generator</div>
-              <div className="text-gray-500 text-sm max-w-md mb-4">
+              <div className="text-muted-foreground text-lg mb-2">AI Workflow Generator</div>
+              <div className="text-muted-foreground text-sm max-w-md mb-4">
                 Use the AI Assistant to describe your automation needs and generate n8n workflows with real-time JSON preview
               </div>
               {generatedWorkflow && (
-                <div className="text-gray-400 text-xs">
+                <div className="text-muted-foreground text-xs">
                   Debug: Workflow loaded ({generatedWorkflow.nodes?.length || 0} nodes) but not displayed
                 </div>
               )}
             </div>
           </div>
         )}
-      </PlaygroundCanvas>
+      </div>
     );
   };
 
   return (
-    <div className="h-screen flex bg-white relative">
+    <div className="h-screen flex bg-background relative">
       <JsonWritingAnimation
         jsonContent={animationJsonContent}
         isActive={showJsonAnimation}
@@ -749,45 +770,47 @@ const WorkflowPlayground = memo(() => {
       />
 
       <div className="flex-1 flex flex-col min-h-0">
-        <div className="bg-white border-b border-gray-200 p-3 shrink-0">
+        {/* Enhanced Top Header */}
+        <div className="bg-black/30 backdrop-blur-sm border-b border-white/10 p-4 shrink-0">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-4">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => navigate('/dashboard')}
-                className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 p-2"
+                className="text-white/60 hover:text-white hover:bg-white/10 p-2"
                 title="Back to Dashboard"
               >
-                <Home className="w-4 h-4" />
+                <Home className="w-5 h-5" />
               </Button>
               <div className="flex items-center space-x-2">
-                <span className="text-gray-600 text-sm">Personal</span>
+                <User className="w-4 h-4 text-white/60" />
+                <span className="text-white/60 text-sm">Personal</span>
               </div>
-              <div className="text-gray-300">›</div>
+              <div className="text-white/40">›</div>
               <input
                 type="text"
                 value={workflowName}
                 onChange={(e) => setWorkflowName(e.target.value)}
-                className="bg-transparent text-gray-900 font-medium focus:outline-none border-b border-transparent focus:border-gray-300 transition-colors text-sm"
+                className="bg-transparent text-white font-medium focus:outline-none border-b border-transparent focus:border-white/30 transition-colors"
               />
               {hasUnsavedChanges && (
                 <div className="flex items-center space-x-2">
-                  <span className="text-orange-500 text-xs">● Unsaved changes</span>
-                  <span className="text-gray-400 text-xs">Auto-updating...</span>
+                  <span className="text-yellow-400 text-xs">● Unsaved changes</span>
+                  <span className="text-white/40 text-xs">Auto-updating...</span>
                 </div>
               )}
             </div>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <span className="text-gray-600 text-sm">
+                <span className="text-white/60 text-sm">
                   {isActive ? 'Active' : 'Inactive'}
                 </span>
                 <button
                   onClick={handleActivateWorkflow}
                   disabled={!n8nWorkflowId || isDeploying}
                   className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:opacity-50 ${
-                    isActive ? 'bg-blue-600' : 'bg-gray-200'
+                    isActive ? 'bg-blue-600' : 'bg-white/20'
                   }`}
                 >
                   <span
@@ -801,7 +824,7 @@ const WorkflowPlayground = memo(() => {
                 onClick={handleSaveWorkflow}
                 disabled={!generatedWorkflow || isCreatingRepo}
                 variant="outline"
-                className="text-gray-700 hover:bg-gray-50 bg-white border-gray-300 px-3 text-sm"
+                className="text-white hover:bg-white/10 bg-white/5 border-white/20 px-4"
                 title="Save Workflow"
               >
                 {isCreatingRepo ? (
@@ -814,16 +837,16 @@ const WorkflowPlayground = memo(() => {
               <Button
                 onClick={() => setShowN8nConfig(true)}
                 variant="outline"
-                className="text-gray-700 hover:bg-gray-50 bg-white border-gray-300 p-2"
+                className="text-white hover:bg-white/10 bg-white/5 border-white/20 p-2"
                 title="Configure N8n Instance"
               >
                 <Settings className="w-4 h-4" />
               </Button>
               <Button
                 onClick={handleToggleN8nEngine}
-                className={`text-gray-700 hover:bg-gray-50 px-3 text-sm ${
-                  showN8nEngine ? 'bg-gray-100' : 'bg-white'
-                } border border-gray-300`}
+                className={`text-white hover:bg-white/10 px-4 ${
+                  showN8nEngine ? 'bg-white/10' : 'bg-transparent'
+                }`}
                 title="Toggle Real-time N8n Engine"
               >
                 <Play className="w-4 h-4 mr-2" />
@@ -832,7 +855,7 @@ const WorkflowPlayground = memo(() => {
               <Button 
                 onClick={handleDeploy}
                 disabled={!generatedWorkflow || isDeploying}
-                className={`px-4 disabled:opacity-50 text-sm ${
+                className={`px-6 disabled:opacity-50 ${
                   hasUnsavedChanges ? 'bg-orange-500 hover:bg-orange-600' : 'bg-green-500 hover:bg-green-600'
                 } text-white`}
               >
