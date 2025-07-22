@@ -113,11 +113,17 @@ export const useCredentialManager = () => {
   const testConnection = useCallback(async (nodeId: string, nodeType: string, credentials: Record<string, any>) => {
     console.log(`🧪 Testing connection for node ${nodeId}:`, { nodeType, credentialKeys: Object.keys(credentials) });
     
-    if (!credentials || Object.keys(credentials).length === 0) {
+    // Check if credentials are provided
+    const hasCredentials = Object.values(credentials).some(value => 
+      value && String(value).trim() !== ''
+    );
+    
+    if (!hasCredentials) {
       updateCredentialStatus(nodeId, { 
         status: 'empty', 
         errorMessage: 'No credentials provided',
-        testResult: false
+        testResult: false,
+        lastTested: new Date().toISOString()
       });
       return false;
     }
@@ -136,11 +142,8 @@ export const useCredentialManager = () => {
           break;
         
         case 'n8n-nodes-base.httpRequest':
-          // For HTTP requests, we can't really test without knowing the endpoint
-          // Just validate that required fields are present
-          testResult = Object.values(credentials).some(value => 
-            value && String(value).trim() !== ''
-          );
+          // For HTTP requests, validate that URL and other required fields are present
+          testResult = await testHttpRequestCredentials(credentials);
           break;
         
         case 'n8n-nodes-base.groq':
@@ -148,14 +151,12 @@ export const useCredentialManager = () => {
           break;
         
         default:
-          // Generic validation - check if required fields are filled
-          testResult = Object.values(credentials).every(value => 
-            value && String(value).trim() !== ''
-          );
+          // Generic validation - check if required fields are filled and formatted correctly
+          testResult = await testGenericCredentials(credentials, nodeType);
       }
 
       const finalStatus = testResult ? 'valid' : 'invalid';
-      const finalErrorMessage = testResult ? undefined : errorMessage || 'Connection test failed';
+      const finalErrorMessage = testResult ? undefined : errorMessage || 'Connection test failed - please verify your credentials';
 
       updateCredentialStatus(nodeId, {
         status: finalStatus,
@@ -188,45 +189,97 @@ export const useCredentialManager = () => {
   }, [updateCredentialStatus]);
 
   const testTelegramCredentials = async (credentials: Record<string, any>) => {
-    const { botToken } = credentials;
-    if (!botToken) throw new Error('Bot token is required');
+    const { botToken, accessToken } = credentials;
+    const token = botToken || accessToken;
+    
+    if (!token || typeof token !== 'string' || token.trim() === '') {
+      throw new Error('Bot token is required and cannot be empty');
+    }
 
     try {
-      const response = await fetch(`https://api.telegram.org/bot${botToken}/getMe`);
+      const response = await fetch(`https://api.telegram.org/bot${token}/getMe`);
       const data = await response.json();
       
       if (!data.ok) {
-        throw new Error(data.description || 'Invalid bot token');
+        throw new Error(data.description || 'Invalid bot token - please check your Telegram bot token');
       }
       
       console.log('✅ Telegram bot test successful:', data.result.username);
       return true;
     } catch (error) {
-      throw new Error(`Telegram bot test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Telegram bot test failed: ${message}`);
     }
   };
 
   const testGroqCredentials = async (credentials: Record<string, any>) => {
-    const { apiKey } = credentials;
-    if (!apiKey) throw new Error('API key is required');
+    const { apiKey, api_key } = credentials;
+    const key = apiKey || api_key;
+    
+    if (!key || typeof key !== 'string' || key.trim() === '') {
+      throw new Error('API key is required and cannot be empty');
+    }
 
     try {
       const response = await fetch('https://api.groq.com/openai/v1/models', {
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': `Bearer ${key}`,
           'Content-Type': 'application/json'
         }
       });
       
       if (!response.ok) {
-        throw new Error('Invalid Groq API key');
+        if (response.status === 401) {
+          throw new Error('Invalid Groq API key - please check your API key');
+        } else if (response.status === 403) {
+          throw new Error('Groq API access forbidden - please verify your API key permissions');
+        } else {
+          throw new Error(`Groq API error (${response.status}) - please verify your API key`);
+        }
       }
       
       console.log('✅ Groq API test successful');
       return true;
     } catch (error) {
-      throw new Error(`Groq API test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Groq API test failed: ${message}`);
     }
+  };
+
+  const testHttpRequestCredentials = async (credentials: Record<string, any>) => {
+    // For HTTP Request nodes, we mainly validate the structure and required fields
+    const { url, method, headers, auth } = credentials;
+    
+    // Check if essential fields are provided
+    if (!url || typeof url !== 'string' || url.trim() === '') {
+      throw new Error('URL is required for HTTP requests');
+    }
+    
+    // Basic URL validation
+    try {
+      new URL(url);
+    } catch {
+      throw new Error('Invalid URL format - please provide a valid URL');
+    }
+    
+    console.log('✅ HTTP Request credentials validated');
+    return true;
+  };
+
+  const testGenericCredentials = async (credentials: Record<string, any>, nodeType: string) => {
+    // Generic validation for unknown node types
+    const hasValidCredentials = Object.entries(credentials).some(([key, value]) => {
+      if (typeof value !== 'string') return false;
+      const trimmedValue = value.trim();
+      return trimmedValue !== '' && trimmedValue.length > 3; // Basic length check
+    });
+    
+    if (!hasValidCredentials) {
+      throw new Error(`No valid credentials provided for ${nodeType.replace('n8n-nodes-base.', '')}`);
+    }
+    
+    console.log(`✅ Generic credentials validated for ${nodeType}`);
+    return true;
   };
 
   const getCredentialStatus = useCallback((nodeId: string) => {

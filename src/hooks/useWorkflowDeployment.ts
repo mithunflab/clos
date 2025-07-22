@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useN8nDeployments } from './useN8nDeployments';
@@ -68,43 +69,43 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
       const credentialKey = `credentials_${node.id}_${user.id}`;
       const storedCredentials = localStorage.getItem(credentialKey);
       
-      if (!storedCredentials) {
-        // Check if this node type requires credentials
-        const requiresCredentials = [
-          'n8n-nodes-base.telegramTrigger',
-          'n8n-nodes-base.telegram',
-          'n8n-nodes-base.groq',
-          'n8n-nodes-base.httpRequest'
-        ].some(type => node.type === type);
-        
-        if (requiresCredentials) {
+      // Define node types that require credentials
+      const requiresCredentials = [
+        'n8n-nodes-base.telegramTrigger',
+        'n8n-nodes-base.telegram',
+        'n8n-nodes-base.groq',
+        'n8n-nodes-base.httpRequest'
+      ].includes(node.type);
+      
+      if (requiresCredentials) {
+        if (!storedCredentials) {
           missingCredentials.push({
             nodeId: node.id,
             nodeName: node.name,
             nodeType: node.type
           });
-        }
-      } else {
-        try {
-          const credentials = JSON.parse(storedCredentials);
-          const hasCredentials = Object.values(credentials).some(value => 
-            value && String(value).trim() !== ''
-          );
-          
-          if (!hasCredentials) {
+        } else {
+          try {
+            const credentials = JSON.parse(storedCredentials);
+            const hasValidCredentials = Object.values(credentials).some(value => 
+              value && String(value).trim() !== ''
+            );
+            
+            if (!hasValidCredentials) {
+              missingCredentials.push({
+                nodeId: node.id,
+                nodeName: node.name,
+                nodeType: node.type
+              });
+            }
+          } catch (error) {
+            console.error('Error parsing stored credentials:', error);
             missingCredentials.push({
               nodeId: node.id,
               nodeName: node.name,
               nodeType: node.type
             });
           }
-        } catch (error) {
-          console.error('Error parsing stored credentials:', error);
-          missingCredentials.push({
-            nodeId: node.id,
-            nodeName: node.name,
-            nodeType: node.type
-          });
         }
       }
     });
@@ -127,27 +128,39 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
         try {
           const credentials = JSON.parse(storedCredentials);
           
-          // Assign credentials based on node type
+          // Assign credentials based on node type with proper structure
           if (node.type === 'n8n-nodes-base.telegramTrigger' || node.type === 'n8n-nodes-base.telegram') {
             return {
               ...node,
               credentials: {
-                telegramApi: {
-                  id: `telegram_${node.id}`,
-                  name: `Telegram Credentials for ${node.name}`
-                }
+                telegramApi: credentials.botToken || credentials.accessToken ? {
+                  botToken: credentials.botToken || credentials.accessToken
+                } : undefined
               }
             };
           }
           
-          if (node.type === 'n8n-nodes-base.httpRequest' && credentials.apiKey) {
+          if (node.type === 'n8n-nodes-base.groq') {
             return {
               ...node,
               credentials: {
-                groqApi: {
-                  id: `groq_${node.id}`,
-                  name: `Groq API Credentials for ${node.name}`
-                }
+                groqApi: credentials.apiKey || credentials.api_key ? {
+                  apiKey: credentials.apiKey || credentials.api_key
+                } : undefined
+              }
+            };
+          }
+          
+          if (node.type === 'n8n-nodes-base.httpRequest') {
+            return {
+              ...node,
+              credentials: credentials,
+              parameters: {
+                ...node.parameters,
+                // Ensure HTTP request has proper configuration
+                url: credentials.url || node.parameters?.url,
+                method: credentials.method || node.parameters?.method || 'GET',
+                headers: credentials.headers || node.parameters?.headers || {}
               }
             };
           }
@@ -160,69 +173,6 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
     });
 
     console.log('🔐 Ensured node credentials for deployment');
-    return updatedWorkflow;
-  };
-
-  const validateWorkflowNodes = (workflow: any) => {
-    if (!workflow.nodes) return { isValid: true, unsupportedNodes: [] };
-
-    const unsupportedNodeTypes = [
-      'n8n-nodes-base.groq', // Groq node might not be available
-      // Add other potentially unsupported nodes here
-    ];
-
-    const unsupportedNodes = workflow.nodes.filter((node: any) => 
-      unsupportedNodeTypes.includes(node.type)
-    );
-
-    return {
-      isValid: unsupportedNodes.length === 0,
-      unsupportedNodes: unsupportedNodes.map((node: any) => ({
-        name: node.name,
-        type: node.type
-      }))
-    };
-  };
-
-  const replaceUnsupportedNodes = (workflow: any) => {
-    if (!workflow.nodes) return workflow;
-
-    const nodeReplacements: { [key: string]: any } = {
-      'n8n-nodes-base.groq': {
-        type: 'n8n-nodes-base.httpRequest',
-        name: 'Groq API',
-        parameters: {
-          url: 'https://api.groq.com/openai/v1/chat/completions',
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer {{ $credentials.groqApi.apiKey }}',
-            'Content-Type': 'application/json'
-          },
-          body: {
-            model: 'llama3-8b-8192',
-            messages: '{{ $json.messages }}',
-            temperature: 0.7
-          }
-        }
-      }
-    };
-
-    const updatedWorkflow = { ...workflow };
-    updatedWorkflow.nodes = workflow.nodes.map((node: any) => {
-      if (nodeReplacements[node.type]) {
-        const replacement = nodeReplacements[node.type];
-        return {
-          ...node,
-          type: replacement.type,
-          parameters: {
-            ...node.parameters,
-            ...replacement.parameters
-          }
-        };
-      }
-      return node;
-    });
-
     return updatedWorkflow;
   };
 
@@ -269,23 +219,14 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
 
       console.log('🚀 Deploying workflow to N8N with config:', config);
 
-      // Validate workflow credentials first
+      // Validate workflow credentials first with detailed error messages
       const credentialValidation = validateWorkflowCredentials(workflow);
       if (!credentialValidation.isValid) {
-        const missingNodes = credentialValidation.missingCredentials
-          .map(node => `"${node.nodeName}" (${node.nodeType})`)
-          .join(', ');
+        const missingDetails = credentialValidation.missingCredentials
+          .map(node => `• "${node.nodeName}" (${node.nodeType.replace('n8n-nodes-base.', '')})`)
+          .join('\n');
         
-        throw new Error(`Missing credentials for nodes: ${missingNodes}. Please configure all node credentials before deployment.`);
-      }
-
-      // Validate workflow nodes
-      const validation = validateWorkflowNodes(workflow);
-      if (!validation.isValid) {
-        console.warn('⚠️ Unsupported nodes detected:', validation.unsupportedNodes);
-        // Replace unsupported nodes with compatible alternatives
-        workflow = replaceUnsupportedNodes(workflow);
-        console.log('🔄 Replaced unsupported nodes with HTTP Request alternatives');
+        throw new Error(`Missing or invalid credentials for the following nodes:\n${missingDetails}\n\nPlease configure and test credentials for all nodes before deployment.`);
       }
 
       // Ensure proper credential assignment
@@ -310,7 +251,7 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
           action: existingDeployment ? 'update' : 'deploy',
           workflow: cleanedWorkflow,
           workflowId: existingDeployment?.n8n_workflow_id || undefined,
-          n8nConfig: currentConfig // Always pass current config
+          n8nConfig: currentConfig
         }
       });
 
@@ -319,18 +260,25 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
       if (error) {
         console.error('❌ N8N deployment error:', error);
         
-        // Check if the error is about credentials
+        // Enhanced error handling with specific messages
         if (error.message && error.message.includes('credentials')) {
-          throw new Error(`Deployment failed: Some nodes are missing required credentials. Please configure all node credentials before deployment.`);
+          throw new Error(`Deployment failed: Missing or invalid credentials detected. Please ensure all nodes have valid, tested credentials before deployment.`);
         }
         
-        // Check if the error is about unrecognized node types
         if (error.message && error.message.includes('Unrecognized node type')) {
           const nodeType = error.message.match(/Unrecognized node type: ([^\s"]+)/)?.[1];
-          throw new Error(`Unsupported node type "${nodeType}". This node is not available in the current N8N instance. Please use alternative nodes or install the required community package.`);
+          throw new Error(`Unsupported node type "${nodeType}". This node is not available in the current N8N instance. Please use alternative nodes or contact support.`);
         }
         
-        throw new Error(error.message || 'Failed to deploy to N8N');
+        if (error.message && error.message.includes('401')) {
+          throw new Error('N8N authentication failed. Please check your N8N configuration and API key.');
+        }
+        
+        if (error.message && error.message.includes('404')) {
+          throw new Error('N8N instance not found. Please verify your N8N URL configuration.');
+        }
+        
+        throw new Error(error.message || 'Failed to deploy to N8N - please check your configuration and try again');
       }
 
       if (!data || !data.success) {
@@ -344,11 +292,9 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
       // Construct real deployment URL based on actual config
       if (currentConfig && realWorkflowId) {
         if (currentConfig.use_casel_cloud) {
-          // Use Casel Cloud URL
           deploymentUrl = `https://n8n.casel.cloud/workflow/${realWorkflowId}`;
         } else if ('n8n_url' in currentConfig && currentConfig.n8n_url) {
-          // Use custom N8N URL - only if currentConfig has n8n_url property
-          const baseUrl = currentConfig.n8n_url.replace(/\/$/, ''); // Remove trailing slash
+          const baseUrl = currentConfig.n8n_url.replace(/\/$/, '');
           deploymentUrl = `${baseUrl}/workflow/${realWorkflowId}`;
         }
       }
@@ -389,7 +335,7 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
 
     } catch (err) {
       console.error('❌ Error deploying workflow:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      const errorMessage = err instanceof Error ? err.message : 'Unknown deployment error';
       setError(errorMessage);
       await updateLocalDeploymentStatus('error', undefined, errorMessage);
       return {
@@ -424,12 +370,15 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
       if (error) {
         console.error('❌ Activation error:', error);
         
-        // Provide more specific error messages for credential issues
+        // Enhanced error messages for activation issues
         if (error.message && error.message.includes('Node does not have any credentials set')) {
           throw new Error('Cannot activate workflow: Some nodes are missing required credentials. Please ensure all nodes have valid, tested credentials before activation.');
         }
         
-        // Provide more specific error messages
+        if (error.message && error.message.includes('credentials')) {
+          throw new Error('Activation failed due to credential issues. Please verify all node credentials are properly configured and tested.');
+        }
+        
         if (error.message && error.message.includes('Unrecognized node type')) {
           const nodeType = error.message.match(/Unrecognized node type: ([^\s"]+)/)?.[1];
           throw new Error(`Cannot activate workflow: Unsupported node type "${nodeType}". Please redeploy the workflow with compatible nodes.`);
@@ -439,7 +388,11 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
           throw new Error('Workflow not found in N8N. Please redeploy the workflow first.');
         }
         
-        throw new Error(error.message || 'Failed to activate workflow');
+        if (error.message && error.message.includes('401')) {
+          throw new Error('N8N authentication failed during activation. Please check your N8N configuration.');
+        }
+        
+        throw new Error(error.message || 'Failed to activate workflow - please check your N8N configuration and credentials');
       }
 
       if (!data || !data.success) {
@@ -452,7 +405,7 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
 
     } catch (err) {
       console.error('❌ Error activating workflow:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      const errorMessage = err instanceof Error ? err.message : 'Unknown activation error';
       setError(errorMessage);
       await updateLocalDeploymentStatus('error', undefined, errorMessage);
       return false;

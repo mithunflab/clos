@@ -13,7 +13,6 @@ import {
   Shield,
   ShieldCheck,
   ShieldX,
-  Save,
   TestTube
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -50,19 +49,20 @@ export const CredentialManager: React.FC<CredentialManagerProps> = ({
 }) => {
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
   const [fieldValidation, setFieldValidation] = useState<Record<string, boolean>>({});
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [localCredentials, setLocalCredentials] = useState<Record<string, any>>(credentials);
   
   const {
     saveCredentials,
     loadCredentials,
     testConnection,
     getCredentialStatus,
-    isTestingConnection
+    isTestingConnection,
+    updateCredentialStatus
   } = useCredentialManager();
 
   // Use dynamic analysis instead of hardcoded database
   const requirement = analyzeDynamicNodeCredentials(nodeData || { nodeType, type: nodeType });
-  const credentialStatus = getDynamicCredentialStatus(requirement, credentials);
+  const credentialStatus = getDynamicCredentialStatus(requirement, localCredentials);
   const currentStatus = getCredentialStatus(nodeId);
 
   console.log('🔄 CredentialManager render:', {
@@ -73,7 +73,7 @@ export const CredentialManager: React.FC<CredentialManagerProps> = ({
     fieldsCount: requirement.fields.length,
     calculatedStatus: credentialStatus,
     currentStatus: currentStatus.status,
-    credentialsCount: Object.keys(credentials).length
+    credentialsCount: Object.keys(localCredentials).length
   });
 
   // Load saved credentials on mount
@@ -82,75 +82,74 @@ export const CredentialManager: React.FC<CredentialManagerProps> = ({
     const savedCredentials = loadCredentials(nodeId, nodeType);
     if (Object.keys(savedCredentials).length > 0) {
       console.log('📥 Found saved credentials, updating component');
+      setLocalCredentials(savedCredentials);
       onCredentialsChange(savedCredentials);
     }
   }, [nodeId, nodeType, loadCredentials]);
 
-  // Update status when credentials or nodeType changes
+  // Update status when credentials change
   useEffect(() => {
     console.log('📊 Status change detected:', { 
       oldStatus: currentStatus.status, 
       newStatus: credentialStatus 
     });
     onStatusChange(credentialStatus);
-  }, [credentials, nodeType, onStatusChange, credentialStatus, currentStatus.status]);
+    
+    // Update the credential manager status in real-time
+    updateCredentialStatus(nodeId, {
+      nodeId,
+      nodeType,
+      credentials: localCredentials,
+      status: credentialStatus
+    });
+  }, [localCredentials, nodeType, onStatusChange, credentialStatus, currentStatus.status, nodeId, updateCredentialStatus]);
 
   // Validate fields when credentials change
   useEffect(() => {
     const validation: Record<string, boolean> = {};
     requirement.fields.forEach(field => {
-      const value = credentials[field.name];
+      const value = localCredentials[field.name];
       validation[field.name] = validateDynamicCredentialValue(field, String(value || ''));
     });
     setFieldValidation(validation);
-  }, [credentials, requirement]);
+  }, [localCredentials, requirement]);
 
-  const handleCredentialChange = (fieldName: string, value: string) => {
+  const handleCredentialChange = async (fieldName: string, value: string) => {
     console.log('🔄 Credential field changed:', { fieldName, value: value ? '[REDACTED]' : 'empty' });
+    
     const updatedCredentials = {
-      ...credentials,
+      ...localCredentials,
       [fieldName]: value
     };
+    
+    setLocalCredentials(updatedCredentials);
     onCredentialsChange(updatedCredentials);
-    setHasUnsavedChanges(true);
-  };
-
-  const handleSaveCredentials = async () => {
-    console.log('💾 Saving credentials for node:', nodeId);
-    const success = await saveCredentials(nodeId, nodeType, credentials);
+    
+    // Auto-save credentials immediately
+    const success = await saveCredentials(nodeId, nodeType, updatedCredentials);
     if (success) {
-      setHasUnsavedChanges(false);
-      toast.success('Credentials saved successfully');
-      console.log('✅ Credentials saved and UI updated');
-    } else {
-      toast.error('Failed to save credentials');
-      console.error('❌ Failed to save credentials');
+      console.log('✅ Auto-saved credentials for field:', fieldName);
     }
   };
 
   const handleTestConnection = async () => {
     if (!requirement.requiresCredentials) {
       console.log('⚠️ No credentials required for this node type');
+      toast.info('This node type does not require credentials');
       return;
     }
     
     console.log('🧪 Starting connection test for node:', nodeId);
     toast.info('Testing connection...');
     
-    // Save first if there are unsaved changes
-    if (hasUnsavedChanges) {
-      console.log('💾 Saving unsaved changes before testing');
-      await handleSaveCredentials();
-    }
-    
-    const success = await testConnection(nodeId, nodeType, credentials);
+    const success = await testConnection(nodeId, nodeType, localCredentials);
     
     if (success) {
       toast.success('Connection test successful!');
       console.log('✅ Connection test passed');
     } else {
-      toast.error('Connection test failed. Please check your credentials.');
-      console.error('❌ Connection test failed');
+      toast.error(`Connection test failed: ${currentStatus.errorMessage || 'Please check your credentials'}`);
+      console.error('❌ Connection test failed:', currentStatus.errorMessage);
     }
   };
 
@@ -159,28 +158,6 @@ export const CredentialManager: React.FC<CredentialManagerProps> = ({
       ...prev,
       [fieldName]: !prev[fieldName]
     }));
-  };
-
-  const getStatusIcon = () => {
-    const status = currentStatus.status;
-    switch (status) {
-      case 'not_required':
-        return <Info className="w-4 h-4 text-blue-400" />;
-      case 'empty':
-        return <AlertCircle className="w-4 h-4 text-red-400" />;
-      case 'partial':
-        return <AlertCircle className="w-4 h-4 text-yellow-400" />;
-      case 'configured':
-        return <Key className="w-4 h-4 text-yellow-400" />;
-      case 'testing':
-        return <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />;
-      case 'valid':
-        return <CheckCircle className="w-4 h-4 text-green-400" />;
-      case 'invalid':
-        return <ShieldX className="w-4 h-4 text-red-400" />;
-      default:
-        return <Key className="w-4 h-4 text-white/60" />;
-    }
   };
 
   // If no credentials required
@@ -234,7 +211,7 @@ export const CredentialManager: React.FC<CredentialManagerProps> = ({
               <Label htmlFor={field.name} className="text-white flex items-center space-x-2">
                 <span>{field.label}</span>
                 {field.required && <span className="text-red-400">*</span>}
-                {!fieldValidation[field.name] && credentials[field.name] && (
+                {!fieldValidation[field.name] && localCredentials[field.name] && (
                   <AlertCircle className="w-3 h-3 text-red-400" />
                 )}
               </Label>
@@ -242,7 +219,7 @@ export const CredentialManager: React.FC<CredentialManagerProps> = ({
               <div className="relative">
                 {field.type === 'select' ? (
                   <Select
-                    value={String(credentials[field.name] || '')}
+                    value={String(localCredentials[field.name] || '')}
                     onValueChange={(value) => handleCredentialChange(field.name, value)}
                   >
                     <SelectTrigger className="bg-white/10 border-white/20 text-white">
@@ -271,10 +248,10 @@ export const CredentialManager: React.FC<CredentialManagerProps> = ({
                         : 'text'
                     }
                     placeholder={field.placeholder}
-                    value={String(credentials[field.name] || '')}
+                    value={String(localCredentials[field.name] || '')}
                     onChange={(e) => handleCredentialChange(field.name, e.target.value)}
                     className={`bg-white/10 border-white/20 text-white placeholder-white/40 pr-10 ${
-                      !fieldValidation[field.name] && credentials[field.name] 
+                      !fieldValidation[field.name] && localCredentials[field.name] 
                         ? 'border-red-400 focus:border-red-400' 
                         : ''
                     }`}
@@ -304,7 +281,7 @@ export const CredentialManager: React.FC<CredentialManagerProps> = ({
                 </p>
               )}
               
-              {!fieldValidation[field.name] && credentials[field.name] && (
+              {!fieldValidation[field.name] && localCredentials[field.name] && (
                 <p className="text-xs text-red-400 flex items-start space-x-1">
                   <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
                   <span>Invalid format for {field.label.toLowerCase()}</span>
@@ -341,18 +318,6 @@ export const CredentialManager: React.FC<CredentialManagerProps> = ({
           )}
           
           <div className="flex items-center space-x-2 ml-auto">
-            {hasUnsavedChanges && (
-              <Button
-                onClick={handleSaveCredentials}
-                variant="outline"
-                size="sm"
-                className="bg-yellow-600/20 border-yellow-500 text-yellow-400 hover:bg-yellow-600/30"
-              >
-                <Save className="w-4 h-4 mr-2" />
-                Save
-              </Button>
-            )}
-            
             <Button
               onClick={handleTestConnection}
               disabled={isTestingConnection[nodeId] || credentialStatus === 'empty' || credentialStatus === 'not_required'}
@@ -373,6 +338,12 @@ export const CredentialManager: React.FC<CredentialManagerProps> = ({
         {currentStatus.lastTested && (
           <div className="text-xs text-white/50 text-center">
             Last tested: {new Date(currentStatus.lastTested).toLocaleString()}
+            {currentStatus.testResult && (
+              <span className="text-green-400 ml-2">✓ Valid</span>
+            )}
+            {currentStatus.testResult === false && (
+              <span className="text-red-400 ml-2">✗ Invalid</span>
+            )}
           </div>
         )}
       </CardContent>

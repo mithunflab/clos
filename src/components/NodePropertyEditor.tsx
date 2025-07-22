@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Node } from '@xyflow/react';
-import { X, Settings, Database, Globe, Mail, Webhook, Code, Save } from 'lucide-react';
+import { X, Settings, Database, Globe, Mail, Webhook, Code } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,14 +38,19 @@ const NodePropertyEditor: React.FC<NodePropertyEditorProps> = ({
     console.log('🔄 Credential change in NodePropertyEditor:', updatedCredentials);
     setCredentials(updatedCredentials);
     
-    // Trigger immediate JSON update
+    // Update node data immediately
     const updatedNodeData = {
       ...nodeData,
       credentials: updatedCredentials,
       parameters,
       disabled: nodeData.disabled
     };
+    
+    setNodeData(updatedNodeData);
 
+    // Trigger immediate save and JSON update
+    onSave(node.id, updatedNodeData);
+    
     if (onJsonUpdate) {
       onJsonUpdate({
         nodeId: node.id,
@@ -61,30 +66,17 @@ const NodePropertyEditor: React.FC<NodePropertyEditorProps> = ({
     };
     setParameters(updatedParameters);
 
-    // Trigger immediate JSON update
+    // Update node data immediately
     const updatedNodeData = {
       ...nodeData,
       credentials,
       parameters: updatedParameters,
       disabled: nodeData.disabled
     };
+    
+    setNodeData(updatedNodeData);
 
-    if (onJsonUpdate) {
-      onJsonUpdate({
-        nodeId: node.id,
-        updatedData: updatedNodeData
-      });
-    }
-  };
-
-  const handleSave = () => {
-    const updatedNodeData = {
-      ...nodeData,
-      credentials,
-      parameters,
-      disabled: nodeData.disabled
-    };
-
+    // Trigger immediate save and JSON update
     onSave(node.id, updatedNodeData);
     
     if (onJsonUpdate) {
@@ -93,8 +85,6 @@ const NodePropertyEditor: React.FC<NodePropertyEditorProps> = ({
         updatedData: updatedNodeData
       });
     }
-    
-    onClose();
   };
 
   const getNodeIcon = () => {
@@ -131,7 +121,7 @@ const NodePropertyEditor: React.FC<NodePropertyEditorProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
           <Tabs defaultValue="credentials" className="w-full">
             <TabsList className="grid w-full grid-cols-3 bg-white/5">
               <TabsTrigger value="credentials" className="text-white/70 data-[state=active]:text-white">
@@ -145,14 +135,15 @@ const NodePropertyEditor: React.FC<NodePropertyEditorProps> = ({
               </TabsTrigger>
             </TabsList>
 
-            {/* Credentials Tab */}
+            {/* Credentials Tab - No separate save button here, auto-saves */}
             <TabsContent value="credentials" className="space-y-4">
               <CredentialManager
                 nodeType={String(nodeData.nodeType || '')}
                 credentials={credentials}
                 onCredentialsChange={handleCredentialChange}
                 onStatusChange={setCredentialStatus}
-                nodeData={nodeData} // Pass the full nodeData for dynamic analysis
+                nodeData={nodeData}
+                nodeId={node.id}
               />
             </TabsContent>
 
@@ -239,7 +230,17 @@ const NodePropertyEditor: React.FC<NodePropertyEditorProps> = ({
                     </div>
                     <Switch
                       checked={Boolean(nodeData.disabled || false)}
-                      onCheckedChange={(checked) => setNodeData(prev => ({ ...prev, disabled: checked }))}
+                      onCheckedChange={(checked) => {
+                        const updatedNodeData = { ...nodeData, disabled: checked };
+                        setNodeData(updatedNodeData);
+                        onSave(node.id, updatedNodeData);
+                        if (onJsonUpdate) {
+                          onJsonUpdate({
+                            nodeId: node.id,
+                            updatedData: updatedNodeData
+                          });
+                        }
+                      }}
                     />
                   </div>
                   
@@ -248,7 +249,17 @@ const NodePropertyEditor: React.FC<NodePropertyEditorProps> = ({
                     <Input
                       id="nodeName"
                       value={String(nodeData.name || '')}
-                      onChange={(e) => setNodeData(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) => {
+                        const updatedNodeData = { ...nodeData, name: e.target.value };
+                        setNodeData(updatedNodeData);
+                        onSave(node.id, updatedNodeData);
+                        if (onJsonUpdate) {
+                          onJsonUpdate({
+                            nodeId: node.id,
+                            updatedData: updatedNodeData
+                          });
+                        }
+                      }}
                       className="bg-white/10 border-white/20 text-white placeholder-white/40"
                     />
                   </div>
@@ -256,24 +267,6 @@ const NodePropertyEditor: React.FC<NodePropertyEditorProps> = ({
               </Card>
             </TabsContent>
           </Tabs>
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end space-x-3 p-6 border-t border-white/10">
-          <Button
-            variant="outline"
-            onClick={onClose}
-            className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Save className="w-4 h-4 mr-2" />
-            Save Changes
-          </Button>
         </div>
       </div>
     </div>
