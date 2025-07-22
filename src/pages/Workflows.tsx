@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, Clock, CheckCircle, AlertCircle, Bot, ExternalLink } from 'lucide-react';
@@ -10,6 +9,7 @@ import { useWorkflowStorageV2 } from '@/hooks/useWorkflowStorageV2';
 import { useUserPlan } from '@/hooks/useUserPlan';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { GlowingEffect } from '@/components/ui/glowing-effect';
 
 interface WorkflowItem {
   id: string;
@@ -178,40 +178,10 @@ const Workflows = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black text-white relative">
-        {/* Aurora Background */}
-        <div className="absolute inset-0 z-0">
-          <div className="aurora-bg absolute inset-0 opacity-40"></div>
-        </div>
-        
-        <style>{`
-          @keyframes aurora {
-            0% { background-position: 0% 0%; transform: translateX(-20px) translateY(0px); }
-            25% { background-position: 25% 15%; transform: translateX(-10px) translateY(25px); }
-            50% { background-position: 50% 30%; transform: translateX(0px) translateY(50px); }
-            75% { background-position: 75% 45%; transform: translateX(10px) translateY(75px); }
-            100% { background-position: 100% 60%; transform: translateX(20px) translateY(100px); }
-          }
-          
-          .aurora-bg {
-            background: repeating-linear-gradient(
-              165deg,
-              #0f172a 3%,
-              #1e293b 6%,
-              #334155 9%,
-              #475569 12%,
-              #000000 15%
-            );
-            background-size: 100% 160%;
-            background-position: 0% 0%;
-            animation: aurora 35s ease-in-out infinite;
-            filter: blur(6px);
-          }
-        `}</style>
-        
-        <div className="relative z-10 container mx-auto p-6">
+      <div className="min-h-screen bg-background text-foreground">
+        <div className="container mx-auto p-6">
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-foreground"></div>
           </div>
         </div>
       </div>
@@ -219,47 +189,17 @@ const Workflows = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white relative">
-      {/* Aurora Background */}
-      <div className="absolute inset-0 z-0">
-        <div className="aurora-bg absolute inset-0 opacity-40"></div>
-      </div>
-      
-      <style>{`
-        @keyframes aurora {
-          0% { background-position: 0% 0%; transform: translateX(-20px) translateY(0px); }
-          25% { background-position: 25% 15%; transform: translateX(-10px) translateY(25px); }
-          50% { background-position: 50% 30%; transform: translateX(0px) translateY(50px); }
-          75% { background-position: 75% 45%; transform: translateX(10px) translateY(75px); }
-          100% { background-position: 100% 60%; transform: translateX(20px) translateY(100px); }
-        }
-        
-        .aurora-bg {
-          background: repeating-linear-gradient(
-            165deg,
-            #0f172a 3%,
-            #1e293b 6%,
-            #334155 9%,
-            #475569 12%,
-            #000000 15%
-          );
-          background-size: 100% 160%;
-          background-position: 0% 0%;
-          animation: aurora 35s ease-in-out infinite;
-          filter: blur(6px);
-        }
-      `}</style>
-
-      <div className="relative z-10 container mx-auto p-6 max-w-7xl">
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="container mx-auto p-6 max-w-7xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-              <Bot className="w-6 h-6 text-black" />
+            <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+              <Bot className="w-6 h-6 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white">Workflows</h1>
-              <p className="text-white/70">
+              <h1 className="text-3xl font-bold text-foreground">Workflows</h1>
+              <p className="text-muted-foreground">
                 Manage your automation workflows 
                 <span className={`ml-2 font-medium ${getWorkflowLimitColor()}`}>
                   ({getWorkflowLimitText()})
@@ -269,7 +209,7 @@ const Workflows = () => {
           </div>
           <Button 
             onClick={handleCreateWorkflow}
-            className="flex items-center space-x-2 bg-white text-black hover:bg-white/90"
+            className="flex items-center space-x-2 bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <Plus className="w-4 h-4" />
             <span>Create Workflow</span>
@@ -279,16 +219,16 @@ const Workflows = () => {
         {/* Workflows Grid */}
         {workflows.length === 0 ? (
           <div className="text-center py-12">
-            <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Bot className="w-8 h-8 text-white/70" />
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+              <Bot className="w-8 h-8 text-muted-foreground" />
             </div>
-            <h3 className="text-xl font-semibold text-white mb-2">No workflows yet</h3>
-            <p className="text-white/70 mb-6">
+            <h3 className="text-xl font-semibold text-foreground mb-2">No workflows yet</h3>
+            <p className="text-muted-foreground mb-6">
               Create your first workflow to get started with automation
             </p>
             <Button 
               onClick={handleCreateWorkflow}
-              className="bg-white text-black hover:bg-white/90"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               <Plus className="w-4 h-4 mr-2" />
               Create Your First Workflow
@@ -297,67 +237,79 @@ const Workflows = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {workflows.map((workflow) => (
-              <Card key={workflow.id} className="bg-black/40 backdrop-blur-sm border-white/10 hover:bg-black/60 transition-all duration-200">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg mb-1 text-white">{workflow.name}</CardTitle>
-                      <CardDescription className="text-sm text-white/70">
-                        {workflow.description}
-                      </CardDescription>
-                    </div>
-                    <Badge className={getStatusColor(workflow.status)}>
-                      <div className="flex items-center space-x-1">
-                        {getStatusIcon(workflow.status)}
-                        <span className="capitalize">{workflow.status}</span>
+              <div key={workflow.id} className="relative min-h-[18rem]">
+                <div className="relative h-full rounded-[1.25rem] border-[0.75px] border-border p-2">
+                  <GlowingEffect
+                    spread={40}
+                    glow={true}
+                    disabled={false}
+                    proximity={64}
+                    inactiveZone={0.01}
+                    borderWidth={3}
+                  />
+                  <Card className="relative h-full bg-card/40 backdrop-blur-sm border-card-foreground/10 hover:bg-card/60 transition-all duration-200 rounded-xl border-[0.75px] shadow-sm">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="text-lg mb-1 text-card-foreground">{workflow.name}</CardTitle>
+                          <CardDescription className="text-sm text-muted-foreground">
+                            {workflow.description}
+                          </CardDescription>
+                        </div>
+                        <Badge className={getStatusColor(workflow.status)}>
+                          <div className="flex items-center space-x-1">
+                            {getStatusIcon(workflow.status)}
+                            <span className="capitalize">{workflow.status}</span>
+                          </div>
+                        </Badge>
                       </div>
-                    </Badge>
-                  </div>
-                </CardHeader>
-                
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="text-xs text-white/70">
-                      <div>Created: {formatDate(workflow.created_at)}</div>
-                      {workflow.updated_at && (
-                        <div>Updated: {formatDate(workflow.updated_at)}</div>
-                      )}
-                    </div>
+                    </CardHeader>
                     
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditWorkflow(workflow.id)}
-                        className="flex-1 bg-white/10 border-white/20 text-white hover:bg-white/20"
-                      >
-                        <Edit className="w-4 h-4 mr-2" />
-                        Edit
-                      </Button>
-                      
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeleteWorkflow(workflow.id)}
-                        className="bg-red-500/20 border-red-500/30 text-red-400 hover:bg-red-500/30"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                      
-                      {workflow.deployment_url && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => window.open(workflow.deployment_url, '_blank')}
-                          className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <div className="text-xs text-muted-foreground">
+                          <div>Created: {formatDate(workflow.created_at)}</div>
+                          {workflow.updated_at && (
+                            <div>Updated: {formatDate(workflow.updated_at)}</div>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditWorkflow(workflow.id)}
+                            className="flex-1 bg-muted/50 border-border text-foreground hover:bg-muted"
+                          >
+                            <Edit className="w-4 h-4 mr-2" />
+                            Edit
+                          </Button>
+                          
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteWorkflow(workflow.id)}
+                            className="bg-destructive/20 border-destructive/30 text-destructive hover:bg-destructive/30"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                          
+                          {workflow.deployment_url && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.open(workflow.deployment_url, '_blank')}
+                              className="bg-muted/50 border-border text-foreground hover:bg-muted"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
             ))}
           </div>
         )}

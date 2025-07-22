@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserPlan } from '@/hooks/useUserPlan';
+import { GlowingEffect } from '@/components/ui/glowing-effect';
 
 interface PricingPageProps {
   isOpen: boolean;
@@ -149,15 +150,15 @@ const PricingPage: React.FC<PricingPageProps> = ({
   // Congratulations Animation Component
   const CongratulationsAnimation = () => (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl p-8 text-center animate-scale-in shadow-2xl">
+      <div className="bg-card border border-border rounded-2xl p-8 text-center animate-scale-in shadow-2xl">
         <div className="flex justify-center mb-4">
           <div className="relative">
-            <Sparkles className="w-16 h-16 text-blue-400 animate-pulse" />
-            <Star className="w-8 h-8 text-cyan-300 absolute -top-2 -right-2 animate-bounce" />
+            <Sparkles className="w-16 h-16 text-primary animate-pulse" />
+            <Star className="w-8 h-8 text-primary/80 absolute -top-2 -right-2 animate-bounce" />
           </div>
         </div>
-        <h2 className="text-3xl font-bold text-gray-100 mb-2">Congratulations!</h2>
-        <p className="text-gray-400 text-lg">Your promo code has been successfully applied!</p>
+        <h2 className="text-3xl font-bold text-card-foreground mb-2">Congratulations!</h2>
+        <p className="text-muted-foreground text-lg">Your promo code has been successfully applied!</p>
         <div className="mt-4">
           <div className="animate-bounce">🎉</div>
         </div>
@@ -168,17 +169,17 @@ const PricingPage: React.FC<PricingPageProps> = ({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto bg-black border-gray-800/50 shadow-2xl rounded-3xl">
+        <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto bg-background border-border/50 shadow-2xl rounded-3xl">
           <DialogHeader className="text-center pb-8">
-            <DialogTitle className="text-5xl font-bold bg-gradient-to-r from-blue-400 via-cyan-300 to-blue-400 bg-clip-text text-transparent mb-6">
+            <DialogTitle className="text-5xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary bg-clip-text text-transparent mb-6">
               Choose Your Perfect Plan
             </DialogTitle>
-            <div className="bg-gray-900/60 backdrop-blur-xl rounded-2xl p-6 mx-auto max-w-md border border-gray-800/50">
-              <p className="text-xl font-semibold text-gray-200 mb-2">
-                Current Credits: <span className="text-blue-400">{credits?.current_credits || 0}</span>
+            <div className="bg-card/60 backdrop-blur-xl rounded-2xl p-6 mx-auto max-w-md border border-border/50">
+              <p className="text-xl font-semibold text-card-foreground mb-2">
+                Current Credits: <span className="text-primary">{credits?.current_credits || 0}</span>
               </p>
-              <p className="text-lg text-gray-400">
-                Current Plan: <span className="uppercase font-medium text-cyan-400">{getCurrentPlanType()}</span>
+              <p className="text-lg text-muted-foreground">
+                Current Plan: <span className="uppercase font-medium text-primary">{getCurrentPlanType()}</span>
               </p>
             </div>
           </DialogHeader>
@@ -186,74 +187,85 @@ const PricingPage: React.FC<PricingPageProps> = ({
           {/* Pricing Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
             {plans.map((planItem) => (
-              <Card 
-                key={planItem.type} 
-                className={`relative transform transition-all duration-500 hover:scale-105 overflow-hidden ${
-                  planItem.popular 
-                    ? 'border-2 border-blue-500/50 shadow-2xl bg-gray-900/80 animate-pulse' 
-                    : 'border border-gray-800/50 shadow-xl bg-gray-900/60 hover:shadow-2xl'
-                }`}
-                style={{
-                  background: planItem.popular 
-                    ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(147, 51, 234, 0.05) 100%)'
-                    : 'rgba(17, 24, 39, 0.6)'
-                }}
-              >
-                {planItem.popular && (
-                  <>
-                    <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-blue-500/20 via-cyan-500/20 to-blue-500/20 animate-pulse"></div>
-                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
-                      <Badge className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-6 py-2 text-sm font-bold rounded-full border-2 border-blue-400/50 shadow-lg">
-                        ⭐ Most Popular
-                      </Badge>
-                    </div>
-                  </>
-                )}
-                
-                <CardHeader className="text-center pb-6 relative z-10">
-                  <CardTitle className="flex items-center justify-center text-3xl font-bold text-gray-100 mb-2">
-                    {planItem.name}
-                    {getPlanBadge(planItem.type)}
-                  </CardTitle>
-                  <p className="text-gray-400 text-lg">{planItem.description}</p>
-                  <div className="text-5xl font-extrabold text-gray-100 mt-6">
-                    {planItem.price}
-                    {planItem.type !== 'custom' && (
-                      <span className="text-xl font-normal text-gray-400">
-                        /{planItem.period}
-                      </span>
-                    )}
-                  </div>
-                </CardHeader>
-                
-                <CardContent className="pt-0 relative z-10">
-                  <ul className="space-y-4 mb-8">
-                    {planItem.features.map((feature, index) => (
-                      <li key={index} className="flex items-center gap-3">
-                        <Check className="w-6 h-6 text-green-400 flex-shrink-0" />
-                        <span className="text-gray-300 text-lg">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  
-                  <Button 
-                    className={`w-full py-4 text-xl font-bold transition-all duration-300 rounded-xl ${
+              <div key={planItem.type} className="relative min-h-[28rem]">
+                <div className="relative h-full rounded-[1.25rem] border-[0.75px] border-border p-2">
+                  <GlowingEffect
+                    spread={40}
+                    glow={true}
+                    disabled={false}
+                    proximity={64}
+                    inactiveZone={0.01}
+                    borderWidth={3}
+                  />
+                  <Card 
+                    className={`relative h-full transform transition-all duration-500 hover:scale-105 overflow-hidden rounded-xl border-[0.75px] shadow-xl bg-card/60 ${
                       planItem.popular 
-                        ? "bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-2xl hover:shadow-blue-500/25" 
-                        : "bg-gray-800/80 hover:bg-gray-700/80 text-white border-2 border-gray-700/50 hover:border-gray-600/50"
+                        ? 'border-primary/50 shadow-2xl animate-pulse' 
+                        : 'border-border/50 hover:shadow-2xl'
                     }`}
-                    disabled={isCurrentPlan(planItem.type)}
-                    onClick={() => handleUpgradeClick(planItem.type)}
+                    style={{
+                      background: planItem.popular 
+                        ? 'linear-gradient(135deg, rgba(var(--primary), 0.1) 0%, rgba(var(--primary), 0.05) 100%)'
+                        : 'rgba(var(--card), 0.6)'
+                    }}
                   >
-                    {isCurrentPlan(planItem.type) 
-                      ? '✓ Current Plan' 
-                      : planItem.type === 'custom' 
-                        ? '📞 Contact Us' 
-                        : '⚡ Upgrade Now'
-                    }
-                  </Button>
-                </CardContent>
-              </Card>
+                    {planItem.popular && (
+                      <>
+                        <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-primary/20 via-primary/10 to-primary/20 animate-pulse"></div>
+                        <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
+                          <Badge className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground px-6 py-2 text-sm font-bold rounded-full border-2 border-primary/50 shadow-lg">
+                            ⭐ Most Popular
+                          </Badge>
+                        </div>
+                      </>
+                    )}
+                    
+                    <CardHeader className="text-center pb-6 relative z-10">
+                      <CardTitle className="flex items-center justify-center text-3xl font-bold text-card-foreground mb-2">
+                        {planItem.name}
+                        {getPlanBadge(planItem.type)}
+                      </CardTitle>
+                      <p className="text-muted-foreground text-lg">{planItem.description}</p>
+                      <div className="text-5xl font-extrabold text-card-foreground mt-6">
+                        {planItem.price}
+                        {planItem.type !== 'custom' && (
+                          <span className="text-xl font-normal text-muted-foreground">
+                            /{planItem.period}
+                          </span>
+                        )}
+                      </div>
+                    </CardHeader>
+                    
+                    <CardContent className="pt-0 relative z-10">
+                      <ul className="space-y-4 mb-8">
+                        {planItem.features.map((feature, index) => (
+                          <li key={index} className="flex items-center gap-3">
+                            <Check className="w-6 h-6 text-green-400 flex-shrink-0" />
+                            <span className="text-muted-foreground text-lg">{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      
+                      <Button 
+                        className={`w-full py-4 text-xl font-bold transition-all duration-300 rounded-xl ${
+                          planItem.popular 
+                            ? "bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground shadow-2xl hover:shadow-primary/25" 
+                            : "bg-secondary hover:bg-secondary/80 text-secondary-foreground border-2 border-border/50 hover:border-border"
+                        }`}
+                        disabled={isCurrentPlan(planItem.type)}
+                        onClick={() => handleUpgradeClick(planItem.type)}
+                      >
+                        {isCurrentPlan(planItem.type) 
+                          ? '✓ Current Plan' 
+                          : planItem.type === 'custom' 
+                            ? '📞 Contact Us' 
+                            : '⚡ Upgrade Now'
+                        }
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
             ))}
           </div>
 

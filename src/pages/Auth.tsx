@@ -305,7 +305,7 @@ const Auth = () => {
       <section className="hidden md:block flex-1 relative p-4">
         <div 
           className="absolute inset-4 rounded-3xl bg-cover bg-center" 
-          style={{ backgroundImage: `url(/lovable-uploads/3b539045-7cf7-4ec2-bcea-880d2ebd6ea4.png)` }}
+          style={{ backgroundImage: `url(/lovable-uploads/dc5f153b-77d4-49f2-b3a2-8231c90260a6.png)` }}
         ></div>
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-4 px-8 w-full justify-center">
           <TestimonialCard testimonial={sampleTestimonials[0]} delay="opacity-100" />
