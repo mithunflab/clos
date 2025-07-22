@@ -171,17 +171,30 @@ serve(async (req) => {
               if (node.credentials && Object.keys(node.credentials).length > 0) {
                 cleanNode.credentials = {};
                 
-                // Map credentials to N8N format
+                // Map credentials to N8N format based on node type
                 Object.entries(node.credentials).forEach(([credType, credValue]: [string, any]) => {
-                  if (credValue && typeof credValue === 'string' && credValue.trim() !== '') {
-                    // Create credential object for N8N
+                  if (credValue && typeof credValue === 'object' && credValue.data) {
+                    // Handle nested credential format
                     cleanNode.credentials[credType] = {
-                      id: '',
-                      name: `${node.name}_${credType}`,
-                      data: { [credType]: credValue }
+                      id: credValue.id || `${node.name}_${credType}`,
+                      name: credValue.name || `${node.name}_${credType}`
+                    };
+                  } else if (credValue && typeof credValue === 'object') {
+                    // Handle direct credential object format
+                    cleanNode.credentials[credType] = {
+                      id: `${node.name}_${credType}`,
+                      name: `${node.name}_${credType}`
+                    };
+                  } else if (credValue && typeof credValue === 'string' && credValue.trim() !== '') {
+                    // Handle direct string credential
+                    cleanNode.credentials[credType] = {
+                      id: `${node.name}_${credType}`,
+                      name: `${node.name}_${credType}`
                     };
                   }
                 });
+                
+                console.log(`🔐 Mapped credentials for ${node.name} (${node.type}):`, cleanNode.credentials);
               }
               
               return cleanNode;
@@ -257,17 +270,30 @@ serve(async (req) => {
               if (node.credentials && Object.keys(node.credentials).length > 0) {
                 cleanNode.credentials = {};
                 
-                // Map credentials to N8N format
+                // Map credentials to N8N format based on node type
                 Object.entries(node.credentials).forEach(([credType, credValue]: [string, any]) => {
-                  if (credValue && typeof credValue === 'string' && credValue.trim() !== '') {
-                    // Create credential object for N8N
+                  if (credValue && typeof credValue === 'object' && credValue.data) {
+                    // Handle nested credential format
                     cleanNode.credentials[credType] = {
-                      id: '',
-                      name: `${node.name}_${credType}`,
-                      data: { [credType]: credValue }
+                      id: credValue.id || `${node.name}_${credType}`,
+                      name: credValue.name || `${node.name}_${credType}`
+                    };
+                  } else if (credValue && typeof credValue === 'object') {
+                    // Handle direct credential object format
+                    cleanNode.credentials[credType] = {
+                      id: `${node.name}_${credType}`,
+                      name: `${node.name}_${credType}`
+                    };
+                  } else if (credValue && typeof credValue === 'string' && credValue.trim() !== '') {
+                    // Handle direct string credential
+                    cleanNode.credentials[credType] = {
+                      id: `${node.name}_${credType}`,
+                      name: `${node.name}_${credType}`
                     };
                   }
                 });
+                
+                console.log(`🔐 Mapped credentials for ${node.name} (${node.type}):`, cleanNode.credentials);
               }
               
               return cleanNode;

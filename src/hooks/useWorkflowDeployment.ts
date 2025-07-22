@@ -87,16 +87,21 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
         } else {
           try {
             const credentials = JSON.parse(storedCredentials);
+            console.log(`🔍 Validating credentials for ${node.name} (${node.type}):`, credentials);
+            
             const hasValidCredentials = Object.values(credentials).some(value => 
               value && String(value).trim() !== ''
             );
             
             if (!hasValidCredentials) {
+              console.log(`❌ No valid credentials found for ${node.name}`);
               missingCredentials.push({
                 nodeId: node.id,
                 nodeName: node.name,
                 nodeType: node.type
               });
+            } else {
+              console.log(`✅ Valid credentials found for ${node.name}`);
             }
           } catch (error) {
             console.error('Error parsing stored credentials:', error);
@@ -130,24 +135,26 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
           
           // Assign credentials based on node type with proper structure
           if (node.type === 'n8n-nodes-base.telegramTrigger' || node.type === 'n8n-nodes-base.telegram') {
+            const telegramToken = credentials.accessToken || credentials.botToken || credentials.telegramApi;
             return {
               ...node,
-              credentials: {
-                telegramApi: credentials.botToken || credentials.accessToken ? {
-                  botToken: credentials.botToken || credentials.accessToken
-                } : undefined
-              }
+              credentials: telegramToken ? {
+                telegramApi: {
+                  accessToken: telegramToken
+                }
+              } : undefined
             };
           }
           
           if (node.type === 'n8n-nodes-base.groq') {
+            const groqApiKey = credentials.groqApi || credentials.apiKey || credentials.api_key;
             return {
               ...node,
-              credentials: {
-                groqApi: credentials.apiKey || credentials.api_key ? {
-                  apiKey: credentials.apiKey || credentials.api_key
-                } : undefined
-              }
+              credentials: groqApiKey ? {
+                groqApi: {
+                  apiKey: groqApiKey
+                }
+              } : undefined
             };
           }
           
