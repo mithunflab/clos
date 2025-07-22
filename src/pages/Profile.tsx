@@ -26,9 +26,8 @@ const Profile = () => {
   const getPlanColor = (planType: string) => {
     switch (planType) {
       case 'pro':
-        return 'bg-gradient-to-r from-primary/10 to-secondary/10 text-primary border-primary/30';
       case 'custom':
-        return 'bg-gradient-to-r from-secondary/10 to-accent/10 text-secondary border-secondary/30';
+        return 'bg-primary/10 text-primary border-primary/30';
       default:
         return 'bg-muted/50 text-muted-foreground border-border';
     }
@@ -49,12 +48,12 @@ const Profile = () => {
       <div className="min-h-screen bg-background p-6">
         <div className="container mx-auto max-w-6xl">
           <div className="animate-pulse space-y-6">
-            <div className="h-10 bg-gradient-to-r from-muted to-muted/50 rounded-lg w-1/4 animate-shimmer"></div>
+            <div className="h-10 bg-muted rounded-lg w-1/4 animate-shimmer"></div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="h-64 bg-gradient-to-br from-muted to-muted/50 rounded-xl animate-shimmer"></div>
-              <div className="h-64 bg-gradient-to-br from-muted to-muted/50 rounded-xl animate-shimmer"></div>
+              <div className="h-64 bg-muted rounded-xl animate-shimmer"></div>
+              <div className="h-64 bg-muted rounded-xl animate-shimmer"></div>
             </div>
-            <div className="h-32 bg-gradient-to-r from-muted to-muted/50 rounded-xl animate-shimmer"></div>
+            <div className="h-32 bg-muted rounded-xl animate-shimmer"></div>
           </div>
         </div>
       </div>
@@ -69,7 +68,7 @@ const Profile = () => {
           <CardContent className="p-8">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent mb-2">
+                <h1 className="text-4xl font-bold text-foreground mb-2">
                   Your Profile
                 </h1>
                 <p className="text-muted-foreground text-lg">Manage your account and subscription</p>
@@ -91,17 +90,17 @@ const Profile = () => {
           <Card glowVariant="primary" className="shadow-lg hover:shadow-xl transition-all duration-300">
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-3 text-2xl text-card-foreground">
-                <div className="p-3 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-xl border border-primary/20">
-                  <User className="w-6 h-6 text-primary" />
+                <div className="p-3 bg-muted rounded-xl border border-border">
+                  <User className="w-6 h-6 text-foreground" />
                 </div>
                 Profile Information
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center gap-6">
-                <Avatar className="w-20 h-20 border-2 border-primary/30 ring-2 ring-primary/10">
+                <Avatar className="w-20 h-20 border-2 border-border ring-2 ring-border/50">
                   <AvatarImage src={profile?.avatar_url || undefined} />
-                  <AvatarFallback className="bg-gradient-to-br from-primary to-secondary text-white text-xl font-bold">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xl font-bold">
                     {profile?.full_name?.charAt(0) || profile?.email?.charAt(0) || 'U'}
                   </AvatarFallback>
                 </Avatar>
@@ -121,7 +120,7 @@ const Profile = () => {
                     value={profile?.full_name || ''}
                     placeholder="Enter your full name"
                     readOnly
-                    className="bg-muted/50 border-primary/20"
+                    className="bg-muted/50 border-border"
                   />
                 </div>
                 
@@ -132,7 +131,7 @@ const Profile = () => {
                     value={profile?.email || ''}
                     placeholder="Enter your email"
                     readOnly
-                    className="bg-muted/50 border-primary/20"
+                    className="bg-muted/50 border-border"
                   />
                 </div>
               </div>
@@ -143,14 +142,14 @@ const Profile = () => {
           <Card glowVariant="secondary" className="shadow-lg hover:shadow-xl transition-all duration-300">
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-3 text-2xl text-card-foreground">
-                <div className="p-3 bg-gradient-to-br from-secondary/20 to-accent/20 rounded-xl border border-secondary/20">
-                  <CreditCard className="w-6 h-6 text-secondary" />
+                <div className="p-3 bg-muted rounded-xl border border-border">
+                  <CreditCard className="w-6 h-6 text-foreground" />
                 </div>
                 Plan & Credits
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="bg-gradient-to-br from-muted/30 to-card rounded-xl p-6 space-y-4 border border-border/50">
+              <div className="bg-muted/30 rounded-xl p-6 space-y-4 border border-border/50">
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-foreground">Current Plan</span>
                   <Badge className={`${getPlanColor(plan?.plan_type || 'free')} flex items-center gap-2 px-3 py-1 border text-sm font-medium`}>
@@ -161,7 +160,7 @@ const Profile = () => {
                 
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-foreground">Available Credits</span>
-                  <Badge variant="outline" className="bg-gradient-to-r from-card to-muted border-primary/30 text-primary px-3 py-1 text-sm font-medium">
+                  <Badge variant="outline" className="bg-muted border-border text-foreground px-3 py-1 text-sm font-medium">
                     <Sparkles className="w-4 h-4 mr-2" />
                     {credits?.current_credits || 0} credits
                   </Badge>
@@ -177,7 +176,7 @@ const Profile = () => {
               
               <Button 
                 onClick={openPricingPage}
-                className="w-full bg-gradient-to-r from-primary to-secondary text-white hover:from-primary/90 hover:to-secondary/90 py-3 font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+                className="w-full bg-primary text-primary-foreground hover:bg-primary/90 py-3 font-medium shadow-lg hover:shadow-xl transition-all duration-300"
               >
                 <Crown className="w-4 h-4 mr-2" />
                 Upgrade Your Plan
@@ -190,15 +189,15 @@ const Profile = () => {
         <Card glowVariant="accent" className="shadow-lg hover:shadow-xl transition-all duration-300">
           <CardHeader className="pb-4">
             <CardTitle className="flex items-center gap-3 text-2xl text-card-foreground">
-              <div className="p-3 bg-gradient-to-br from-accent/20 to-primary/20 rounded-xl border border-accent/20">
-                <Settings className="w-6 h-6 text-accent" />
+              <div className="p-3 bg-muted rounded-xl border border-border">
+                <Settings className="w-6 h-6 text-foreground" />
               </div>
               Account Settings
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-gradient-to-br from-muted/30 to-card rounded-xl p-4 border border-border/50">
+              <div className="bg-muted/30 rounded-xl p-4 border border-border/50">
                 <h4 className="font-medium text-foreground mb-2">Account Created</h4>
                 <p className="text-muted-foreground">
                   {profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', {
@@ -209,7 +208,7 @@ const Profile = () => {
                 </p>
               </div>
               
-              <div className="bg-gradient-to-br from-muted/30 to-card rounded-xl p-4 border border-border/50">
+              <div className="bg-muted/30 rounded-xl p-4 border border-border/50">
                 <h4 className="font-medium text-foreground mb-2">Last Updated</h4>
                 <p className="text-muted-foreground">
                   {profile?.updated_at ? new Date(profile.updated_at).toLocaleDateString('en-US', {

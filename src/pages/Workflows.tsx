@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, Clock, CheckCircle, AlertCircle, Bot, ExternalLink } from 'lucide-react';
@@ -202,11 +201,11 @@ const Workflows = () => {
             <CardContent className="p-8">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-xl flex items-center justify-center border border-primary/20">
-                    <Bot className="w-8 h-8 text-primary" />
+                  <div className="w-12 h-12 bg-muted rounded-xl flex items-center justify-center border border-border">
+                    <Bot className="w-8 h-8 text-foreground" />
                   </div>
                   <div>
-                    <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent mb-2">
+                    <h1 className="text-4xl font-bold text-foreground mb-2">
                       Workflows
                     </h1>
                     <p className="text-muted-foreground text-lg">
@@ -219,7 +218,7 @@ const Workflows = () => {
                 </div>
                 <Button 
                   onClick={handleCreateWorkflow}
-                  className="bg-gradient-to-r from-primary to-secondary text-white hover:from-primary/90 hover:to-secondary/90 px-6 py-3 shadow-lg hover:shadow-xl transition-all duration-300"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-3 shadow-lg hover:shadow-xl transition-all duration-300"
                 >
                   <Plus className="w-5 h-5 mr-2" />
                   Create Workflow
@@ -237,10 +236,10 @@ const Workflows = () => {
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ duration: 0.5, delay: 0.2 }}
                 >
-                  <div className="w-20 h-20 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-primary/20">
-                    <Bot className="w-10 h-10 text-primary" />
+                  <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6 border border-border">
+                    <Bot className="w-10 h-10 text-foreground" />
                   </div>
-                  <h3 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-3">
+                  <h3 className="text-2xl font-bold text-foreground mb-3">
                     No workflows yet
                   </h3>
                   <p className="text-muted-foreground mb-8 text-lg">
@@ -248,7 +247,7 @@ const Workflows = () => {
                   </p>
                   <Button 
                     onClick={handleCreateWorkflow}
-                    className="bg-gradient-to-r from-primary to-secondary text-white hover:from-primary/90 hover:to-secondary/90 px-8 py-3 shadow-lg hover:shadow-xl transition-all duration-300"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-3 shadow-lg hover:shadow-xl transition-all duration-300"
                   >
                     <Plus className="w-5 h-5 mr-2" />
                     Create Your First Workflow
@@ -289,7 +288,7 @@ const Workflows = () => {
                     
                     <CardContent>
                       <div className="space-y-4">
-                        <div className="bg-gradient-to-br from-muted/30 to-card rounded-xl p-4 border border-border/50">
+                        <div className="bg-muted/30 rounded-xl p-4 border border-border/50">
                           <div className="text-sm text-muted-foreground space-y-1">
                             <div className="flex justify-between">
                               <span>Created:</span>
@@ -309,7 +308,7 @@ const Workflows = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => handleEditWorkflow(workflow.id)}
-                            className="flex-1 bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/30 hover:border-primary/60 hover:bg-primary/10 transition-all duration-300"
+                            className="flex-1 bg-muted/10 border-border hover:bg-muted/20 transition-all duration-300"
                           >
                             <Edit className="w-4 h-4 mr-2" />
                             Edit
@@ -329,7 +328,7 @@ const Workflows = () => {
                               variant="outline"
                               size="sm"
                               onClick={() => window.open(workflow.deployment_url, '_blank')}
-                              className="bg-accent/10 border-accent/30 text-accent hover:bg-accent/20 hover:border-accent/50 transition-all duration-300"
+                              className="bg-muted/10 border-border hover:bg-muted/20 transition-all duration-300"
                             >
                               <ExternalLink className="w-4 h-4" />
                             </Button>

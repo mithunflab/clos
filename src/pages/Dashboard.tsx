@@ -26,7 +26,7 @@ const StatCard = ({
     <Card glowVariant={glowVariant} enableGlowEffect={false} className="transition-all duration-300 hover:scale-105">
       <CardContent className="p-6">
         <div className="flex items-center space-x-4 mb-4">
-          <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-xl flex items-center justify-center border border-primary/20">
+          <div className="w-12 h-12 bg-muted rounded-xl flex items-center justify-center border border-border">
             {icon}
           </div>
           <div>
@@ -34,7 +34,7 @@ const StatCard = ({
             <p className="text-muted-foreground text-sm">{subtitle}</p>
           </div>
         </div>
-        <div className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">{value}</div>
+        <div className="text-3xl font-bold text-foreground">{value}</div>
       </CardContent>
     </Card>
   );
@@ -75,7 +75,7 @@ const Dashboard = () => {
         >
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent mb-2">
+            <h1 className="text-4xl font-bold text-foreground mb-2">
               Welcome back
             </h1>
             <p className="text-muted-foreground text-lg">Monitor and manage your autonomous workflows</p>
@@ -84,7 +84,7 @@ const Dashboard = () => {
           {/* Quick Actions */}
           <div className="mb-8">
             <Button
-              className="bg-gradient-to-r from-primary to-secondary text-white hover:from-primary/90 hover:to-secondary/90 px-6 py-3 shadow-lg hover:shadow-xl transition-all duration-300"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-3 shadow-lg hover:shadow-xl transition-all duration-300"
               onClick={() => navigate('/playground')}
             >
               <Plus className="w-5 h-5 mr-2" />
@@ -95,28 +95,28 @@ const Dashboard = () => {
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <StatCard
-              icon={<Workflow className="w-6 h-6 text-primary" />}
+              icon={<Workflow className="w-6 h-6 text-foreground" />}
               title="Total Workflows"
               value={workflowStats.total.toString()}
               subtitle="Created workflows"
               glowVariant="primary"
             />
             <StatCard
-              icon={<Zap className="w-6 h-6 text-secondary" />}
+              icon={<Zap className="w-6 h-6 text-foreground" />}
               title="Active Workflows"
               value={workflowStats.active.toString()}
               subtitle="Currently running"
               glowVariant="secondary"
             />
             <StatCard
-              icon={<Clock className="w-6 h-6 text-accent" />}
+              icon={<Clock className="w-6 h-6 text-foreground" />}
               title="Credits Remaining"
               value={credits?.current_credits?.toString() || '0'}
               subtitle={`${plan?.plan_type || 'free'} plan`}
               glowVariant="accent"
             />
             <StatCard
-              icon={<TrendingUp className="w-6 h-6 text-primary" />}
+              icon={<TrendingUp className="w-6 h-6 text-foreground" />}
               title="Plan Type"
               value={plan?.plan_type?.toUpperCase() || 'FREE'}
               subtitle="Current subscription"
@@ -127,7 +127,7 @@ const Dashboard = () => {
           {/* Premium Features Showcase */}
           <Card glowVariant="premium" enableGlowEffect={true} className="mb-8 p-8">
             <CardHeader className="pb-6">
-              <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
+              <CardTitle className="text-3xl font-bold text-foreground">
                 Premium Features
               </CardTitle>
             </CardHeader>
@@ -146,17 +146,17 @@ const Dashboard = () => {
                 <Button
                   variant="outline"
                   onClick={() => navigate('/workflows')}
-                  className="justify-start h-12 text-base rounded-xl font-medium border-primary/20 hover:border-primary/40 hover:bg-primary/5 transition-all duration-300"
+                  className="justify-start h-12 text-base rounded-xl font-medium border-border hover:bg-muted transition-all duration-300"
                 >
-                  <Workflow className="w-5 h-5 mr-3 text-primary" />
+                  <Workflow className="w-5 h-5 mr-3 text-foreground" />
                   View All Workflows
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => navigate('/playground')}
-                  className="justify-start h-12 rounded-xl border-secondary/20 hover:border-secondary/40 hover:bg-secondary/5 transition-all duration-300"
+                  className="justify-start h-12 rounded-xl border-border hover:bg-muted transition-all duration-300"
                 >
-                  <Plus className="w-5 h-5 mr-3 text-secondary" />
+                  <Plus className="w-5 h-5 mr-3 text-foreground" />
                   Create New Workflow
                 </Button>
               </div>
