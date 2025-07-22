@@ -98,6 +98,18 @@ All colors MUST be HSL.
   }
 }
 
+/* LIGHT MODE - Override ALL background patterns */
+.light body,
+.light .dashboard-page,
+.light .workflows-page,
+.light .canvas-background,
+.light .playground-canvas {
+  background-color: white !important;
+  background-image: none !important;
+  background-attachment: initial !important;
+  background-size: initial !important;
+}
+
 /* DARK MODE - Canvas dotted background pattern */
 .dark .canvas-background {
   background-color: #000000;
@@ -107,21 +119,7 @@ All colors MUST be HSL.
   background-attachment: fixed;
 }
 
-/* LIGHT MODE - Clean white backgrounds for specific containers only */
-.light body {
-  background-color: hsl(var(--background));
-  background-image: none;
-}
-
-.light .dashboard-page,
-.light .workflows-page,
-.light .canvas-background,
-.light .playground-canvas {
-  background-color: hsl(var(--background)) !important;
-  background-image: none !important;
-}
-
-/* Dark mode playground - keep existing dark style */
+/* Dark mode playground */
 .dark .playground-canvas {
   background-color: #000000;
   background-image: 

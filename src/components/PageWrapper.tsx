@@ -14,7 +14,7 @@ const PageWrapper = ({ children, className = '' }: PageWrapperProps) => {
 
   const getPageClass = () => {
     if (theme === 'light') {
-      return 'bg-background';
+      return 'bg-white';
     }
     
     if (location.pathname === '/dashboard') return 'dashboard-page';
@@ -24,8 +24,16 @@ const PageWrapper = ({ children, className = '' }: PageWrapperProps) => {
     return 'canvas-background';
   };
 
+  const lightModeStyle = theme === 'light' ? {
+    backgroundColor: 'white',
+    backgroundImage: 'none'
+  } : undefined;
+
   return (
-    <div className={`${getPageClass()} ${className}`}>
+    <div 
+      className={`${getPageClass()} ${className}`}
+      style={lightModeStyle}
+    >
       {children}
     </div>
   );
