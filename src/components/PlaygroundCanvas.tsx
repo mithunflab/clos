@@ -17,6 +17,7 @@ const PlaygroundCanvas = ({ children, className = '' }: PlaygroundCanvasProps) =
       border border-border 
       rounded-xl 
       overflow-hidden
+      glow-border
       ${className}
     `}>
       {children}

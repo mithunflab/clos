@@ -229,7 +229,7 @@ const Workflows = () => {
 
           {/* Workflows Grid */}
           {workflows.length === 0 ? (
-            <Card glowVariant="primary" enableGlowEffect={false} className="shadow-lg hover:shadow-xl transition-all duration-300">
+            <Card glowVariant="primary" enableGlowEffect={false} className="shadow-lg hover:shadow-xl transition-all duration-300 glow-border">
               <CardContent className="text-center py-16">
                 <motion.div
                   initial={{ scale: 0.9, opacity: 0 }}
@@ -266,8 +266,8 @@ const Workflows = () => {
                 >
                   <Card 
                     glowVariant="primary" 
-                    enableGlowEffect={false} 
-                    className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                    enableGlowEffect={true} 
+                    className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 glow-border"
                   >
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
