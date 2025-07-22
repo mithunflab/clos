@@ -20,7 +20,7 @@ const GoogleIcon = () => (
 );
 
 const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div className="rounded-2xl border border-border bg-foreground/5 backdrop-blur-sm transition-colors focus-within:border-violet-400/70 focus-within:bg-violet-500/10">
+  <div className="rounded-2xl border border-gray-800 bg-gray-900/50 backdrop-blur-sm transition-colors focus-within:border-red-500/50 focus-within:bg-red-500/5">
     {children}
   </div>
 );
@@ -134,35 +134,30 @@ const Auth = () => {
   };
 
   return (
-    <div className="h-[100dvh] flex flex-col md:flex-row w-[100dvw] bg-background text-foreground">
-      <ThemeToggle />
+    <div className="h-[100dvh] flex flex-col md:flex-row w-[100dvw] bg-black text-white">
+      <div className="absolute top-4 right-4 z-10">
+        <ThemeToggle />
+      </div>
       
       {/* Left column: sign-in form - 1/3 of the width */}
-      <section className="flex-1 md:flex-[1] flex items-center justify-center p-8">
+      <section className="flex-1 md:flex-[1] flex items-center justify-center p-8 bg-black">
         <div className="w-full max-w-md">
           <div className="flex flex-col gap-6">
-            <div className="text-center mb-6">
-              <div className="flex items-center justify-center space-x-2 mb-3">
-                <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                  <Bot className="w-5 h-5 text-primary-foreground" />
-                </div>
-                <span className="text-foreground font-bold text-xl tracking-wider" style={{ fontFamily: 'system-ui, -apple-system, sans-serif', letterSpacing: '0.05em' }}>casel</span>
-              </div>
+            <div className="mb-8">
+              <h1 className="text-5xl md:text-6xl font-light leading-tight text-white mb-8">
+                Welcome to<br />CASEL
+              </h1>
+              <p className="text-gray-400 text-lg">
+                {isLogin 
+                  ? 'Access your account and continue your journey with us' 
+                  : 'Create your account and start automating'
+                }
+              </p>
             </div>
-
-            <h1 className="text-4xl md:text-5xl font-light leading-tight text-center tracking-tight">
-              {isLogin ? 'Welcome to\nOnlook' : 'Get Started'}
-            </h1>
-            <p className="text-muted-foreground text-center">
-              {isLogin 
-                ? 'Access your account and continue your journey with us' 
-                : 'Create your account and start automating'
-              }
-            </p>
 
             <form className="space-y-5" onSubmit={handleSubmit}>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Email Address</label>
+                <label className="text-sm font-medium text-gray-300 mb-2 block">Email Address</label>
                 <GlassInputWrapper>
                   <input 
                     name="email" 
@@ -170,14 +165,14 @@ const Auth = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter your email address" 
-                    className="w-full bg-transparent text-sm p-4 rounded-2xl focus:outline-none text-foreground" 
+                    className="w-full bg-transparent text-sm p-4 rounded-2xl focus:outline-none text-white placeholder-gray-500" 
                     required
                   />
                 </GlassInputWrapper>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Password</label>
+                <label className="text-sm font-medium text-gray-300 mb-2 block">Password</label>
                 <GlassInputWrapper>
                   <div className="relative">
                     <input 
@@ -186,11 +181,11 @@ const Auth = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Enter your password" 
-                      className="w-full bg-transparent text-sm p-4 pr-12 rounded-2xl focus:outline-none text-foreground" 
+                      className="w-full bg-transparent text-sm p-4 pr-12 rounded-2xl focus:outline-none text-white placeholder-gray-500" 
                       required
                     />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-3 flex items-center">
-                      {showPassword ? <EyeOff className="w-5 h-5 text-muted-foreground hover:text-foreground transition-colors" /> : <Eye className="w-5 h-5 text-muted-foreground hover:text-foreground transition-colors" />}
+                      {showPassword ? <EyeOff className="w-5 h-5 text-gray-400 hover:text-white transition-colors" /> : <Eye className="w-5 h-5 text-gray-400 hover:text-white transition-colors" />}
                     </button>
                   </div>
                 </GlassInputWrapper>
@@ -198,7 +193,7 @@ const Auth = () => {
 
               {!isLogin && (
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Confirm Password</label>
+                  <label className="text-sm font-medium text-gray-300 mb-2 block">Confirm Password</label>
                   <GlassInputWrapper>
                     <div className="relative">
                       <input 
@@ -207,11 +202,11 @@ const Auth = () => {
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         placeholder="Confirm your password" 
-                        className="w-full bg-transparent text-sm p-4 pr-12 rounded-2xl focus:outline-none text-foreground" 
+                        className="w-full bg-transparent text-sm p-4 pr-12 rounded-2xl focus:outline-none text-white placeholder-gray-500" 
                         required
                       />
                       <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute inset-y-0 right-3 flex items-center">
-                        {showConfirmPassword ? <EyeOff className="w-5 h-5 text-muted-foreground hover:text-foreground transition-colors" /> : <Eye className="w-5 h-5 text-muted-foreground hover:text-foreground transition-colors" />}
+                        {showConfirmPassword ? <EyeOff className="w-5 h-5 text-gray-400 hover:text-white transition-colors" /> : <Eye className="w-5 h-5 text-gray-400 hover:text-white transition-colors" />}
                       </button>
                     </div>
                   </GlassInputWrapper>
@@ -221,36 +216,36 @@ const Auth = () => {
               {isLogin && (
                 <div className="flex items-center justify-between text-sm">
                   <label className="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" name="rememberMe" className="rounded border-border" />
-                    <span className="text-foreground/90">Keep me signed in</span>
+                    <input type="checkbox" name="rememberMe" className="rounded border-gray-700 bg-gray-900" />
+                    <span className="text-gray-300">Keep me signed in</span>
                   </label>
-                  <a href="#" className="hover:underline text-violet-400 transition-colors">Reset password</a>
+                  <a href="#" className="hover:underline text-red-400 transition-colors">Reset password</a>
                 </div>
               )}
 
               <button 
                 type="submit" 
                 disabled={loading}
-                className="w-full rounded-2xl bg-primary py-4 font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                className="w-full rounded-2xl bg-red-600 py-4 font-medium text-white hover:bg-red-700 transition-colors disabled:opacity-50"
               >
                 {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
               </button>
             </form>
 
             <div className="relative flex items-center justify-center">
-              <span className="w-full border-t border-border"></span>
-              <span className="px-4 text-sm text-muted-foreground bg-background absolute">Or continue with</span>
+              <span className="w-full border-t border-gray-800"></span>
+              <span className="px-4 text-sm text-gray-400 bg-black absolute">Or continue with</span>
             </div>
 
             <button 
               onClick={handleGoogleSignIn}
-              className="w-full flex items-center justify-center gap-3 border border-border rounded-2xl py-4 hover:bg-secondary transition-colors"
+              className="w-full flex items-center justify-center gap-3 border border-gray-800 rounded-2xl py-4 hover:bg-gray-900 transition-colors text-white"
             >
               <GoogleIcon />
               Continue with Google
             </button>
 
-            <p className="text-center text-sm text-muted-foreground">
+            <p className="text-center text-sm text-gray-400">
               {isLogin 
                 ? "New to our platform? " 
                 : "Already have an account? "
@@ -258,7 +253,7 @@ const Auth = () => {
               <a 
                 href="#" 
                 onClick={(e) => { e.preventDefault(); setIsLogin(!isLogin); }} 
-                className="text-violet-400 hover:underline transition-colors"
+                className="text-red-400 hover:underline transition-colors"
               >
                 {isLogin ? 'Create Account' : 'Sign In'}
               </a>
@@ -268,10 +263,10 @@ const Auth = () => {
       </section>
 
       {/* Right column: hero image - 2/3 of the width */}
-      <section className="hidden md:block md:flex-[2] relative p-4">
+      <section className="hidden md:block md:flex-[2] relative">
         <div 
-          className="absolute inset-4 rounded-3xl bg-cover bg-center" 
-          style={{ backgroundImage: `url(/lovable-uploads/21a8d36f-8c72-476a-aaf2-939176747be3.png)` }}
+          className="absolute inset-0 bg-cover bg-center" 
+          style={{ backgroundImage: `url(/lovable-uploads/f64f8323-0f7f-46cf-8e49-f083f09ef9ff.png)` }}
         ></div>
       </section>
     </div>
