@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -41,6 +40,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from 'sonner';
+
+// Define polling interval constant
+const POLLING_INTERVAL = 10000; // 10 seconds
 
 interface ExecutionLog {
   id: string;
@@ -747,7 +749,7 @@ export const RealTimeExecutionMonitor: React.FC<RealTimeExecutionMonitorProps> =
           ) : (
             <span className="flex items-center">
               <Clock className="w-3 h-3 mr-1" />
-              Polling every {pollingInterval / 1000}s
+              Polling every {POLLING_INTERVAL / 1000}s
             </span>
           )}
         </div>

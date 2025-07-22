@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -108,32 +107,32 @@ export const useN8nWorkflowManager = (workflowId: string | null) => {
     }
   }, [workflowId]);
 
-  // Add execution log with better timestamp formatting
-  const addLog = useCallback((log: Omit<ExecutionLog, 'id' | 'timestamp'>, showToast = false) => {
+  // Add execution log with better timestamp formatting and toast support
+  const addLog = useCallback((logData: Omit<ExecutionLog, 'id' | 'timestamp'>, showToast = false) => {
     const newLog: ExecutionLog = {
-      ...log,
+      ...logData,
       id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       timestamp: new Date().toISOString()
     };
     
     setExecutionLogs(prev => [newLog, ...prev].slice(0, 100));
-    console.log(`📋 Log added [${log.level.toUpperCase()}]:`, log.message);
+    console.log(`📋 Log added [${logData.level.toUpperCase()}]:`, logData.message);
 
     // Show toast for important events
     if (showToast) {
-      switch (log.level) {
+      switch (logData.level) {
         case 'success':
-          toast.success(log.message);
+          toast.success(logData.message);
           break;
         case 'error':
-          toast.error(log.message);
+          toast.error(logData.message);
           break;
         case 'warn':
-          toast.warning(log.message);
+          toast.warning(logData.message);
           break;
         case 'info':
-          if (log.message.includes('started') || log.message.includes('activated')) {
-            toast.info(log.message);
+          if (logData.message.includes('started') || logData.message.includes('activated')) {
+            toast.info(logData.message);
           }
           break;
       }
@@ -445,13 +444,13 @@ export const useN8nWorkflowManager = (workflowId: string | null) => {
 
     try {
       setIsLoading(true);
-      addLog({ level: 'info', message: 'Activating workflow...', showToast: true });
+      addLog({ level: 'info', message: 'Activating workflow...' }, true);
 
       const data = await apiCall('activate');
 
       if (data.success) {
         setWorkflow(prev => prev ? { ...prev, active: true } : null);
-        addLog({ level: 'success', message: 'Workflow activated successfully', showToast: true });
+        addLog({ level: 'success', message: 'Workflow activated successfully' }, true);
         return true;
       }
       
@@ -460,9 +459,8 @@ export const useN8nWorkflowManager = (workflowId: string | null) => {
     } catch (err) {
       addLog({
         level: 'error',
-        message: `Failed to activate workflow: ${err instanceof Error ? err.message : 'Unknown error'}`,
-        showToast: true
-      });
+        message: `Failed to activate workflow: ${err instanceof Error ? err.message : 'Unknown error'}`
+      }, true);
       return false;
     } finally {
       setIsLoading(false);
@@ -475,13 +473,13 @@ export const useN8nWorkflowManager = (workflowId: string | null) => {
 
     try {
       setIsLoading(true);
-      addLog({ level: 'info', message: 'Deactivating workflow...', showToast: true });
+      addLog({ level: 'info', message: 'Deactivating workflow...' }, true);
 
       const data = await apiCall('deactivate');
 
       if (data.success) {
         setWorkflow(prev => prev ? { ...prev, active: false } : null);
-        addLog({ level: 'success', message: 'Workflow deactivated successfully', showToast: true });
+        addLog({ level: 'success', message: 'Workflow deactivated successfully' }, true);
         return true;
       }
       
@@ -490,9 +488,8 @@ export const useN8nWorkflowManager = (workflowId: string | null) => {
     } catch (err) {
       addLog({
         level: 'error',
-        message: `Failed to deactivate workflow: ${err instanceof Error ? err.message : 'Unknown error'}`,
-        showToast: true
-      });
+        message: `Failed to deactivate workflow: ${err instanceof Error ? err.message : 'Unknown error'}`
+      }, true);
       return false;
     } finally {
       setIsLoading(false);
@@ -505,7 +502,7 @@ export const useN8nWorkflowManager = (workflowId: string | null) => {
 
     try {
       setIsExecuting(true);
-      addLog({ level: 'info', message: 'Starting manual execution...', showToast: true });
+      addLog({ level: 'info', message: 'Starting manual execution...' }, true);
 
       const data = await apiCall('execute');
 
@@ -513,9 +510,8 @@ export const useN8nWorkflowManager = (workflowId: string | null) => {
         addLog({ 
           level: 'success', 
           message: `Execution started - ID: ${data.executionId}`,
-          executionId: data.executionId,
-          showToast: true
-        });
+          executionId: data.executionId
+        }, true);
         
         // Add execution with optimistic update
         setExecutions(prev => {
@@ -541,14 +537,13 @@ export const useN8nWorkflowManager = (workflowId: string | null) => {
     } catch (err) {
       addLog({
         level: 'error',
-        message: `Failed to execute workflow: ${err instanceof Error ? err.message : 'Unknown error'}`,
-        showToast: true
-      });
+        message: `Failed to execute workflow: ${err instanceof Error ? err.message : 'Unknown error'}`
+      }, true);
       return null;
     } finally {
       setIsExecuting(false);
     }
-  }, [workflowId, isExecuting, apiCall, addLog, fetchExecutions]);
+  }, [workflowId, isExecuting, apiCall, addLog]);
 
   // Enhanced stop execution with optimistic updates
   const stopExecution = useCallback(async (executionId: string) => {
