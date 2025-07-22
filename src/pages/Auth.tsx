@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Bot, Eye, EyeOff } from 'lucide-react';
+import { Bot, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,6 +24,18 @@ const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center min-h-screen bg-black">
+    <div className="flex flex-col items-center space-y-4">
+      <div className="relative">
+        <div className="w-16 h-16 border-4 border-gray-800 border-t-red-500 rounded-full animate-spinner"></div>
+        <div className="w-12 h-12 border-4 border-transparent border-t-red-300 rounded-full animate-spinner absolute top-2 left-2" style={{animationDuration: '0.8s', animationDirection: 'reverse'}}></div>
+      </div>
+      <div className="text-white text-lg font-medium animate-pulse">Loading...</div>
+    </div>
+  </div>
+);
+
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -32,6 +45,7 @@ const Auth = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [pageLoaded, setPageLoaded] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -51,9 +65,18 @@ const Auth = () => {
       }
     });
 
-    // Preload the background image
+    // Preload the background image with proper loading handling
     const img = new Image();
     img.onload = () => {
+      setImageLoaded(true);
+      // Small delay to ensure smooth transition
+      setTimeout(() => {
+        setPageLoaded(true);
+      }, 100);
+    };
+    img.onerror = () => {
+      // If image fails to load, still show the page
+      setImageLoaded(true);
       setPageLoaded(true);
     };
     img.src = '/lovable-uploads/f64f8323-0f7f-46cf-8e49-f083f09ef9ff.png';
@@ -139,22 +162,28 @@ const Auth = () => {
     }
   };
 
-  // Don't render until the page is fully loaded
-  if (!pageLoaded) {
-    return (
-      <div className="h-[100dvh] w-[100dvw] bg-black flex items-center justify-center">
-        <div className="text-white text-lg">Loading...</div>
-      </div>
-    );
+  // Show loading spinner until everything is loaded
+  if (!pageLoaded || !imageLoaded) {
+    return <LoadingSpinner />;
   }
 
   return (
-    <div className="h-[100dvh] flex flex-col md:flex-row w-[100dvw] bg-black text-white">
+    <div className="h-[100dvh] flex flex-col md:flex-row w-[100dvw] bg-black text-white auth-bg">
       {/* Left column: sign-in form - 1/3 of the width */}
-      <section className="flex-1 md:flex-[1] flex items-center justify-center p-8 bg-black">
+      <motion.section 
+        className="flex-1 md:flex-[1] flex items-center justify-center p-8 bg-black"
+        initial={{ opacity: 0, x: -50 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.6 }}
+      >
         <div className="w-full max-w-md">
           <div className="flex flex-col gap-6">
-            <div className="mb-8">
+            <motion.div 
+              className="mb-8"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+            >
               <h1 className="text-5xl md:text-6xl font-light leading-tight text-white mb-8">
                 Welcome to<br />CASEL
               </h1>
@@ -164,9 +193,15 @@ const Auth = () => {
                   : 'Create your account and start automating'
                 }
               </p>
-            </div>
+            </motion.div>
 
-            <form className="space-y-5" onSubmit={handleSubmit}>
+            <motion.form 
+              className="space-y-5" 
+              onSubmit={handleSubmit}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+            >
               <div>
                 <label className="text-sm font-medium text-gray-300 mb-2 block">Email Address</label>
                 <GlassInputWrapper>
@@ -237,26 +272,40 @@ const Auth = () => {
               <button 
                 type="submit" 
                 disabled={loading}
-                className="w-full rounded-2xl bg-red-600 py-4 font-medium text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+                className="w-full rounded-2xl bg-red-600 py-4 font-medium text-white hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
+                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
               </button>
-            </form>
+            </motion.form>
 
-            <div className="relative flex items-center justify-center">
+            <motion.div 
+              className="relative flex items-center justify-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.6 }}
+            >
               <span className="w-full border-t border-gray-800"></span>
               <span className="px-4 text-sm text-gray-400 bg-black absolute">Or continue with</span>
-            </div>
+            </motion.div>
 
-            <button 
+            <motion.button 
               onClick={handleGoogleSignIn}
               className="w-full flex items-center justify-center gap-3 border border-gray-800 rounded-2xl py-4 hover:bg-gray-900 transition-colors text-white"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.8 }}
             >
               <GoogleIcon />
               Continue with Google
-            </button>
+            </motion.button>
 
-            <p className="text-center text-sm text-gray-400">
+            <motion.p 
+              className="text-center text-sm text-gray-400"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, delay: 1.0 }}
+            >
               {isLogin 
                 ? "New to our platform? " 
                 : "Already have an account? "
@@ -268,18 +317,23 @@ const Auth = () => {
               >
                 {isLogin ? 'Create Account' : 'Sign In'}
               </a>
-            </p>
+            </motion.p>
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* Right column: hero image - 2/3 of the width */}
-      <section className="hidden md:block md:flex-[2] relative">
+      <motion.section 
+        className="hidden md:block md:flex-[2] relative"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.8, delay: 0.3 }}
+      >
         <div 
-          className="absolute inset-0 bg-cover bg-center" 
+          className="absolute inset-0 bg-cover bg-center rounded-l-3xl" 
           style={{ backgroundImage: `url(/lovable-uploads/f64f8323-0f7f-46cf-8e49-f083f09ef9ff.png)` }}
         ></div>
-      </section>
+      </motion.section>
     </div>
   );
 };

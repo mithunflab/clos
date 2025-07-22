@@ -96,37 +96,46 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
-  
-  /* Light mode specific styles for non-playground/auth pages */
-  .light .dashboard-page,
-  .light .workflows-page,
-  .light .profile-page {
-    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #f0f9ff 100%);
-  }
-  
-  /* Light mode canvas override - white background for specific pages */
-  .light .canvas-background:not(.playground-bg):not(.auth-bg) {
-    background-color: #ffffff;
-    background-image: 
-      radial-gradient(circle at 1px 1px, rgba(59, 130, 246, 0.08) 1px, transparent 0);
-    background-size: 20px 20px;
-    background-attachment: fixed;
-  }
-  
-  /* Keep dark canvas for playground and auth */
-  .light .playground-bg,
-  .light .auth-bg,
-  .dark .canvas-background {
-    background-color: #000000;
-    background-image: 
-      radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0);
-    background-size: 20px 20px;
-    background-attachment: fixed;
-  }
 }
 
 /* Canvas dotted background pattern */
 .canvas-background {
+  background-color: #000000;
+  background-image: 
+    radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0);
+  background-size: 20px 20px;
+  background-attachment: fixed;
+}
+
+/* Light mode canvas backgrounds - colorful and vibrant */
+.light .canvas-background {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 25%, #f0f8ff 50%, #fef3f2 75%, #f0f9ff 100%);
+  background-attachment: fixed;
+}
+
+/* Light mode dashboard page - vibrant gradient */
+.light .dashboard-page {
+  background: linear-gradient(135deg, #fef7cd 0%, #fed7d7 25%, #ddd6fe 50%, #bfdbfe 75%, #ecfdf5 100%);
+  background-attachment: fixed;
+}
+
+/* Light mode workflows page - colorful gradient */
+.light .workflows-page {
+  background: linear-gradient(135deg, #fce7f3 0%, #e0e7ff 25%, #f0f9ff 50%, #ecfdf5 75%, #fef3c7 100%);
+  background-attachment: fixed;
+}
+
+/* Light mode playground - white canvas with black dots */
+.light .playground-canvas {
+  background-color: #ffffff;
+  background-image: 
+    radial-gradient(circle at 1px 1px, rgba(0,0,0,0.3) 1px, transparent 0);
+  background-size: 20px 20px;
+  background-attachment: fixed;
+}
+
+/* Keep auth page with image background */
+.auth-bg {
   background-color: #000000;
   background-image: 
     radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0);
@@ -174,6 +183,16 @@ All colors MUST be HSL.
   }
 }
 
+@keyframes spinner {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 .animate-element {
   animation: fadeSlideIn 0.6s ease-out forwards;
   opacity: 0;
@@ -187,6 +206,14 @@ All colors MUST be HSL.
 .animate-testimonial {
   animation: testimonialIn 0.6s ease-out forwards;
   opacity: 0;
+}
+
+.animate-spinner {
+  animation: spinner 1s linear infinite;
+}
+
+.animate-pulse {
+  animation: pulse 2s infinite;
 }
 
 .animate-delay-100 { animation-delay: 0.1s; }
@@ -227,4 +254,14 @@ All colors MUST be HSL.
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+}
+
+/* Loading spinner component */
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.1);
+  border-left: 4px solid #ffffff;
+  border-radius: 50%;
+  animation: spinner 1s linear infinite;
 }

@@ -67,12 +67,13 @@ const SidebarItem = ({ icon, label, to, isActive, onClick, isMinimized }: Sideba
           isActive 
             ? "bg-white/10 text-white border border-white/20" 
             : "text-white/70 hover:text-white hover:bg-white/5",
-          isMinimized && "justify-center px-3"
+          isMinimized && "justify-center px-2"
         )}
       >
         <div className={cn(
-          "p-2 rounded-lg transition-colors duration-200 flex-shrink-0",
-          isActive ? "bg-white/20" : "group-hover:bg-white/10"
+          "p-2 rounded-lg transition-colors duration-200 flex-shrink-0 flex items-center justify-center",
+          isActive ? "bg-white/20" : "group-hover:bg-white/10",
+          isMinimized ? "w-8 h-8" : "w-10 h-10"
         )}>
           {icon}
         </div>
@@ -172,7 +173,7 @@ const DashboardLayout = () => {
         "fixed left-0 top-0 h-full z-40 transition-all duration-300 m-2",
         "lg:translate-x-0 lg:static lg:z-10",
         sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
-        isMinimized ? "w-20" : "w-80"
+        isMinimized ? "w-16" : "w-80"
       )}>
         <div className="relative h-full rounded-[1.25rem] border-[0.75px] border-border p-2">
           <GlowingEffect
@@ -184,38 +185,49 @@ const DashboardLayout = () => {
             borderWidth={2}
           />
           <div className="relative h-full bg-black/60 backdrop-blur-md border border-white/10 rounded-xl">
-            <div className="p-6 h-full flex flex-col">
+            <div className="p-4 h-full flex flex-col">
               {/* Logo and Toggle */}
-              <div className="flex items-center justify-between mb-8">
-                {!isMinimized && (
-                  <div className="flex items-center space-x-2">
+              <div className={cn(
+                "flex items-center mb-8",
+                isMinimized ? "justify-center" : "justify-between"
+              )}>
+                {!isMinimized ? (
+                  <>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
+                        <Bot className="w-5 h-5 text-black" />
+                      </div>
+                      <span className="text-white font-bold text-xl">casel</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <ThemeToggle />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsMinimized(!isMinimized)}
+                        className="text-white/60 hover:text-white hover:bg-white/10 hidden lg:flex"
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center space-y-4">
                     <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
                       <Bot className="w-5 h-5 text-black" />
                     </div>
-                    <span className="text-white font-bold text-xl">casel</span>
+                    <ThemeToggle />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsMinimized(!isMinimized)}
+                      className="text-white/60 hover:text-white hover:bg-white/10 hidden lg:flex p-2"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
                   </div>
                 )}
-                <div className="flex items-center space-x-2">
-                  {!isMinimized && <ThemeToggle />}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsMinimized(!isMinimized)}
-                    className="text-white/60 hover:text-white hover:bg-white/10 hidden lg:flex"
-                  >
-                    {isMinimized ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-                  </Button>
-                </div>
               </div>
-
-              {isMinimized && (
-                <div className="flex flex-col items-center mb-8 space-y-4">
-                  <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
-                    <Bot className="w-5 h-5 text-black" />
-                  </div>
-                  <ThemeToggle />
-                </div>
-              )}
 
               {/* Navigation */}
               <nav className="flex-1">
@@ -238,10 +250,13 @@ const DashboardLayout = () => {
                   onClick={handleSignOut}
                   className={cn(
                     "flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 text-white/70 hover:text-white hover:bg-white/5 w-full",
-                    isMinimized && "justify-center px-3"
+                    isMinimized && "justify-center px-2"
                   )}
                 >
-                  <div className="p-2 rounded-lg group-hover:bg-white/10 flex-shrink-0">
+                  <div className={cn(
+                    "p-2 rounded-lg group-hover:bg-white/10 flex-shrink-0 flex items-center justify-center",
+                    isMinimized ? "w-8 h-8" : "w-10 h-10"
+                  )}>
                     <LogOut className="w-5 h-5" />
                   </div>
                   {!isMinimized && <span className="font-medium">Sign Out</span>}
