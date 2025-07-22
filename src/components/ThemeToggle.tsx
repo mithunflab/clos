@@ -12,7 +12,7 @@ const ThemeToggle = () => {
       variant="ghost"
       size="sm"
       onClick={toggleTheme}
-      className="fixed top-4 right-4 z-50 rounded-full w-10 h-10 p-0"
+      className="rounded-full w-10 h-10 p-0 text-white/70 hover:text-white hover:bg-white/10 transition-colors"
     >
       {theme === 'light' ? (
         <Moon className="h-4 w-4" />

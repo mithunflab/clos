@@ -19,6 +19,7 @@ import Dashboard from '@/pages/Dashboard';
 import Workflows from '@/pages/Workflows';
 import WorkflowPlayground from '@/pages/WorkflowPlayground';
 import Profile from '@/pages/Profile';
+import ThemeToggle from '@/components/ThemeToggle';
 import { GlowingEffect } from '@/components/ui/glowing-effect';
 
 const cn = (...classes: (string | undefined | null | false)[]): string => {
@@ -46,7 +47,7 @@ const SidebarItem = ({ icon, label, to, isActive, onClick, isMinimized }: Sideba
   };
 
   return (
-    <div className="relative">
+    <div className="relative mb-2">
       {isActive && (
         <div className="absolute inset-0 rounded-xl">
           <GlowingEffect
@@ -66,16 +67,16 @@ const SidebarItem = ({ icon, label, to, isActive, onClick, isMinimized }: Sideba
           isActive 
             ? "bg-white/10 text-white border border-white/20" 
             : "text-white/70 hover:text-white hover:bg-white/5",
-          isMinimized && "justify-center px-2"
+          isMinimized && "justify-center px-3"
         )}
       >
         <div className={cn(
-          "p-2 rounded-lg transition-colors duration-200",
+          "p-2 rounded-lg transition-colors duration-200 flex-shrink-0",
           isActive ? "bg-white/20" : "group-hover:bg-white/10"
         )}>
           {icon}
         </div>
-        {!isMinimized && <span className="font-medium">{label}</span>}
+        {!isMinimized && <span className="font-medium truncate">{label}</span>}
       </button>
     </div>
   );
@@ -150,14 +151,17 @@ const DashboardLayout = () => {
                 </div>
                 <span className="text-white font-bold text-xl">casel</span>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="text-white hover:bg-white/10"
-              >
-                {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-              </Button>
+              <div className="flex items-center space-x-2">
+                <ThemeToggle />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  className="text-white hover:bg-white/10"
+                >
+                  {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -191,26 +195,30 @@ const DashboardLayout = () => {
                     <span className="text-white font-bold text-xl">casel</span>
                   </div>
                 )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsMinimized(!isMinimized)}
-                  className="text-white/60 hover:text-white hover:bg-white/10 hidden lg:flex"
-                >
-                  {isMinimized ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
-                </Button>
+                <div className="flex items-center space-x-2">
+                  {!isMinimized && <ThemeToggle />}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsMinimized(!isMinimized)}
+                    className="text-white/60 hover:text-white hover:bg-white/10 hidden lg:flex"
+                  >
+                    {isMinimized ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+                  </Button>
+                </div>
               </div>
 
               {isMinimized && (
-                <div className="flex justify-center mb-8">
+                <div className="flex flex-col items-center mb-8 space-y-4">
                   <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
                     <Bot className="w-5 h-5 text-black" />
                   </div>
+                  <ThemeToggle />
                 </div>
               )}
 
               {/* Navigation */}
-              <nav className="space-y-2 flex-1">
+              <nav className="flex-1">
                 {navigationItems.map((item) => (
                   <SidebarItem
                     key={item.to}
@@ -225,15 +233,15 @@ const DashboardLayout = () => {
               </nav>
 
               {/* Bottom Section */}
-              <div className="space-y-2 mt-auto">
+              <div className="mt-auto">
                 <button 
                   onClick={handleSignOut}
                   className={cn(
                     "flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 text-white/70 hover:text-white hover:bg-white/5 w-full",
-                    isMinimized && "justify-center px-2"
+                    isMinimized && "justify-center px-3"
                   )}
                 >
-                  <div className="p-2 rounded-lg group-hover:bg-white/10">
+                  <div className="p-2 rounded-lg group-hover:bg-white/10 flex-shrink-0">
                     <LogOut className="w-5 h-5" />
                   </div>
                   {!isMinimized && <span className="font-medium">Sign Out</span>}
