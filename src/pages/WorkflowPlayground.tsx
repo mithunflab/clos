@@ -705,7 +705,7 @@ const WorkflowPlayground = memo(() => {
     }
 
     return (
-      <div className="w-full h-full bg-black/90">
+      <div className="w-full h-full playground-canvas">
         <ReactFlow
           {...reactFlowProps}
           onConnect={onConnect}

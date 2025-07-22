@@ -73,7 +73,7 @@ const SidebarItem = ({ icon, label, to, isActive, onClick, isMinimized }: Sideba
         <div className={cn(
           "p-2 rounded-lg transition-colors duration-200 flex-shrink-0 flex items-center justify-center",
           isActive ? "bg-white/20" : "group-hover:bg-white/10",
-          isMinimized ? "w-8 h-8" : "w-10 h-10"
+          isMinimized ? "w-8 h-8 p-1" : "w-10 h-10"
         )}>
           {icon}
         </div>
@@ -132,7 +132,7 @@ const DashboardLayout = () => {
   };
 
   return (
-    <div className="h-screen canvas-background text-white flex relative overflow-hidden">
+    <div className="h-screen bg-background text-foreground flex relative overflow-hidden">
       {/* Mobile Header - Fixed */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50">
         <div className="relative rounded-[1.25rem] border-[0.75px] border-border p-2 m-2">
@@ -253,10 +253,10 @@ const DashboardLayout = () => {
                     isMinimized && "justify-center px-2"
                   )}
                 >
-                  <div className={cn(
-                    "p-2 rounded-lg group-hover:bg-white/10 flex-shrink-0 flex items-center justify-center",
-                    isMinimized ? "w-8 h-8" : "w-10 h-10"
-                  )}>
+                   <div className={cn(
+                     "p-2 rounded-lg group-hover:bg-white/10 flex-shrink-0 flex items-center justify-center",
+                     isMinimized ? "w-8 h-8 p-1" : "w-10 h-10"
+                   )}>
                     <LogOut className="w-5 h-5" />
                   </div>
                   {!isMinimized && <span className="font-medium">Sign Out</span>}
