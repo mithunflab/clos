@@ -37,22 +37,7 @@ const App = () => {
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <DashboardLayout />
-              </ProtectedRoute>
-            } />
-            <Route path="/workflows" element={
-              <ProtectedRoute>
-                <DashboardLayout />
-              </ProtectedRoute>
-            } />
-            <Route path="/playground" element={
-              <ProtectedRoute>
-                <DashboardLayout />
-              </ProtectedRoute>
-            } />
-            <Route path="/profile" element={
+            <Route path="/*" element={
               <ProtectedRoute>
                 <DashboardLayout />
               </ProtectedRoute>

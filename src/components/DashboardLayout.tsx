@@ -54,7 +54,7 @@ const DashboardLayout = () => {
 
   // Auto-minimize sidebar when in playground - with proper cleanup
   useEffect(() => {
-    const isPlayground = location.pathname.includes('/playground');
+    const isPlayground = location.pathname.includes('/playground') || location.pathname.includes('/workflows/') && (location.pathname.includes('/new') || location.pathname.includes('/edit'));
     const timer = setTimeout(() => {
       setIsMinimized(isPlayground);
     }, 50);
@@ -173,6 +173,8 @@ const DashboardLayout = () => {
           <Routes>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/workflows" element={<Workflows />} />
+            <Route path="/workflows/new" element={<WorkflowPlayground />} />
+            <Route path="/workflows/:id/edit" element={<WorkflowPlayground />} />
             <Route path="/playground" element={<WorkflowPlayground />} />
             <Route path="/profile" element={<Profile />} />
           </Routes>
