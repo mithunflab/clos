@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -565,9 +566,8 @@ export const useN8nWorkflowManager = (workflowId: string | null) => {
         addLog({ 
           level: 'warn', 
           message: `Execution ${executionId} stopped`,
-          executionId,
-          showToast: true
-        });
+          executionId
+        }, true);
         
         // Refresh to get accurate state
         setTimeout(() => fetchExecutions(), 1000);
@@ -585,9 +585,8 @@ export const useN8nWorkflowManager = (workflowId: string | null) => {
       addLog({
         level: 'error',
         message: `Failed to stop execution: ${err instanceof Error ? err.message : 'Unknown error'}`,
-        executionId,
-        showToast: true
-      });
+        executionId
+      }, true);
       return false;
     }
   }, [apiCall, addLog, fetchExecutions]);
@@ -626,9 +625,8 @@ export const useN8nWorkflowManager = (workflowId: string | null) => {
       addLog({
         level: 'error',
         message: `Failed to delete execution: ${err instanceof Error ? err.message : 'Unknown error'}`,
-        executionId,
-        showToast: true
-      });
+        executionId
+      }, true);
       return false;
     }
   }, [apiCall, addLog, fetchExecutions, updateExecutionStatistics]);
