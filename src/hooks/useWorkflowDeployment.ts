@@ -355,70 +355,124 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
   }, [workflowId, updateLocalDeploymentStatus, config, getDeployment, createOrUpdateDeployment, user]);
 
   const activateWorkflow = useCallback(async () => {
-    if (!workflowId || !deploymentStatus?.deployment_id) return false;
+    if (!workflowId || !deploymentStatus?.deployment_id) {
+      console.error('❌ Missing workflowId or deployment_id for activation');
+      return false;
+    }
 
-    try {
-      setIsDeploying(true);
-      setError(null);
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    while (retryCount <= maxRetries) {
+      try {
+        setIsDeploying(true);
+        setError(null);
 
-      console.log('🔌 Activating workflow in N8N:', deploymentStatus.deployment_id);
+        console.log(`🔌 Activating workflow in N8N (attempt ${retryCount + 1}/${maxRetries + 1}):`, deploymentStatus.deployment_id);
 
-      // Pass current config to activation as well
-      const currentConfig = config;
-
-      const { data, error } = await supabase.functions.invoke('generate-n8n-workflow', {
-        body: {
+        // Pass current config to activation as well
+        const currentConfig = config;
+        
+        console.log('📤 Sending activation request to edge function...', {
           action: 'activate',
           workflowId: deploymentStatus.deployment_id,
-          n8nConfig: currentConfig
-        }
-      });
+          hasConfig: !!currentConfig
+        });
 
-      if (error) {
-        console.error('❌ Activation error:', error);
-        
-        // Enhanced error messages for activation issues
-        if (error.message && error.message.includes('Node does not have any credentials set')) {
-          throw new Error('Cannot activate workflow: Some nodes are missing required credentials. Please ensure all nodes have valid, tested credentials before activation.');
+        const { data, error } = await supabase.functions.invoke('generate-n8n-workflow', {
+          body: {
+            action: 'activate',
+            workflowId: deploymentStatus.deployment_id,
+            n8nConfig: currentConfig
+          }
+        });
+
+        console.log('📥 Activation response received:', { data, error });
+
+        if (error) {
+          console.error('❌ Edge function error:', error);
+          
+          // Network/connectivity errors - retry
+          if (error.message && (
+            error.message.includes('Failed to send a request') ||
+            error.message.includes('fetch') ||
+            error.message.includes('network') ||
+            error.message.includes('timeout')
+          )) {
+            if (retryCount < maxRetries) {
+              retryCount++;
+              console.log(`🔄 Network error, retrying... (${retryCount}/${maxRetries})`);
+              await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Exponential backoff
+              continue;
+            } else {
+              throw new Error('Network connectivity issue: Unable to reach activation service. Please check your internet connection and try again.');
+            }
+          }
+          
+          // Enhanced error messages for activation issues
+          if (error.message && error.message.includes('Node does not have any credentials set')) {
+            throw new Error('Cannot activate workflow: Some nodes are missing required credentials. Please ensure all nodes have valid, tested credentials before activation.');
+          }
+          
+          if (error.message && error.message.includes('credentials')) {
+            throw new Error('Activation failed due to credential issues. Please verify all node credentials are properly configured and tested.');
+          }
+          
+          if (error.message && error.message.includes('Unrecognized node type')) {
+            const nodeType = error.message.match(/Unrecognized node type: ([^\s"]+)/)?.[1];
+            throw new Error(`Cannot activate workflow: Unsupported node type "${nodeType}". Please redeploy the workflow with compatible nodes.`);
+          }
+          
+          if (error.message && error.message.includes('404')) {
+            throw new Error('Workflow not found in N8N. Please redeploy the workflow first.');
+          }
+          
+          if (error.message && error.message.includes('401')) {
+            throw new Error('N8N authentication failed during activation. Please check your N8N configuration.');
+          }
+          
+          throw new Error(error.message || 'Failed to activate workflow - please check your N8N configuration and credentials');
+        }
+
+        if (!data || !data.success) {
+          if (retryCount < maxRetries && (!data || data.error?.includes('network') || data.error?.includes('timeout'))) {
+            retryCount++;
+            console.log(`🔄 Activation failed, retrying... (${retryCount}/${maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+            continue;
+          }
+          throw new Error(data?.error || 'Failed to activate workflow');
+        }
+
+        console.log('✅ Workflow activated successfully');
+        await updateLocalDeploymentStatus('deployed', deploymentStatus.deployment_id);
+        return true;
+
+      } catch (error) {
+        if (retryCount < maxRetries && (
+          error.message?.includes('fetch') ||
+          error.message?.includes('network') ||
+          error.message?.includes('Failed to send a request')
+        )) {
+          retryCount++;
+          console.log(`🔄 Catch block retry... (${retryCount}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+          continue;
         }
         
-        if (error.message && error.message.includes('credentials')) {
-          throw new Error('Activation failed due to credential issues. Please verify all node credentials are properly configured and tested.');
+        console.error('❌ Final activation error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown activation error';
+        await updateLocalDeploymentStatus('error', undefined, errorMessage);
+        throw error;
+      } finally {
+        if (retryCount >= maxRetries) {
+          setIsDeploying(false);
         }
-        
-        if (error.message && error.message.includes('Unrecognized node type')) {
-          const nodeType = error.message.match(/Unrecognized node type: ([^\s"]+)/)?.[1];
-          throw new Error(`Cannot activate workflow: Unsupported node type "${nodeType}". Please redeploy the workflow with compatible nodes.`);
-        }
-        
-        if (error.message && error.message.includes('404')) {
-          throw new Error('Workflow not found in N8N. Please redeploy the workflow first.');
-        }
-        
-        if (error.message && error.message.includes('401')) {
-          throw new Error('N8N authentication failed during activation. Please check your N8N configuration.');
-        }
-        
-        throw new Error(error.message || 'Failed to activate workflow - please check your N8N configuration and credentials');
       }
-
-      if (!data || !data.success) {
-        throw new Error(data?.error || 'Failed to activate workflow');
-      }
-
-      await updateLocalDeploymentStatus('active');
-      console.log('✅ Workflow activated successfully in N8N');
-      return true;
-
-    } catch (err) {
-      console.error('❌ Error activating workflow:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Unknown activation error';
-      setError(errorMessage);
-      await updateLocalDeploymentStatus('error', undefined, errorMessage);
-      return false;
-    } finally {
-      setIsDeploying(false);
     }
+    
+    setIsDeploying(false);
+    return false;
   }, [workflowId, deploymentStatus, updateLocalDeploymentStatus, config]);
 
   const loadDeploymentStatus = useCallback(async () => {
