@@ -29,6 +29,7 @@ import {
 } from '@/utils/dynamicNodeAnalyzer';
 import { useCredentialManager } from '@/hooks/useCredentialManager';
 import { NodeCredentialStatus } from './NodeCredentialStatus';
+import { toast } from 'sonner';
 
 interface CredentialManagerProps {
   nodeType: string;
@@ -64,28 +65,35 @@ export const CredentialManager: React.FC<CredentialManagerProps> = ({
   const credentialStatus = getDynamicCredentialStatus(requirement, credentials);
   const currentStatus = getCredentialStatus(nodeId);
 
-  console.log('🔄 Dynamic CredentialManager render:', {
+  console.log('🔄 CredentialManager render:', {
     nodeId,
     nodeType,
     serviceName: requirement.serviceName,
     requiresCredentials: requirement.requiresCredentials,
     fieldsCount: requirement.fields.length,
-    status: credentialStatus,
-    currentStatus: currentStatus.status
+    calculatedStatus: credentialStatus,
+    currentStatus: currentStatus.status,
+    credentialsCount: Object.keys(credentials).length
   });
 
   // Load saved credentials on mount
   useEffect(() => {
+    console.log('🚀 Loading credentials for node:', nodeId);
     const savedCredentials = loadCredentials(nodeId, nodeType);
     if (Object.keys(savedCredentials).length > 0) {
+      console.log('📥 Found saved credentials, updating component');
       onCredentialsChange(savedCredentials);
     }
   }, [nodeId, nodeType, loadCredentials]);
 
   // Update status when credentials or nodeType changes
   useEffect(() => {
+    console.log('📊 Status change detected:', { 
+      oldStatus: currentStatus.status, 
+      newStatus: credentialStatus 
+    });
     onStatusChange(credentialStatus);
-  }, [credentials, nodeType, onStatusChange, credentialStatus]);
+  }, [credentials, nodeType, onStatusChange, credentialStatus, currentStatus.status]);
 
   // Validate fields when credentials change
   useEffect(() => {
@@ -98,6 +106,7 @@ export const CredentialManager: React.FC<CredentialManagerProps> = ({
   }, [credentials, requirement]);
 
   const handleCredentialChange = (fieldName: string, value: string) => {
+    console.log('🔄 Credential field changed:', { fieldName, value: value ? '[REDACTED]' : 'empty' });
     const updatedCredentials = {
       ...credentials,
       [fieldName]: value
@@ -107,21 +116,42 @@ export const CredentialManager: React.FC<CredentialManagerProps> = ({
   };
 
   const handleSaveCredentials = async () => {
+    console.log('💾 Saving credentials for node:', nodeId);
     const success = await saveCredentials(nodeId, nodeType, credentials);
     if (success) {
       setHasUnsavedChanges(false);
+      toast.success('Credentials saved successfully');
+      console.log('✅ Credentials saved and UI updated');
+    } else {
+      toast.error('Failed to save credentials');
+      console.error('❌ Failed to save credentials');
     }
   };
 
   const handleTestConnection = async () => {
-    if (!requirement.requiresCredentials) return;
+    if (!requirement.requiresCredentials) {
+      console.log('⚠️ No credentials required for this node type');
+      return;
+    }
+    
+    console.log('🧪 Starting connection test for node:', nodeId);
+    toast.info('Testing connection...');
     
     // Save first if there are unsaved changes
     if (hasUnsavedChanges) {
+      console.log('💾 Saving unsaved changes before testing');
       await handleSaveCredentials();
     }
     
-    await testConnection(nodeId, nodeType, credentials);
+    const success = await testConnection(nodeId, nodeType, credentials);
+    
+    if (success) {
+      toast.success('Connection test successful!');
+      console.log('✅ Connection test passed');
+    } else {
+      toast.error('Connection test failed. Please check your credentials.');
+      console.error('❌ Connection test failed');
+    }
   };
 
   const togglePasswordVisibility = (fieldName: string) => {

@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useN8nDeployments } from './useN8nDeployments';
 import { useN8nConfig } from './useN8nConfig';
+import { useAuth } from './useAuth';
 
 interface DeploymentStatus {
   id: string;
@@ -21,6 +22,7 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
   
   const { createOrUpdateDeployment, getDeployment, updateDeploymentStatus } = useN8nDeployments();
   const { config } = useN8nConfig();
+  const { user } = useAuth();
 
   const updateLocalDeploymentStatus = useCallback(async (
     status: DeploymentStatus['status'],
@@ -56,6 +58,110 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
       return false;
     }
   }, [workflowId, updateDeploymentStatus]);
+
+  const validateWorkflowCredentials = (workflow: any) => {
+    if (!workflow.nodes || !user) return { isValid: true, missingCredentials: [] };
+
+    const missingCredentials: Array<{ nodeId: string, nodeName: string, nodeType: string }> = [];
+    
+    workflow.nodes.forEach((node: any) => {
+      const credentialKey = `credentials_${node.id}_${user.id}`;
+      const storedCredentials = localStorage.getItem(credentialKey);
+      
+      if (!storedCredentials) {
+        // Check if this node type requires credentials
+        const requiresCredentials = [
+          'n8n-nodes-base.telegramTrigger',
+          'n8n-nodes-base.telegram',
+          'n8n-nodes-base.groq',
+          'n8n-nodes-base.httpRequest'
+        ].some(type => node.type === type);
+        
+        if (requiresCredentials) {
+          missingCredentials.push({
+            nodeId: node.id,
+            nodeName: node.name,
+            nodeType: node.type
+          });
+        }
+      } else {
+        try {
+          const credentials = JSON.parse(storedCredentials);
+          const hasCredentials = Object.values(credentials).some(value => 
+            value && String(value).trim() !== ''
+          );
+          
+          if (!hasCredentials) {
+            missingCredentials.push({
+              nodeId: node.id,
+              nodeName: node.name,
+              nodeType: node.type
+            });
+          }
+        } catch (error) {
+          console.error('Error parsing stored credentials:', error);
+          missingCredentials.push({
+            nodeId: node.id,
+            nodeName: node.name,
+            nodeType: node.type
+          });
+        }
+      }
+    });
+
+    return {
+      isValid: missingCredentials.length === 0,
+      missingCredentials
+    };
+  };
+
+  const ensureNodeCredentials = (workflow: any) => {
+    if (!workflow.nodes || !user) return workflow;
+
+    const updatedWorkflow = { ...workflow };
+    updatedWorkflow.nodes = workflow.nodes.map((node: any) => {
+      const credentialKey = `credentials_${node.id}_${user.id}`;
+      const storedCredentials = localStorage.getItem(credentialKey);
+      
+      if (storedCredentials) {
+        try {
+          const credentials = JSON.parse(storedCredentials);
+          
+          // Assign credentials based on node type
+          if (node.type === 'n8n-nodes-base.telegramTrigger' || node.type === 'n8n-nodes-base.telegram') {
+            return {
+              ...node,
+              credentials: {
+                telegramApi: {
+                  id: `telegram_${node.id}`,
+                  name: `Telegram Credentials for ${node.name}`
+                }
+              }
+            };
+          }
+          
+          if (node.type === 'n8n-nodes-base.httpRequest' && credentials.apiKey) {
+            return {
+              ...node,
+              credentials: {
+                groqApi: {
+                  id: `groq_${node.id}`,
+                  name: `Groq API Credentials for ${node.name}`
+                }
+              }
+            };
+          }
+        } catch (error) {
+          console.error('Error parsing credentials for node:', node.id, error);
+        }
+      }
+      
+      return node;
+    });
+
+    console.log('🔐 Ensured node credentials for deployment');
+    return updatedWorkflow;
+  };
 
   const validateWorkflowNodes = (workflow: any) => {
     if (!workflow.nodes) return { isValid: true, unsupportedNodes: [] };
@@ -120,42 +226,6 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
     return updatedWorkflow;
   };
 
-  const ensureNodeCredentials = (workflow: any) => {
-    if (!workflow.nodes) return workflow;
-
-    const updatedWorkflow = { ...workflow };
-    updatedWorkflow.nodes = workflow.nodes.map((node: any) => {
-      // Ensure nodes that require credentials have them properly set
-      if (node.type === 'n8n-nodes-base.telegramTrigger' || node.type === 'n8n-nodes-base.telegram') {
-        return {
-          ...node,
-          credentials: {
-            telegramApi: {
-              id: 'telegram_credentials',
-              name: 'Telegram Bot Credentials'
-            }
-          }
-        };
-      }
-      
-      if (node.type === 'n8n-nodes-base.httpRequest' && node.name?.includes('Groq')) {
-        return {
-          ...node,
-          credentials: {
-            groqApi: {
-              id: 'groq_credentials',
-              name: 'Groq API Credentials'
-            }
-          }
-        };
-      }
-      
-      return node;
-    });
-
-    return updatedWorkflow;
-  };
-
   const cleanWorkflowForN8n = (workflow: any) => {
     const cleanWorkflow = {
       name: workflow.name,
@@ -198,6 +268,16 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
       await updateLocalDeploymentStatus('deploying');
 
       console.log('🚀 Deploying workflow to N8N with config:', config);
+
+      // Validate workflow credentials first
+      const credentialValidation = validateWorkflowCredentials(workflow);
+      if (!credentialValidation.isValid) {
+        const missingNodes = credentialValidation.missingCredentials
+          .map(node => `"${node.nodeName}" (${node.nodeType})`)
+          .join(', ');
+        
+        throw new Error(`Missing credentials for nodes: ${missingNodes}. Please configure all node credentials before deployment.`);
+      }
 
       // Validate workflow nodes
       const validation = validateWorkflowNodes(workflow);
@@ -319,7 +399,7 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
     } finally {
       setIsDeploying(false);
     }
-  }, [workflowId, updateLocalDeploymentStatus, config, getDeployment, createOrUpdateDeployment]);
+  }, [workflowId, updateLocalDeploymentStatus, config, getDeployment, createOrUpdateDeployment, user]);
 
   const activateWorkflow = useCallback(async () => {
     if (!workflowId || !deploymentStatus?.deployment_id) return false;
@@ -346,7 +426,7 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
         
         // Provide more specific error messages for credential issues
         if (error.message && error.message.includes('Node does not have any credentials set')) {
-          throw new Error('Cannot activate workflow: Some nodes are missing required credentials. Please configure all node credentials before activation.');
+          throw new Error('Cannot activate workflow: Some nodes are missing required credentials. Please ensure all nodes have valid, tested credentials before activation.');
         }
         
         // Provide more specific error messages

@@ -98,10 +98,14 @@ export const NodeCredentialStatus: React.FC<NodeCredentialStatusProps> = ({
   const iconSize = size === 'sm' ? 'w-3 h-3' : size === 'md' ? 'w-4 h-4' : 'w-5 h-5';
   const containerPadding = size === 'sm' ? 'p-1' : size === 'md' ? 'p-1.5' : 'p-2';
 
+  console.log('🎨 NodeCredentialStatus render:', { nodeId, status, label: config.label });
+
   return (
     <motion.div
+      key={`${nodeId}-${status}`} // Force re-render when status changes
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.2 }}
       className={`inline-flex items-center space-x-2 rounded-full ${config.bgColor} ${containerPadding}`}
       title={config.label}
     >

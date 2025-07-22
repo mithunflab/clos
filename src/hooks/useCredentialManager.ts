@@ -19,35 +19,53 @@ export const useCredentialManager = () => {
   const { user } = useAuth();
 
   const updateCredentialStatus = useCallback((nodeId: string, updates: Partial<CredentialStatus>) => {
-    setCredentialStatuses(prev => ({
-      ...prev,
-      [nodeId]: {
-        ...prev[nodeId],
-        ...updates
-      }
-    }));
+    console.log('🔄 Updating credential status:', { nodeId, updates });
+    setCredentialStatuses(prev => {
+      const updated = {
+        ...prev,
+        [nodeId]: {
+          ...prev[nodeId],
+          nodeId,
+          nodeType: prev[nodeId]?.nodeType || '',
+          status: 'empty' as const,
+          credentials: {},
+          ...updates
+        }
+      };
+      console.log('✅ Updated credential statuses:', updated);
+      return updated;
+    });
   }, []);
 
   const saveCredentials = useCallback(async (nodeId: string, nodeType: string, credentials: Record<string, any>) => {
-    if (!user) return false;
+    if (!user) {
+      console.warn('⚠️ No user found, cannot save credentials');
+      return false;
+    }
 
     try {
       const credentialKey = `credentials_${nodeId}_${user.id}`;
       localStorage.setItem(credentialKey, JSON.stringify(credentials));
       
-      // Update status based on credential completeness
+      // Determine status based on credential completeness
       const hasRequiredCredentials = Object.values(credentials).some(value => 
         value && String(value).trim() !== ''
       );
+      
+      const newStatus = hasRequiredCredentials ? 'configured' : 'empty';
       
       updateCredentialStatus(nodeId, {
         nodeId,
         nodeType,
         credentials,
-        status: hasRequiredCredentials ? 'configured' : 'empty'
+        status: newStatus
       });
 
-      console.log(`✅ Saved credentials for node ${nodeId}:`, Object.keys(credentials));
+      console.log(`✅ Saved credentials for node ${nodeId}:`, { 
+        nodeType, 
+        credentialCount: Object.keys(credentials).length,
+        status: newStatus 
+      });
       return true;
     } catch (error) {
       console.error('❌ Error saving credentials:', error);
@@ -56,7 +74,10 @@ export const useCredentialManager = () => {
   }, [user, updateCredentialStatus]);
 
   const loadCredentials = useCallback((nodeId: string, nodeType: string) => {
-    if (!user) return {};
+    if (!user) {
+      console.warn('⚠️ No user found, cannot load credentials');
+      return {};
+    }
 
     try {
       const credentialKey = `credentials_${nodeId}_${user.id}`;
@@ -67,13 +88,21 @@ export const useCredentialManager = () => {
         value && String(value).trim() !== ''
       );
       
+      const status = hasRequiredCredentials ? 'configured' : 'empty';
+      
       updateCredentialStatus(nodeId, {
         nodeId,
         nodeType,
         credentials,
-        status: hasRequiredCredentials ? 'configured' : 'empty'
+        status
       });
 
+      console.log(`📥 Loaded credentials for node ${nodeId}:`, { 
+        nodeType, 
+        credentialCount: Object.keys(credentials).length,
+        status 
+      });
+      
       return credentials;
     } catch (error) {
       console.error('❌ Error loading credentials:', error);
@@ -82,8 +111,14 @@ export const useCredentialManager = () => {
   }, [user, updateCredentialStatus]);
 
   const testConnection = useCallback(async (nodeId: string, nodeType: string, credentials: Record<string, any>) => {
+    console.log(`🧪 Testing connection for node ${nodeId}:`, { nodeType, credentialKeys: Object.keys(credentials) });
+    
     if (!credentials || Object.keys(credentials).length === 0) {
-      updateCredentialStatus(nodeId, { status: 'empty', errorMessage: 'No credentials provided' });
+      updateCredentialStatus(nodeId, { 
+        status: 'empty', 
+        errorMessage: 'No credentials provided',
+        testResult: false
+      });
       return false;
     }
 
@@ -91,7 +126,6 @@ export const useCredentialManager = () => {
     updateCredentialStatus(nodeId, { status: 'testing' });
 
     try {
-      // Test connection based on node type
       let testResult = false;
       let errorMessage = '';
 
@@ -103,7 +137,10 @@ export const useCredentialManager = () => {
         
         case 'n8n-nodes-base.httpRequest':
           // For HTTP requests, we can't really test without knowing the endpoint
-          testResult = true;
+          // Just validate that required fields are present
+          testResult = Object.values(credentials).some(value => 
+            value && String(value).trim() !== ''
+          );
           break;
         
         case 'n8n-nodes-base.groq':
@@ -117,11 +154,20 @@ export const useCredentialManager = () => {
           );
       }
 
+      const finalStatus = testResult ? 'valid' : 'invalid';
+      const finalErrorMessage = testResult ? undefined : errorMessage || 'Connection test failed';
+
       updateCredentialStatus(nodeId, {
-        status: testResult ? 'valid' : 'invalid',
+        status: finalStatus,
         lastTested: new Date().toISOString(),
         testResult,
-        errorMessage: testResult ? undefined : errorMessage || 'Connection test failed'
+        errorMessage: finalErrorMessage
+      });
+
+      console.log(`✅ Connection test completed for ${nodeId}:`, { 
+        testResult, 
+        status: finalStatus,
+        errorMessage: finalErrorMessage 
       });
 
       return testResult;
@@ -133,6 +179,8 @@ export const useCredentialManager = () => {
         testResult: false,
         errorMessage
       });
+      
+      console.error(`❌ Connection test failed for ${nodeId}:`, errorMessage);
       return false;
     } finally {
       setIsTestingConnection(prev => ({ ...prev, [nodeId]: false }));
@@ -151,6 +199,7 @@ export const useCredentialManager = () => {
         throw new Error(data.description || 'Invalid bot token');
       }
       
+      console.log('✅ Telegram bot test successful:', data.result.username);
       return true;
     } catch (error) {
       throw new Error(`Telegram bot test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -173,6 +222,7 @@ export const useCredentialManager = () => {
         throw new Error('Invalid Groq API key');
       }
       
+      console.log('✅ Groq API test successful');
       return true;
     } catch (error) {
       throw new Error(`Groq API test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -180,12 +230,16 @@ export const useCredentialManager = () => {
   };
 
   const getCredentialStatus = useCallback((nodeId: string) => {
-    return credentialStatuses[nodeId] || {
-      nodeId,
-      nodeType: '',
-      status: 'empty',
-      credentials: {}
-    };
+    const status = credentialStatuses[nodeId];
+    if (!status) {
+      return {
+        nodeId,
+        nodeType: '',
+        status: 'empty' as const,
+        credentials: {}
+      };
+    }
+    return status;
   }, [credentialStatuses]);
 
   const clearCredentials = useCallback((nodeId: string) => {
@@ -199,6 +253,8 @@ export const useCredentialManager = () => {
       delete updated[nodeId];
       return updated;
     });
+    
+    console.log(`🗑️ Cleared credentials for node ${nodeId}`);
   }, [user]);
 
   return {
