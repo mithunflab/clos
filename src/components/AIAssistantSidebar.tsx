@@ -103,7 +103,7 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
         : msg
     ));
     
-    await new Promise(resolve => setTimeout(resolve, 800));
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     const lines = content.split('\n');
     let currentContent = '';
@@ -114,14 +114,15 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
         : msg
     ));
     
-    // Animate file writing line by line
+    // Animate file writing line by line with smooth progress
     for (let i = 0; i < lines.length; i++) {
       currentContent += lines[i] + (i < lines.length - 1 ? '\n' : '');
       
-      // Call onFileGenerated for each line to create the file progressively
+      // Update file content progressively
       onFileGenerated(fileName, currentContent);
       
-      if (i % 10 === 0 || i === lines.length - 1) {
+      // Update progress every 3 lines for smoother animation
+      if (i % 3 === 0 || i === lines.length - 1) {
         const progress = Math.round(((i + 1) / lines.length) * 100);
         setMessages(prev => prev.map(msg => 
           msg.id === assistantMessageId 
@@ -129,7 +130,8 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
             : msg
         ));
         
-        await new Promise(resolve => setTimeout(resolve, 30));
+        // Smoother timing for line-by-line animation
+        await new Promise(resolve => setTimeout(resolve, 15));
       }
     }
     
@@ -141,6 +143,27 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
     
     setIsWritingFile(false);
     console.log('🎬 Animated file writing completed for:', fileName);
+  };
+
+  // Helper function to animate text character by character
+  const animateTextResponse = async (text: string, messageId: string, currentContent: string) => {
+    const words = text.split(' ');
+    let animatedContent = currentContent;
+    
+    for (let i = 0; i < words.length; i++) {
+      animatedContent += (i > 0 ? ' ' : '') + words[i];
+      
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId 
+          ? { ...msg, content: animatedContent }
+          : msg
+      ));
+      
+      // Animate word by word for smooth effect
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    
+    return animatedContent;
   };
 
   const sendMessage = async () => {
@@ -362,16 +385,16 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
                         console.log('🎯 Successfully parsed workflow from stream');
                         
                         const fileName = `${workflowData.name?.replace(/[^a-zA-Z0-9]/g, '_') || 'workflow'}_${Date.now()}.json`;
+                        const workflowJson = JSON.stringify(workflowData, null, 2);
                         
+                        // Start animated file writing instead of immediate creation
                         setMessages(prev => prev.map(msg => 
                           msg.id === assistantMessage.id 
-                            ? { ...msg, content: assistantContent + '\n\n✅ **Workflow file created and saved to Supabase!**\n\n💾 **Auto-saved to your account - check the code preview**', workflowData }
+                            ? { ...msg, content: assistantContent, workflowData }
                             : msg
                         ));
                         
-                        if (onFileGenerated) {
-                          onFileGenerated(fileName, JSON.stringify(workflowData, null, 2));
-                        }
+                        await animateFileWriting(fileName, workflowJson, assistantMessage.id);
                         
                         if (onWorkflowGenerated) {
                           onWorkflowGenerated(workflowData, {
@@ -391,14 +414,8 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
                   continue;
                 }
                 
-                // Normal text content (not JSON) - only add to chat if not capturing JSON
-                assistantContent += textContent;
-                
-                setMessages(prev => prev.map(msg => 
-                  msg.id === assistantMessage.id 
-                    ? { ...msg, content: assistantContent }
-                    : msg
-                ));
+                // Normal text content (not JSON) - animate text response
+                assistantContent = await animateTextResponse(textContent, assistantMessage.id, assistantContent);
               } else if (data.type === 'workflow') {
                 workflowData = data.content;
                 console.log('🎯 Received workflow data:', {
