@@ -192,52 +192,58 @@ const Workflows = () => {
     <div className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto p-6 max-w-7xl">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-              <Bot className="w-6 h-6 text-primary-foreground" />
+        <Card className="bg-card border-border shadow-sm mb-8">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+                  <Bot className="w-6 h-6 text-primary-foreground" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-foreground">Workflows</h1>
+                  <p className="text-muted-foreground">
+                    Manage your automation workflows 
+                    <span className={`ml-2 font-medium ${getWorkflowLimitColor()}`}>
+                      ({getWorkflowLimitText()})
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <Button 
+                onClick={handleCreateWorkflow}
+                className="flex items-center space-x-2 bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Create Workflow</span>
+              </Button>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Workflows</h1>
-              <p className="text-muted-foreground">
-                Manage your automation workflows 
-                <span className={`ml-2 font-medium ${getWorkflowLimitColor()}`}>
-                  ({getWorkflowLimitText()})
-                </span>
-              </p>
-            </div>
-          </div>
-          <Button 
-            onClick={handleCreateWorkflow}
-            className="flex items-center space-x-2 bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Create Workflow</span>
-          </Button>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Workflows Grid */}
         {workflows.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-              <Bot className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <h3 className="text-xl font-semibold text-foreground mb-2">No workflows yet</h3>
-            <p className="text-muted-foreground mb-6">
-              Create your first workflow to get started with automation
-            </p>
-            <Button 
-              onClick={handleCreateWorkflow}
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Create Your First Workflow
-            </Button>
-          </div>
+          <Card className="bg-card border-border shadow-sm">
+            <CardContent className="text-center py-12">
+              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                <Bot className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <h3 className="text-xl font-semibold text-foreground mb-2">No workflows yet</h3>
+              <p className="text-muted-foreground mb-6">
+                Create your first workflow to get started with automation
+              </p>
+              <Button 
+                onClick={handleCreateWorkflow}
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create Your First Workflow
+              </Button>
+            </CardContent>
+          </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {workflows.map((workflow) => (
-              <Card key={workflow.id} className="bg-card border-border hover:bg-card/80 transition-all duration-200 shadow-sm">
+              <Card key={workflow.id} className="bg-card border-border shadow-sm hover:shadow-md transition-shadow duration-200">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">

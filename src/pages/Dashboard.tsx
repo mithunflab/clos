@@ -3,10 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Workflow, Zap, Clock, TrendingUp, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
 import { useWorkflowStorageV2 } from '@/hooks/useWorkflowStorageV2';
 import { useUserPlan } from '@/hooks/useUserPlan';
-import { GlowingEffect } from '@/components/ui/glowing-effect';
 
 const StatCard = ({
   icon,
@@ -20,30 +20,20 @@ const StatCard = ({
   subtitle: string;
 }) => {
   return (
-    <div className="relative min-h-[8rem]">
-      <div className="relative h-full rounded-[1.25rem] border-[0.75px] border-border p-2">
-        <GlowingEffect
-          spread={40}
-          glow={true}
-          disabled={false}
-          proximity={64}
-          inactiveZone={0.01}
-          borderWidth={2}
-        />
-        <div className="relative h-full bg-card backdrop-blur-sm border border-border rounded-2xl p-6 hover:bg-card/80 transition-all duration-300">
-          <div className="flex items-center space-x-4 mb-4">
-            <div className="w-12 h-12 bg-muted rounded-xl flex items-center justify-center">
-              {icon}
-            </div>
-            <div>
-              <h3 className="text-card-foreground font-semibold text-lg">{title}</h3>
-              <p className="text-muted-foreground text-sm">{subtitle}</p>
-            </div>
+    <Card className="bg-card border-border shadow-sm hover:shadow-md transition-shadow duration-200">
+      <CardContent className="p-6">
+        <div className="flex items-center space-x-4 mb-4">
+          <div className="w-12 h-12 bg-muted rounded-xl flex items-center justify-center">
+            {icon}
           </div>
-          <div className="text-3xl font-bold text-card-foreground">{value}</div>
+          <div>
+            <h3 className="text-card-foreground font-semibold text-lg">{title}</h3>
+            <p className="text-muted-foreground text-sm">{subtitle}</p>
+          </div>
         </div>
-      </div>
-    </div>
+        <div className="text-3xl font-bold text-card-foreground">{value}</div>
+      </CardContent>
+    </Card>
   );
 };
 
@@ -73,7 +63,7 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="relative z-10 p-6 lg:p-8">
+      <div className="p-6 lg:p-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -126,39 +116,31 @@ const Dashboard = () => {
           </div>
 
           {/* Quick Links */}
-          <div className="relative">
-            <div className="relative rounded-[1.25rem] border-[0.75px] border-border p-2">
-              <GlowingEffect
-                spread={40}
-                glow={true}
-                disabled={false}
-                proximity={64}
-                inactiveZone={0.01}
-                borderWidth={2}
-              />
-              <div className="relative bg-card backdrop-blur-sm border border-border rounded-2xl p-6">
-                <h2 className="text-2xl font-bold text-card-foreground mb-6">Quick Actions</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => navigate('/workflows')}
-                    className="justify-start h-12 text-base rounded-2xl font-medium"
-                  >
-                    <Workflow className="w-5 h-5 mr-3" />
-                    View All Workflows
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => navigate('/playground')}
-                    className="justify-start h-12 rounded-2xl"
-                  >
-                    <Plus className="w-5 h-5 mr-3" />
-                    Create New Workflow
-                  </Button>
-                </div>
+          <Card className="bg-card border-border shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-2xl font-bold text-card-foreground">Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Button
+                  variant="outline"
+                  onClick={() => navigate('/workflows')}
+                  className="justify-start h-12 text-base rounded-xl font-medium"
+                >
+                  <Workflow className="w-5 h-5 mr-3" />
+                  View All Workflows
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => navigate('/playground')}
+                  className="justify-start h-12 rounded-xl"
+                >
+                  <Plus className="w-5 h-5 mr-3" />
+                  Create New Workflow
+                </Button>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </motion.div>
       </div>
     </div>

@@ -20,7 +20,6 @@ import Workflows from '@/pages/Workflows';
 import WorkflowPlayground from '@/pages/WorkflowPlayground';
 import Profile from '@/pages/Profile';
 import ThemeToggle from '@/components/ThemeToggle';
-import { GlowingEffect } from '@/components/ui/glowing-effect';
 
 const cn = (...classes: (string | undefined | null | false)[]): string => {
   return classes.filter(Boolean).join(' ');
@@ -47,39 +46,24 @@ const SidebarItem = ({ icon, label, to, isActive, onClick, isMinimized }: Sideba
   };
 
   return (
-    <div className="relative mb-2">
-      {isActive && (
-        <div className="absolute inset-0 rounded-xl">
-          <GlowingEffect
-            spread={40}
-            glow={true}
-            disabled={false}
-            proximity={64}
-            inactiveZone={0.01}
-            borderWidth={2}
-          />
-        </div>
+    <button
+      onClick={handleClick}
+      className={cn(
+        "flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 group w-full text-left mb-2",
+        isActive 
+          ? "bg-primary text-primary-foreground" 
+          : "text-foreground/70 hover:text-foreground hover:bg-muted",
+        isMinimized && "justify-center px-2"
       )}
-      <button
-        onClick={handleClick}
-        className={cn(
-          "relative flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 group w-full text-left",
-          isActive 
-            ? "bg-primary/10 text-primary border border-primary/20" 
-            : "text-foreground/70 hover:text-foreground hover:bg-muted/50",
-          isMinimized && "justify-center px-2"
-        )}
-      >
-        <div className={cn(
-          "p-2 rounded-lg transition-colors duration-200 flex-shrink-0 flex items-center justify-center",
-          isActive ? "bg-primary/20" : "group-hover:bg-muted/50",
-          isMinimized ? "w-8 h-8 p-1" : "w-10 h-10"
-        )}>
-          {icon}
-        </div>
-        {!isMinimized && <span className="font-medium truncate">{label}</span>}
-      </button>
-    </div>
+    >
+      <div className={cn(
+        "flex items-center justify-center flex-shrink-0",
+        isMinimized ? "w-8 h-8" : "w-8 h-8"
+      )}>
+        {icon}
+      </div>
+      {!isMinimized && <span className="font-medium truncate">{label}</span>}
+    </button>
   );
 };
 
@@ -133,136 +117,112 @@ const DashboardLayout = () => {
 
   return (
     <div className="h-screen bg-background text-foreground flex relative overflow-hidden">
-      {/* Mobile Header - Fixed */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50">
-        <div className="relative rounded-[1.25rem] border-[0.75px] border-border p-2 m-2">
-          <GlowingEffect
-            spread={40}
-            glow={true}
-            disabled={false}
-            proximity={64}
-            inactiveZone={0.01}
-            borderWidth={2}
-          />
-          <div className="relative bg-background/90 backdrop-blur-md border border-border rounded-xl">
-            <div className="flex items-center justify-between p-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                  <Bot className="w-5 h-5 text-primary-foreground" />
-                </div>
-                <span className="text-foreground font-bold text-xl">casel</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <ThemeToggle />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSidebarOpen(!sidebarOpen)}
-                  className="text-foreground hover:bg-muted"
-                >
-                  {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-                </Button>
-              </div>
+      {/* Mobile Header */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+              <Bot className="w-5 h-5 text-primary-foreground" />
             </div>
+            <span className="text-foreground font-bold text-xl">casel</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <ThemeToggle />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="text-foreground hover:bg-muted"
+            >
+              {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </Button>
           </div>
         </div>
       </div>
 
-      {/* Sidebar - Fixed */}
+      {/* Sidebar */}
       <div className={cn(
-        "fixed left-0 top-0 h-full z-40 transition-all duration-300 m-2",
+        "fixed left-0 top-0 h-full z-40 transition-all duration-300 bg-card border-r border-border",
         "lg:translate-x-0 lg:static lg:z-10",
         sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         isMinimized ? "w-16" : "w-80"
       )}>
-        <div className="relative h-full rounded-[1.25rem] border-[0.75px] border-border p-2">
-          <GlowingEffect
-            spread={40}
-            glow={true}
-            disabled={false}
-            proximity={64}
-            inactiveZone={0.01}
-            borderWidth={2}
-          />
-          <div className="relative h-full bg-background/90 backdrop-blur-md border border-border rounded-xl">
-            <div className="p-4 h-full flex flex-col">
-              {/* Logo and Toggle */}
-              <div className={cn(
-                "flex items-center mb-8",
-                isMinimized ? "justify-center" : "justify-between"
-              )}>
-                {!isMinimized ? (
-                  <>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                        <Bot className="w-5 h-5 text-primary-foreground" />
-                      </div>
-                      <span className="text-foreground font-bold text-xl">casel</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <ThemeToggle />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setIsMinimized(!isMinimized)}
-                        className="text-muted-foreground hover:text-foreground hover:bg-muted hidden lg:flex"
-                      >
-                        <ChevronLeft className="w-5 h-5" />
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center space-y-4">
-                    <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                      <Bot className="w-5 h-5 text-primary-foreground" />
-                    </div>
-                    <ThemeToggle />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setIsMinimized(!isMinimized)}
-                      className="text-muted-foreground hover:text-foreground hover:bg-muted hidden lg:flex p-2"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </Button>
+        <div className="p-4 h-full flex flex-col">
+          {/* Logo and Toggle */}
+          <div className={cn(
+            "flex items-center mb-8",
+            isMinimized ? "justify-center" : "justify-between"
+          )}>
+            {!isMinimized ? (
+              <>
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                    <Bot className="w-5 h-5 text-primary-foreground" />
                   </div>
-                )}
-              </div>
-
-              {/* Navigation */}
-              <nav className="flex-1">
-                {navigationItems.map((item) => (
-                  <SidebarItem
-                    key={item.to}
-                    icon={item.icon}
-                    label={item.label}
-                    to={item.to}
-                    isActive={isActiveRoute(item.to)}
-                    onClick={() => setSidebarOpen(false)}
-                    isMinimized={isMinimized}
-                  />
-                ))}
-              </nav>
-
-              {/* Bottom Section */}
-              <div className="mt-auto">
-                <button 
-                  onClick={handleSignOut}
-                  className={cn(
-                    "flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 text-muted-foreground hover:text-foreground hover:bg-muted w-full",
-                    isMinimized && "justify-center px-2"
-                  )}
+                  <span className="text-foreground font-bold text-xl">casel</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <ThemeToggle />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsMinimized(!isMinimized)}
+                    className="text-muted-foreground hover:text-foreground hover:bg-muted hidden lg:flex"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center space-y-4">
+                <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                  <Bot className="w-5 h-5 text-primary-foreground" />
+                </div>
+                <ThemeToggle />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsMinimized(!isMinimized)}
+                  className="text-muted-foreground hover:text-foreground hover:bg-muted hidden lg:flex p-2"
                 >
-                   <div className={cn(
-                     "p-2 rounded-lg group-hover:bg-muted flex-shrink-0 flex items-center justify-center",
-                     isMinimized ? "w-8 h-8 p-1" : "w-10 h-10"
-                   )}>
-                    <LogOut className="w-5 h-5" />
-                  </div>
-                  {!isMinimized && <span className="font-medium">Sign Out</span>}
-                </button>
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
               </div>
-            </div>
+            )}
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1">
+            {navigationItems.map((item) => (
+              <SidebarItem
+                key={item.to}
+                icon={item.icon}
+                label={item.label}
+                to={item.to}
+                isActive={isActiveRoute(item.to)}
+                onClick={() => setSidebarOpen(false)}
+                isMinimized={isMinimized}
+              />
+            ))}
+          </nav>
+
+          {/* Bottom Section */}
+          <div className="mt-auto">
+            <button 
+              onClick={handleSignOut}
+              className={cn(
+                "flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 text-muted-foreground hover:text-foreground hover:bg-muted w-full",
+                isMinimized && "justify-center px-2"
+              )}
+            >
+              <div className={cn(
+                "flex items-center justify-center flex-shrink-0",
+                isMinimized ? "w-8 h-8" : "w-8 h-8"
+              )}>
+                <LogOut className="w-5 h-5" />
+              </div>
+              {!isMinimized && <span className="font-medium">Sign Out</span>}
+            </button>
           </div>
         </div>
       </div>
@@ -275,7 +235,7 @@ const DashboardLayout = () => {
         />
       )}
 
-      {/* Main Content - Scrollable */}
+      {/* Main Content */}
       <div className="flex-1 lg:ml-0 h-full relative z-10 overflow-hidden">
         <div className="pt-20 lg:pt-0 h-full overflow-y-auto">
           <Routes>

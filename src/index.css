@@ -9,7 +9,7 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 0 0% 98%;
     --foreground: 222.2 84% 4.9%;
 
     --card: 0 0% 100%;
@@ -39,7 +39,7 @@ All colors MUST be HSL.
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
+    --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 210 100% 50%;
     --sidebar-primary-foreground: 0 0% 98%;
@@ -98,7 +98,7 @@ All colors MUST be HSL.
   }
 }
 
-/* CLEAN LIGHT MODE - NO EFFECTS */
+/* CLEAN LIGHT MODE - Simple light gray background */
 body {
   background-color: hsl(var(--background));
   background-image: none;
