@@ -47,6 +47,11 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 210 100% 15%;
     --sidebar-border: 214.3 31.8% 91.4%;
     --sidebar-ring: 210 100% 50%;
+
+    /* Glow colors for light mode */
+    --glow-primary: 210 100% 50%;
+    --glow-secondary: 200 100% 60%;
+    --glow-accent: 220 100% 55%;
   }
 
   .dark {
@@ -85,6 +90,11 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Glow colors for dark mode */
+    --glow-primary: 210 100% 70%;
+    --glow-secondary: 200 100% 80%;
+    --glow-accent: 220 100% 75%;
   }
 }
 
@@ -131,6 +141,109 @@ body {
 
 .auth-image-loaded {
   filter: blur(0px);
+}
+
+/* Glowing border effects */
+.glow-border {
+  position: relative;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
+  transition: all 0.3s ease;
+}
+
+.glow-border:hover {
+  border-color: hsl(var(--glow-primary));
+  box-shadow: 
+    0 0 20px hsla(var(--glow-primary), 0.3),
+    0 0 40px hsla(var(--glow-primary), 0.1),
+    inset 0 0 20px hsla(var(--glow-primary), 0.05);
+}
+
+.glow-border-primary {
+  position: relative;
+  border: 1px solid hsl(var(--glow-primary) / 0.5);
+  background: hsl(var(--card));
+  box-shadow: 
+    0 0 15px hsla(var(--glow-primary), 0.2),
+    0 0 30px hsla(var(--glow-primary), 0.1),
+    inset 0 0 15px hsla(var(--glow-primary), 0.05);
+  transition: all 0.3s ease;
+}
+
+.glow-border-primary:hover {
+  border-color: hsl(var(--glow-primary));
+  box-shadow: 
+    0 0 25px hsla(var(--glow-primary), 0.4),
+    0 0 50px hsla(var(--glow-primary), 0.2),
+    inset 0 0 25px hsla(var(--glow-primary), 0.1);
+}
+
+.glow-border-secondary {
+  position: relative;
+  border: 1px solid hsl(var(--glow-secondary) / 0.5);
+  background: hsl(var(--card));
+  box-shadow: 
+    0 0 15px hsla(var(--glow-secondary), 0.2),
+    0 0 30px hsla(var(--glow-secondary), 0.1),
+    inset 0 0 15px hsla(var(--glow-secondary), 0.05);
+  transition: all 0.3s ease;
+}
+
+.glow-border-secondary:hover {
+  border-color: hsl(var(--glow-secondary));
+  box-shadow: 
+    0 0 25px hsla(var(--glow-secondary), 0.4),
+    0 0 50px hsla(var(--glow-secondary), 0.2),
+    inset 0 0 25px hsla(var(--glow-secondary), 0.1);
+}
+
+.glow-border-accent {
+  position: relative;
+  border: 1px solid hsl(var(--glow-accent) / 0.5);
+  background: hsl(var(--card));
+  box-shadow: 
+    0 0 15px hsla(var(--glow-accent), 0.2),
+    0 0 30px hsla(var(--glow-accent), 0.1),
+    inset 0 0 15px hsla(var(--glow-accent), 0.05);
+  transition: all 0.3s ease;
+}
+
+.glow-border-accent:hover {
+  border-color: hsl(var(--glow-accent));
+  box-shadow: 
+    0 0 25px hsla(var(--glow-accent), 0.4),
+    0 0 50px hsla(var(--glow-accent), 0.2),
+    inset 0 0 25px hsla(var(--glow-accent), 0.1);
+}
+
+/* Subtle glow for light mode cards */
+.light .glow-card {
+  border: 1px solid hsl(var(--border));
+  box-shadow: 
+    0 2px 10px hsla(var(--glow-primary), 0.1),
+    0 0 20px hsla(var(--glow-primary), 0.05);
+}
+
+.light .glow-card:hover {
+  border-color: hsl(var(--glow-primary) / 0.3);
+  box-shadow: 
+    0 4px 20px hsla(var(--glow-primary), 0.15),
+    0 0 30px hsla(var(--glow-primary), 0.1);
+}
+
+/* Enhanced glow for dark mode cards */
+.dark .glow-card {
+  border: 1px solid hsl(var(--border));
+  box-shadow: 
+    0 2px 15px hsla(var(--glow-primary), 0.2),
+    0 0 30px hsla(var(--glow-primary), 0.1);
+}
+
+.dark .glow-card:hover {
+  border-color: hsl(var(--glow-primary) / 0.5);
+  box-shadow: 
+    0 4px 25px hsla(var(--glow-primary), 0.3),
+    0 0 40px hsla(var(--glow-primary), 0.15);
 }
 
 /* Custom animations for the sign-in page */

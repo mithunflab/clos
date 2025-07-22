@@ -49,9 +49,9 @@ const SidebarItem = ({ icon, label, to, isActive, onClick, isMinimized }: Sideba
     <button
       onClick={handleClick}
       className={cn(
-        "flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 group w-full text-left mb-2",
+        "flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 group w-full text-left mb-2 glow-border",
         isActive 
-          ? "bg-primary text-primary-foreground" 
+          ? "bg-primary text-primary-foreground glow-border-primary" 
           : "text-foreground/70 hover:text-foreground hover:bg-muted",
         isMinimized && "justify-center px-2"
       )}
@@ -118,10 +118,10 @@ const DashboardLayout = () => {
   return (
     <div className="h-screen bg-background text-foreground flex relative overflow-hidden">
       {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border glow-border">
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center glow-border-primary">
               <Bot className="w-5 h-5 text-primary-foreground" />
             </div>
             <span className="text-foreground font-bold text-xl">casel</span>
@@ -132,7 +132,7 @@ const DashboardLayout = () => {
               variant="ghost"
               size="sm"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="text-foreground hover:bg-muted"
+              className="text-foreground hover:bg-muted glow-border"
             >
               {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </Button>
@@ -142,7 +142,7 @@ const DashboardLayout = () => {
 
       {/* Sidebar */}
       <div className={cn(
-        "fixed left-0 top-0 h-full z-40 transition-all duration-300 bg-card border-r border-border",
+        "fixed left-0 top-0 h-full z-40 transition-all duration-300 bg-card border-r border-border glow-border-secondary",
         "lg:translate-x-0 lg:static lg:z-10",
         sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         isMinimized ? "w-16" : "w-80"
@@ -156,7 +156,7 @@ const DashboardLayout = () => {
             {!isMinimized ? (
               <>
                 <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                  <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center glow-border-primary">
                     <Bot className="w-5 h-5 text-primary-foreground" />
                   </div>
                   <span className="text-foreground font-bold text-xl">casel</span>
@@ -167,7 +167,7 @@ const DashboardLayout = () => {
                     variant="ghost"
                     size="sm"
                     onClick={() => setIsMinimized(!isMinimized)}
-                    className="text-muted-foreground hover:text-foreground hover:bg-muted hidden lg:flex"
+                    className="text-muted-foreground hover:text-foreground hover:bg-muted hidden lg:flex glow-border"
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </Button>
@@ -175,7 +175,7 @@ const DashboardLayout = () => {
               </>
             ) : (
               <div className="flex flex-col items-center space-y-4">
-                <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center glow-border-primary">
                   <Bot className="w-5 h-5 text-primary-foreground" />
                 </div>
                 <ThemeToggle />
@@ -183,7 +183,7 @@ const DashboardLayout = () => {
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsMinimized(!isMinimized)}
-                  className="text-muted-foreground hover:text-foreground hover:bg-muted hidden lg:flex p-2"
+                  className="text-muted-foreground hover:text-foreground hover:bg-muted hidden lg:flex p-2 glow-border"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </Button>
@@ -211,7 +211,7 @@ const DashboardLayout = () => {
             <button 
               onClick={handleSignOut}
               className={cn(
-                "flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 text-muted-foreground hover:text-foreground hover:bg-muted w-full",
+                "flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 text-muted-foreground hover:text-foreground hover:bg-muted w-full glow-border",
                 isMinimized && "justify-center px-2"
               )}
             >

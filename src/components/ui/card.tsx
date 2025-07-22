@@ -1,15 +1,21 @@
+
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
 const Card = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
+  React.HTMLAttributes<HTMLDivElement> & { glowVariant?: 'default' | 'primary' | 'secondary' | 'accent' | 'none' }
+>(({ className, glowVariant = 'default', ...props }, ref) => (
   <div
     ref={ref}
     className={cn(
-      "rounded-lg border bg-card text-card-foreground shadow-sm",
+      "rounded-lg bg-card text-card-foreground shadow-sm",
+      glowVariant === 'default' && "glow-card",
+      glowVariant === 'primary' && "glow-border-primary",
+      glowVariant === 'secondary' && "glow-border-secondary", 
+      glowVariant === 'accent' && "glow-border-accent",
+      glowVariant === 'none' && "border border-border",
       className
     )}
     {...props}
