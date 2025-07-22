@@ -22,35 +22,35 @@ const Navigation = () => {
   if (!user) return null;
 
   return (
-    <nav className="bg-black/40 backdrop-blur-sm border-b border-white/10 px-6 py-4">
+    <nav className="bg-background/80 backdrop-blur-sm border-b border-border px-6 py-4">
       <div className="flex items-center justify-between max-w-7xl mx-auto">
         <div className="flex items-center space-x-6">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
-              <Bot className="w-5 h-5 text-black" />
+            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+              <Bot className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="text-white font-bold text-xl">casel</span>
+            <span className="text-foreground font-bold text-xl">casel</span>
           </div>
           
           <div className="flex space-x-4">
             <Button
               variant={location.pathname === '/dashboard' ? 'default' : 'ghost'}
               onClick={() => navigate('/dashboard')}
-              className="text-white"
+              className="text-foreground"
             >
               Dashboard
             </Button>
             <Button
               variant={location.pathname.startsWith('/workflows') ? 'default' : 'ghost'}
               onClick={() => navigate('/workflows')}
-              className="text-white"
+              className="text-foreground"
             >
               Workflows
             </Button>
             <Button
               variant={location.pathname === '/playground' ? 'default' : 'ghost'}
               onClick={() => navigate('/playground')}
-              className="text-white"
+              className="text-foreground"
             >
               Playground
             </Button>
@@ -61,7 +61,7 @@ const Navigation = () => {
           <Button
             variant="ghost"
             onClick={() => navigate('/profile')}
-            className="text-white"
+            className="text-foreground"
           >
             <User className="w-4 h-4 mr-2" />
             Profile
@@ -69,7 +69,7 @@ const Navigation = () => {
           <Button
             variant="ghost"
             onClick={handleSignOut}
-            className="text-white hover:text-red-300"
+            className="text-foreground hover:text-destructive"
           >
             <LogOut className="w-4 h-4 mr-2" />
             Sign Out

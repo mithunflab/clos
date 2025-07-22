@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { useTheme } from '@/hooks/useTheme';
 
 interface PlaygroundCanvasProps {
   children: React.ReactNode;
@@ -8,16 +7,14 @@ interface PlaygroundCanvasProps {
 }
 
 const PlaygroundCanvas = ({ children, className = '' }: PlaygroundCanvasProps) => {
-  const { theme } = useTheme();
-  
   return (
     <div className={`
       w-full h-full 
-      ${theme === 'light' ? 'bg-white' : 'bg-black'} 
-      border border-border 
+      bg-black
+      border border-white/20
       rounded-xl 
       overflow-hidden
-      glow-border
+      shadow-2xl
       ${className}
     `}>
       {children}
