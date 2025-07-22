@@ -13,13 +13,15 @@ const PageWrapper = ({ children, className = '' }: PageWrapperProps) => {
   const { theme } = useTheme();
 
   const getPageClass = () => {
-    if (theme !== 'light') return '';
+    if (theme === 'light') {
+      return 'bg-background';
+    }
     
     if (location.pathname === '/dashboard') return 'dashboard-page';
     if (location.pathname.startsWith('/workflows')) return 'workflows-page';
-    if (location.pathname.includes('/playground')) return 'playground-canvas';
+    if (location.pathname.includes('/playground')) return 'canvas-background';
     
-    return '';
+    return 'canvas-background';
   };
 
   return (

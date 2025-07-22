@@ -13,7 +13,7 @@ const PlaygroundCanvas = ({ children, className = '' }: PlaygroundCanvasProps) =
   return (
     <div 
       className={`
-        ${theme === 'light' ? 'playground-canvas' : 'canvas-background'} 
+        ${theme === 'light' ? 'bg-background' : 'canvas-background'} 
         ${className}
       `}
     >

@@ -98,8 +98,8 @@ All colors MUST be HSL.
   }
 }
 
-/* Canvas dotted background pattern - DARK MODE */
-.canvas-background {
+/* DARK MODE - Canvas dotted background pattern */
+.dark .canvas-background {
   background-color: #000000;
   background-image: 
     radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0);
@@ -107,34 +107,19 @@ All colors MUST be HSL.
   background-attachment: fixed;
 }
 
-/* LIGHT MODE - Clean solid backgrounds */
+/* LIGHT MODE - Clean white backgrounds for ALL pages */
+.light body,
+.light .dashboard-page,
+.light .workflows-page,
 .light .canvas-background {
-  background-color: #ffffff;
-  background-image: none;
-  background-attachment: fixed;
+  background-color: #ffffff !important;
+  background-image: none !important;
 }
 
-/* Light mode dashboard page - clean white */
-.light .dashboard-page {
-  background-color: #ffffff;
-  background-image: none;
-  background-attachment: fixed;
-}
-
-/* Light mode workflows page - clean white */
-.light .workflows-page {
-  background-color: #ffffff;
-  background-image: none;
-  background-attachment: fixed;
-}
-
-/* Light mode playground - white canvas with black dots */
+/* Playground canvas - NO background pattern in light mode */
 .light .playground-canvas {
   background-color: #ffffff !important;
-  background-image: 
-    radial-gradient(circle at 1px 1px, rgba(0,0,0,0.15) 1px, transparent 0) !important;
-  background-size: 20px 20px !important;
-  background-attachment: fixed !important;
+  background-image: none !important;
 }
 
 /* Dark mode playground - keep existing dark style */

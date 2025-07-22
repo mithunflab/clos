@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useMemo, memo } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -705,7 +704,7 @@ const WorkflowPlayground = memo(() => {
     }
 
     return (
-      <div className="w-full h-full playground-canvas">
+      <div className="w-full h-full bg-background">
         <ReactFlow
           {...reactFlowProps}
           onConnect={onConnect}
@@ -731,12 +730,12 @@ const WorkflowPlayground = memo(() => {
         {nodes.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="text-center">
-              <div className="text-white/40 text-lg mb-2">AI Workflow Generator</div>
-              <div className="text-white/60 text-sm max-w-md mb-4">
+              <div className="text-muted-foreground text-lg mb-2">AI Workflow Generator</div>
+              <div className="text-muted-foreground text-sm max-w-md mb-4">
                 Use the AI Assistant to describe your automation needs and generate n8n workflows with real-time JSON preview
               </div>
               {generatedWorkflow && (
-                <div className="text-white/40 text-xs">
+                <div className="text-muted-foreground text-xs">
                   Debug: Workflow loaded ({generatedWorkflow.nodes?.length || 0} nodes) but not displayed
                 </div>
               )}
@@ -748,7 +747,7 @@ const WorkflowPlayground = memo(() => {
   };
 
   return (
-    <div className="h-screen flex bg-transparent relative">
+    <div className="h-screen flex bg-background relative">
       <JsonWritingAnimation
         jsonContent={animationJsonContent}
         isActive={showJsonAnimation}
