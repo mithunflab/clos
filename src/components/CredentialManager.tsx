@@ -12,7 +12,9 @@ import {
   Info,
   Shield,
   ShieldCheck,
-  ShieldX
+  ShieldX,
+  Save,
+  TestTube
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,13 +27,16 @@ import {
   getDynamicCredentialStatus,
   type DynamicCredentialField 
 } from '@/utils/dynamicNodeAnalyzer';
+import { useCredentialManager } from '@/hooks/useCredentialManager';
+import { NodeCredentialStatus } from './NodeCredentialStatus';
 
 interface CredentialManagerProps {
   nodeType: string;
   credentials: Record<string, any>;
   onCredentialsChange: (credentials: Record<string, any>) => void;
   onStatusChange: (status: 'not_required' | 'empty' | 'partial' | 'configured' | 'invalid') => void;
-  nodeData?: any; // Add nodeData to analyze the actual node structure
+  nodeData?: any;
+  nodeId?: string;
 }
 
 export const CredentialManager: React.FC<CredentialManagerProps> = ({
@@ -39,23 +44,43 @@ export const CredentialManager: React.FC<CredentialManagerProps> = ({
   credentials,
   onCredentialsChange,
   onStatusChange,
-  nodeData
+  nodeData,
+  nodeId = `node_${nodeType}_${Date.now()}`
 }) => {
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
-  const [isTestingCredentials, setIsTestingCredentials] = useState(false);
   const [fieldValidation, setFieldValidation] = useState<Record<string, boolean>>({});
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
+  const {
+    saveCredentials,
+    loadCredentials,
+    testConnection,
+    getCredentialStatus,
+    isTestingConnection
+  } = useCredentialManager();
+
   // Use dynamic analysis instead of hardcoded database
   const requirement = analyzeDynamicNodeCredentials(nodeData || { nodeType, type: nodeType });
   const credentialStatus = getDynamicCredentialStatus(requirement, credentials);
+  const currentStatus = getCredentialStatus(nodeId);
 
   console.log('🔄 Dynamic CredentialManager render:', {
+    nodeId,
     nodeType,
     serviceName: requirement.serviceName,
     requiresCredentials: requirement.requiresCredentials,
     fieldsCount: requirement.fields.length,
-    status: credentialStatus
+    status: credentialStatus,
+    currentStatus: currentStatus.status
   });
+
+  // Load saved credentials on mount
+  useEffect(() => {
+    const savedCredentials = loadCredentials(nodeId, nodeType);
+    if (Object.keys(savedCredentials).length > 0) {
+      onCredentialsChange(savedCredentials);
+    }
+  }, [nodeId, nodeType, loadCredentials]);
 
   // Update status when credentials or nodeType changes
   useEffect(() => {
@@ -78,6 +103,25 @@ export const CredentialManager: React.FC<CredentialManagerProps> = ({
       [fieldName]: value
     };
     onCredentialsChange(updatedCredentials);
+    setHasUnsavedChanges(true);
+  };
+
+  const handleSaveCredentials = async () => {
+    const success = await saveCredentials(nodeId, nodeType, credentials);
+    if (success) {
+      setHasUnsavedChanges(false);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    if (!requirement.requiresCredentials) return;
+    
+    // Save first if there are unsaved changes
+    if (hasUnsavedChanges) {
+      await handleSaveCredentials();
+    }
+    
+    await testConnection(nodeId, nodeType, credentials);
   };
 
   const togglePasswordVisibility = (fieldName: string) => {
@@ -87,35 +131,9 @@ export const CredentialManager: React.FC<CredentialManagerProps> = ({
     }));
   };
 
-  const testCredentials = async () => {
-    if (!requirement.requiresCredentials || requirement.fields.length === 0) return;
-    
-    setIsTestingCredentials(true);
-    
-    try {
-      // Simulate credential testing - in real implementation, this would make actual API calls
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Simple validation check
-      const allRequiredFilled = requirement.fields
-        .filter(f => f.required)
-        .every(f => credentials[f.name] && String(credentials[f.name]).trim() !== '');
-      
-      if (allRequiredFilled) {
-        console.log('✅ Credentials test passed');
-      } else {
-        throw new Error('Missing required credentials');
-      }
-      
-    } catch (error) {
-      console.error('❌ Credential test failed:', error);
-    } finally {
-      setIsTestingCredentials(false);
-    }
-  };
-
   const getStatusIcon = () => {
-    switch (credentialStatus) {
+    const status = currentStatus.status;
+    switch (status) {
       case 'not_required':
         return <Info className="w-4 h-4 text-blue-400" />;
       case 'empty':
@@ -123,45 +141,15 @@ export const CredentialManager: React.FC<CredentialManagerProps> = ({
       case 'partial':
         return <AlertCircle className="w-4 h-4 text-yellow-400" />;
       case 'configured':
+        return <Key className="w-4 h-4 text-yellow-400" />;
+      case 'testing':
+        return <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />;
+      case 'valid':
         return <CheckCircle className="w-4 h-4 text-green-400" />;
       case 'invalid':
         return <ShieldX className="w-4 h-4 text-red-400" />;
       default:
         return <Key className="w-4 h-4 text-white/60" />;
-    }
-  };
-
-  const getStatusText = () => {
-    switch (credentialStatus) {
-      case 'not_required':
-        return 'No Credentials Required';
-      case 'empty':
-        return 'Not Configured';
-      case 'partial':
-        return 'Partially Configured';
-      case 'configured':
-        return 'Configured';
-      case 'invalid':
-        return 'Invalid Configuration';
-      default:
-        return 'Unknown';
-    }
-  };
-
-  const getStatusColor = () => {
-    switch (credentialStatus) {
-      case 'not_required':
-        return 'text-blue-400';
-      case 'empty':
-        return 'text-red-400';
-      case 'partial':
-        return 'text-yellow-400';
-      case 'configured':
-        return 'text-green-400';
-      case 'invalid':
-        return 'text-red-400';
-      default:
-        return 'text-white/60';
     }
   };
 
@@ -175,10 +163,7 @@ export const CredentialManager: React.FC<CredentialManagerProps> = ({
               <Shield className="w-5 h-5" />
               <span>{requirement.serviceName}</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <Info className="w-4 h-4 text-blue-400" />
-              <span className="text-sm text-blue-400">No Credentials Required</span>
-            </div>
+            <NodeCredentialStatus nodeId={nodeId} status="not_required" />
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -204,10 +189,7 @@ export const CredentialManager: React.FC<CredentialManagerProps> = ({
             <Key className="w-5 h-5" />
             <span>{requirement.serviceName} Credentials</span>
           </div>
-          <div className="flex items-center space-x-2">
-            {getStatusIcon()}
-            <span className={`text-sm ${getStatusColor()}`}>{getStatusText()}</span>
-          </div>
+          <NodeCredentialStatus nodeId={nodeId} status={currentStatus.status} />
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -301,6 +283,19 @@ export const CredentialManager: React.FC<CredentialManagerProps> = ({
             </motion.div>
           ))}
         </AnimatePresence>
+
+        {currentStatus.errorMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-3 bg-red-500/10 border border-red-400/20 rounded-lg"
+          >
+            <p className="text-red-400 text-sm flex items-start space-x-2">
+              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <span>{currentStatus.errorMessage}</span>
+            </p>
+          </motion.div>
+        )}
         
         <div className="flex justify-between items-center pt-4">
           {requirement.helpUrl && (
@@ -315,21 +310,41 @@ export const CredentialManager: React.FC<CredentialManagerProps> = ({
             </a>
           )}
           
-          <Button
-            onClick={testCredentials}
-            disabled={isTestingCredentials || credentialStatus === 'empty' || credentialStatus === 'not_required'}
-            variant="outline"
-            size="sm"
-            className="bg-white/10 border-white/20 text-white hover:bg-white/20 ml-auto"
-          >
-            {isTestingCredentials ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <CheckCircle className="w-4 h-4 mr-2" />
+          <div className="flex items-center space-x-2 ml-auto">
+            {hasUnsavedChanges && (
+              <Button
+                onClick={handleSaveCredentials}
+                variant="outline"
+                size="sm"
+                className="bg-yellow-600/20 border-yellow-500 text-yellow-400 hover:bg-yellow-600/30"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                Save
+              </Button>
             )}
-            {isTestingCredentials ? 'Testing...' : 'Test Connection'}
-          </Button>
+            
+            <Button
+              onClick={handleTestConnection}
+              disabled={isTestingConnection[nodeId] || credentialStatus === 'empty' || credentialStatus === 'not_required'}
+              variant="outline"
+              size="sm"
+              className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+            >
+              {isTestingConnection[nodeId] ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <TestTube className="w-4 h-4 mr-2" />
+              )}
+              {isTestingConnection[nodeId] ? 'Testing...' : 'Test Connection'}
+            </Button>
+          </div>
         </div>
+        
+        {currentStatus.lastTested && (
+          <div className="text-xs text-white/50 text-center">
+            Last tested: {new Date(currentStatus.lastTested).toLocaleString()}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

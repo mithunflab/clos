@@ -120,6 +120,42 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
     return updatedWorkflow;
   };
 
+  const ensureNodeCredentials = (workflow: any) => {
+    if (!workflow.nodes) return workflow;
+
+    const updatedWorkflow = { ...workflow };
+    updatedWorkflow.nodes = workflow.nodes.map((node: any) => {
+      // Ensure nodes that require credentials have them properly set
+      if (node.type === 'n8n-nodes-base.telegramTrigger' || node.type === 'n8n-nodes-base.telegram') {
+        return {
+          ...node,
+          credentials: {
+            telegramApi: {
+              id: 'telegram_credentials',
+              name: 'Telegram Bot Credentials'
+            }
+          }
+        };
+      }
+      
+      if (node.type === 'n8n-nodes-base.httpRequest' && node.name?.includes('Groq')) {
+        return {
+          ...node,
+          credentials: {
+            groqApi: {
+              id: 'groq_credentials',
+              name: 'Groq API Credentials'
+            }
+          }
+        };
+      }
+      
+      return node;
+    });
+
+    return updatedWorkflow;
+  };
+
   const cleanWorkflowForN8n = (workflow: any) => {
     const cleanWorkflow = {
       name: workflow.name,
@@ -172,6 +208,10 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
         console.log('🔄 Replaced unsupported nodes with HTTP Request alternatives');
       }
 
+      // Ensure proper credential assignment
+      workflow = ensureNodeCredentials(workflow);
+      console.log('🔐 Ensured node credentials are properly assigned');
+
       const cleanedWorkflow = cleanWorkflowForN8n(workflow);
 
       // Check if we have an existing deployment
@@ -198,6 +238,11 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
 
       if (error) {
         console.error('❌ N8N deployment error:', error);
+        
+        // Check if the error is about credentials
+        if (error.message && error.message.includes('credentials')) {
+          throw new Error(`Deployment failed: Some nodes are missing required credentials. Please configure all node credentials before deployment.`);
+        }
         
         // Check if the error is about unrecognized node types
         if (error.message && error.message.includes('Unrecognized node type')) {
@@ -298,6 +343,11 @@ export const useWorkflowDeployment = (workflowId: string | null) => {
 
       if (error) {
         console.error('❌ Activation error:', error);
+        
+        // Provide more specific error messages for credential issues
+        if (error.message && error.message.includes('Node does not have any credentials set')) {
+          throw new Error('Cannot activate workflow: Some nodes are missing required credentials. Please configure all node credentials before activation.');
+        }
         
         // Provide more specific error messages
         if (error.message && error.message.includes('Unrecognized node type')) {
