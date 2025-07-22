@@ -36,7 +36,9 @@ const Dashboard = () => {
             id: workflow.workflow_id,
             name: workflow.workflow_name,
             created_at: workflow.created_at || new Date().toISOString(),
-            nodes_count: workflow.metadata?.nodes_count || 0,
+            nodes_count: (workflow.metadata && typeof workflow.metadata === 'object' && 'nodes_count' in workflow.metadata) 
+              ? Number(workflow.metadata.nodes_count) || 0 
+              : 0,
             status: workflow.deployment_status === 'deployed' ? 'active' : 'draft',
             last_run: workflow.updated_at
           }));
@@ -115,9 +117,7 @@ const Dashboard = () => {
             transition={{ duration: 0.4, delay: 0.2 }}
             className="relative"
           >
-            <div className="absolute inset-0 pointer-events-none">
-              <GlowingEffect className="rounded-lg" />
-            </div>
+            <GlowingEffect className="rounded-lg absolute inset-0 pointer-events-none" />
             <Button
               onClick={handleCreateWorkflow}
               size="lg"
@@ -147,9 +147,7 @@ const Dashboard = () => {
             }).length, icon: Zap, color: 'text-purple-400' }
           ].map((stat, index) => (
             <div key={stat.title} className="relative">
-              <div className="absolute inset-0 pointer-events-none">
-                <GlowingEffect className="rounded-xl" />
-              </div>
+              <GlowingEffect className="rounded-xl absolute inset-0 pointer-events-none" />
               <Card className="relative bg-card/50 backdrop-blur-xl border-border/50 hover:bg-card/60 transition-all duration-300">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -188,9 +186,7 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => (
                 <div key={i} className="relative">
-                  <div className="absolute inset-0 pointer-events-none">
-                    <GlowingEffect className="rounded-xl" />
-                  </div>
+                  <GlowingEffect className="rounded-xl absolute inset-0 pointer-events-none" />
                   <Card className="relative bg-card/30 backdrop-blur-xl border-border/30 animate-pulse">
                     <CardContent className="p-6 space-y-4">
                       <div className="h-4 bg-muted/30 rounded w-3/4"></div>
@@ -208,9 +204,7 @@ const Dashboard = () => {
               animate="visible"
               className="relative"
             >
-              <div className="absolute inset-0 pointer-events-none">
-                <GlowingEffect className="rounded-xl" />
-              </div>
+              <GlowingEffect className="rounded-xl absolute inset-0 pointer-events-none" />
               <Card className="relative bg-card/30 backdrop-blur-xl border-border/30 border-dashed">
                 <CardContent className="p-12 text-center">
                   <div className="w-16 h-16 mx-auto mb-4 bg-muted/20 rounded-full flex items-center justify-center">
@@ -241,9 +235,7 @@ const Dashboard = () => {
                   className="relative cursor-pointer"
                   onClick={() => handleOpenWorkflow(workflow)}
                 >
-                  <div className="absolute inset-0 pointer-events-none">
-                    <GlowingEffect className="rounded-xl" />
-                  </div>
+                  <GlowingEffect className="rounded-xl absolute inset-0 pointer-events-none" />
                   <Card className="relative bg-card/50 backdrop-blur-xl border-border/50 hover:bg-card/60 transition-all duration-300 h-full">
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
