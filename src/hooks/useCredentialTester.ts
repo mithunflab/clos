@@ -37,7 +37,7 @@ export const useCredentialTester = () => {
       switch (nodeType) {
         case 'n8n-nodes-base.telegramTrigger':
         case 'n8n-nodes-base.telegram':
-          const telegramToken = credentials.botToken || credentials.accessToken;
+          const telegramToken = credentials.telegramApi || credentials.botToken || credentials.accessToken;
           if (!telegramToken || typeof telegramToken !== 'string' || telegramToken.trim() === '') {
             return {
               success: false,
@@ -54,7 +54,7 @@ export const useCredentialTester = () => {
           break;
         
         case 'n8n-nodes-base.groq':
-          const groqKey = credentials.apiKey || credentials.api_key;
+          const groqKey = credentials.groqApi || credentials.apiKey || credentials.api_key;
           if (!groqKey || typeof groqKey !== 'string' || groqKey.trim() === '') {
             return {
               success: false,
