@@ -23,18 +23,28 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [workflows, setWorkflows] = useState<WorkflowSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const { loadWorkflow } = useWorkflowStorage();
+  const { getUserWorkflows } = useWorkflowStorage();
   const { user } = useAuth();
 
   useEffect(() => {
     const fetchWorkflows = async () => {
       try {
-        // Since loadWorkflowsList doesn't exist, we'll use a placeholder for now
-        // This would need to be implemented in the useWorkflowStorage hook
-        console.log('Loading workflows for user:', user?.id);
-        setWorkflows([]);
+        if (user?.id) {
+          const userWorkflows = await getUserWorkflows();
+          // Map the workflow data to match our WorkflowSummary interface
+          const mappedWorkflows: WorkflowSummary[] = userWorkflows.map(workflow => ({
+            id: workflow.workflow_id,
+            name: workflow.workflow_name,
+            created_at: workflow.created_at || new Date().toISOString(),
+            nodes_count: workflow.metadata?.nodes_count || 0,
+            status: workflow.deployment_status === 'deployed' ? 'active' : 'draft',
+            last_run: workflow.updated_at
+          }));
+          setWorkflows(mappedWorkflows);
+        }
       } catch (error) {
         console.error('Failed to load workflows:', error);
+        setWorkflows([]);
       } finally {
         setLoading(false);
       }
@@ -43,7 +53,7 @@ const Dashboard = () => {
     if (user) {
       fetchWorkflows();
     }
-  }, [user, loadWorkflow]);
+  }, [user, getUserWorkflows]);
 
   const getStatusColor = (status?: string) => {
     switch (status) {
