@@ -98,15 +98,15 @@ All colors MUST be HSL.
   }
 }
 
-/* FIXED BACKGROUNDS - No switching, no overlapping */
+/* CLEAN BACKGROUNDS - Theme appropriate */
 .light body {
-  background-color: #f8fafc;
+  background-color: hsl(0 0% 100%);
   background-image: none;
   min-height: 100vh;
 }
 
 .dark body {
-  background-color: #000000;
+  background-color: hsl(222.2 84% 4.9%);
   background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0);
   background-size: 20px 20px;
   background-attachment: fixed;
@@ -115,7 +115,7 @@ All colors MUST be HSL.
 
 /* Auth page - always dark with pattern */
 .auth-bg {
-  background-color: #000000;
+  background-color: hsl(222.2 84% 4.9%);
   background-image: 
     radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0);
   background-size: 20px 20px;
