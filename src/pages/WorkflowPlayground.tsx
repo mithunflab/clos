@@ -724,16 +724,16 @@ const WorkflowPlayground = memo(() => {
           <Controls 
             className={`
               ${theme === 'light' 
-                ? 'bg-white/90 backdrop-blur-sm border border-border text-foreground [&>button]:text-foreground [&>button]:border-border [&>button]:bg-white [&>button:hover]:bg-accent' 
-                : 'bg-black/90 backdrop-blur-sm border border-border text-white [&>button]:text-white [&>button]:border-white/10 [&>button]:bg-transparent [&>button:hover]:bg-white/10'
+                ? 'bg-white/90 backdrop-blur-sm border border-gray-300 text-gray-700 [&>button]:text-gray-700 [&>button]:border-gray-300 [&>button]:bg-white [&>button:hover]:bg-gray-100' 
+                : 'bg-black/90 backdrop-blur-sm border border-white/20 text-white [&>button]:text-white [&>button]:border-white/10 [&>button]:bg-black/50 [&>button:hover]:bg-white/10'
               }
             `}
           />
           <MiniMap 
             className={`
               ${theme === 'light'
-                ? 'bg-white/90 backdrop-blur-sm border border-border'
-                : 'bg-black/90 backdrop-blur-sm border border-border'
+                ? 'bg-white/90 backdrop-blur-sm border border-gray-300 [&_.react-flow__minimap-mask]:fill-gray-200'
+                : 'bg-black/90 backdrop-blur-sm border border-white/20 [&_.react-flow__minimap-mask]:fill-black/60'
               }
             `}
             maskColor={theme === 'light' ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)'}

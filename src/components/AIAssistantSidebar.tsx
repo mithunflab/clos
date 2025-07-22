@@ -4,6 +4,7 @@ import { Send, MessageCircle, Code, MessageSquare, Loader2, Settings, CheckCircl
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserPlan } from '@/hooks/useUserPlan';
+import { useTheme } from '@/hooks/useTheme';
 
 interface Message {
   id: string;
@@ -41,6 +42,7 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
   onJsonWritingStart,
   onJsonWritingEnd
 }) => {
+  const { theme } = useTheme();
   const { plan, credits, loading: planLoading, deductCredit, refetch: refetchPlan } = useUserPlan();
   
   const [messages, setMessages] = useState<Message[]>([
@@ -56,22 +58,6 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
   const [isWritingFile, setIsWritingFile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-
-  // Load initial chat history if provided
-  useEffect(() => {
-    if (initialChatHistory && initialChatHistory.length > 0) {
-      console.log('📝 Loading initial chat history:', initialChatHistory.length, 'messages');
-      
-      const historyMessages: Message[] = initialChatHistory.map((msg, index) => ({
-        id: `history-${index}`,
-        content: msg.content || msg.message || '',
-        role: msg.role || 'user',
-        timestamp: new Date(msg.timestamp || Date.now()),
-      }));
-      
-      setMessages(prev => [...prev, ...historyMessages]);
-    }
-  }, [initialChatHistory]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -515,21 +501,50 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
     }
   };
 
+  // Load initial chat history if provided
+  useEffect(() => {
+    if (initialChatHistory && initialChatHistory.length > 0) {
+      console.log('📝 Loading initial chat history:', initialChatHistory.length, 'messages');
+      
+      const historyMessages: Message[] = initialChatHistory.map((msg, index) => ({
+        id: `history-${index}`,
+        content: msg.content || msg.message || '',
+        role: msg.role || 'user',
+        timestamp: new Date(msg.timestamp || Date.now()),
+      }));
+      
+      setMessages(prev => [...prev, ...historyMessages]);
+    }
+  }, [initialChatHistory]);
+
   return (
-    <div className="w-80 bg-black/40 backdrop-blur-sm border-r border-white/10 flex flex-col h-full">
+    <div className={`
+      w-80 
+      ${theme === 'light' 
+        ? 'bg-white border-gray-200' 
+        : 'bg-black/40 backdrop-blur-sm border-white/10'
+      } 
+      border-r flex flex-col h-full
+    `}>
       {/* Header */}
-      <div className="p-4 border-b border-white/10 flex-shrink-0">
+      <div className={`
+        p-4 border-b flex-shrink-0
+        ${theme === 'light' ? 'border-gray-200' : 'border-white/10'}
+      `}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <MessageCircle className="w-6 h-6 text-white" />
-            <h2 className="text-white font-semibold text-lg">CaselAI</h2>
+            <MessageCircle className={`w-6 h-6 ${theme === 'light' ? 'text-gray-700' : 'text-white'}`} />
+            <h2 className={`font-semibold text-lg ${theme === 'light' ? 'text-gray-900' : 'text-white'}`}>CaselAI</h2>
           </div>
           
           {/* Credits Display */}
           <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-1 bg-white/10 rounded-lg px-2 py-1">
+            <div className={`
+              flex items-center space-x-1 rounded-lg px-2 py-1
+              ${theme === 'light' ? 'bg-gray-100' : 'bg-white/10'}
+            `}>
               <Coins className="w-4 h-4 text-yellow-400" />
-              <span className="text-white text-sm font-medium">
+              <span className={`text-sm font-medium ${theme === 'light' ? 'text-gray-700' : 'text-white'}`}>
                 {planLoading ? '...' : `${credits?.current_credits || 0}`}
               </span>
             </div>
@@ -539,9 +554,13 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
                 variant="ghost"
                 size="sm"
                 onClick={onToggleCodePreview}
-                className={`text-white hover:bg-white/10 ${
-                  showCodePreview ? 'bg-white/10' : ''
-                }`}
+                className={`
+                  ${theme === 'light' 
+                    ? 'text-gray-700 hover:bg-gray-100' 
+                    : 'text-white hover:bg-white/10'
+                  }
+                  ${showCodePreview ? (theme === 'light' ? 'bg-gray-100' : 'bg-white/10') : ''}
+                `}
                 title="Toggle Code Preview"
               >
                 {showCodePreview ? <MessageSquare className="w-4 h-4" /> : <Code className="w-4 h-4" />}
@@ -571,8 +590,12 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
               <div
                 className={`max-w-[80%] p-3 rounded-lg ${
                   message.role === 'user'
-                    ? 'bg-white/10 text-white ml-4'
-                    : 'bg-black/30 text-white/90 mr-4'
+                    ? theme === 'light'
+                      ? 'bg-blue-100 text-gray-900 ml-4'
+                      : 'bg-white/10 text-white ml-4'
+                    : theme === 'light'
+                      ? 'bg-gray-100 text-gray-900 mr-4'
+                      : 'bg-black/30 text-white/90 mr-4'
                 }`}
               >
                 <div className="flex items-start space-x-2">
@@ -582,14 +605,20 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
                   <div className="flex-1">
                     <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
                     {message.workflowData && (
-                      <div className="mt-3 p-3 bg-green-500/20 rounded border border-green-500/30">
+                      <div className={`
+                        mt-3 p-3 rounded border
+                        ${theme === 'light'
+                          ? 'bg-green-50 border-green-200'
+                          : 'bg-green-500/20 border-green-500/30'
+                        }
+                      `}>
                         <div className="flex items-center space-x-2 mb-2">
-                          <FileCode className="w-4 h-4 text-green-300" />
-                          <div className="text-sm font-medium text-green-300">
+                          <FileCode className={`w-4 h-4 ${theme === 'light' ? 'text-green-600' : 'text-green-300'}`} />
+                          <div className={`text-sm font-medium ${theme === 'light' ? 'text-green-700' : 'text-green-300'}`}>
                             Workflow Generated & Saved
                           </div>
                         </div>
-                        <div className="text-xs text-green-300/80 space-y-1">
+                        <div className={`text-xs space-y-1 ${theme === 'light' ? 'text-green-600' : 'text-green-300/80'}`}>
                           <div>📋 Name: {message.workflowData.name}</div>
                           <div>🔧 Nodes: {message.workflowData.nodes?.length || 0}</div>
                           <div>💾 Status: Auto-saved to Supabase</div>
@@ -606,15 +635,20 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
         </div>
         
         {/* Subtle scroll indicator dots */}
-        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex flex-col space-y-1 opacity-30 hover:opacity-60 transition-opacity">
-          <div className="w-1 h-1 bg-white rounded-full"></div>
-          <div className="w-1 h-1 bg-white rounded-full"></div>
-          <div className="w-1 h-1 bg-white rounded-full"></div>
+        <div className={`
+          absolute right-2 top-1/2 transform -translate-y-1/2 flex flex-col space-y-1 opacity-30 hover:opacity-60 transition-opacity
+        `}>
+          <div className={`w-1 h-1 rounded-full ${theme === 'light' ? 'bg-gray-400' : 'bg-white'}`}></div>
+          <div className={`w-1 h-1 rounded-full ${theme === 'light' ? 'bg-gray-400' : 'bg-white'}`}></div>
+          <div className={`w-1 h-1 rounded-full ${theme === 'light' ? 'bg-gray-400' : 'bg-white'}`}></div>
         </div>
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t border-white/10 flex-shrink-0">
+      <div className={`
+        p-4 border-t flex-shrink-0
+        ${theme === 'light' ? 'border-gray-200' : 'border-white/10'}
+      `}>
         <div className="flex items-center space-x-2">
           <input
             type="text"
@@ -622,14 +656,25 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Describe your automation workflow..."
-            className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/20 text-sm"
+            className={`
+              flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 transition-colors
+              ${theme === 'light'
+                ? 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500'
+                : 'bg-white/5 border-white/10 text-white placeholder-white/50 focus:ring-white/20'
+              }
+            `}
             disabled={isGenerating || isWritingFile || !credits || credits.current_credits <= 0}
           />
           <Button
             onClick={sendMessage}
             size="sm"
             disabled={!inputMessage.trim() || isGenerating || isWritingFile || !credits || credits.current_credits <= 0}
-            className="bg-white/10 hover:bg-white/20 text-white border-white/10"
+            className={`
+              ${theme === 'light'
+                ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600'
+                : 'bg-white/10 hover:bg-white/20 text-white border-white/10'
+              }
+            `}
           >
             {isGenerating || isWritingFile ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -638,7 +683,7 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
             )}
           </Button>
         </div>
-        <div className="text-xs text-white/40 mt-2 text-center">
+        <div className={`text-xs mt-2 text-center ${theme === 'light' ? 'text-gray-500' : 'text-white/40'}`}>
           {!credits || credits.current_credits <= 0 ? 'No credits remaining - upgrade or wait for daily refresh' :
             isWritingFile ? 'Creating workflow file...' : 
             currentWorkflow ? `Editing: ${currentWorkflow.name}` : 
