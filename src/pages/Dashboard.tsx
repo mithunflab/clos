@@ -106,13 +106,15 @@ const Dashboard = () => {
             transition={{ duration: 0.4, delay: 0.2 }}
             className="relative"
           >
-            <GlowingEffect
-              blur={15}
-              proximity={80}
-              spread={60}
-              className="rounded-lg"
-              disabled={false}
-            />
+            <div className="absolute inset-0 pointer-events-none">
+              <GlowingEffect
+                blur={15}
+                proximity={80}
+                spread={60}
+                className="rounded-lg"
+                disabled={false}
+              />
+            </div>
             <Button
               onClick={handleCreateWorkflow}
               size="lg"
@@ -142,13 +144,15 @@ const Dashboard = () => {
             }).length, icon: Zap, color: 'text-purple-400' }
           ].map((stat, index) => (
             <div key={stat.title} className="relative">
-              <GlowingEffect
-                blur={10}
-                proximity={60}
-                spread={40}
-                className="rounded-xl"
-                disabled={false}
-              />
+              <div className="absolute inset-0 pointer-events-none">
+                <GlowingEffect
+                  blur={10}
+                  proximity={60}
+                  spread={40}
+                  className="rounded-xl"
+                  disabled={false}
+                />
+              </div>
               <Card className="relative bg-card/50 backdrop-blur-xl border-border/50 hover:bg-card/60 transition-all duration-300">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -187,13 +191,15 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => (
                 <div key={i} className="relative">
-                  <GlowingEffect
-                    blur={8}
-                    proximity={50}
-                    spread={30}
-                    className="rounded-xl"
-                    disabled={false}
-                  />
+                  <div className="absolute inset-0 pointer-events-none">
+                    <GlowingEffect
+                      blur={8}
+                      proximity={50}
+                      spread={30}
+                      className="rounded-xl"
+                      disabled={false}
+                    />
+                  </div>
                   <Card className="relative bg-card/30 backdrop-blur-xl border-border/30 animate-pulse">
                     <CardContent className="p-6 space-y-4">
                       <div className="h-4 bg-muted/30 rounded w-3/4"></div>
@@ -211,13 +217,15 @@ const Dashboard = () => {
               animate="visible"
               className="relative"
             >
-              <GlowingEffect
-                blur={12}
-                proximity={70}
-                spread={50}
-                className="rounded-xl"
-                disabled={false}
-              />
+              <div className="absolute inset-0 pointer-events-none">
+                <GlowingEffect
+                  blur={12}
+                  proximity={70}
+                  spread={50}
+                  className="rounded-xl"
+                  disabled={false}
+                />
+              </div>
               <Card className="relative bg-card/30 backdrop-blur-xl border-border/30 border-dashed">
                 <CardContent className="p-12 text-center">
                   <div className="w-16 h-16 mx-auto mb-4 bg-muted/20 rounded-full flex items-center justify-center">
@@ -248,13 +256,15 @@ const Dashboard = () => {
                   className="relative cursor-pointer"
                   onClick={() => handleOpenWorkflow(workflow)}
                 >
-                  <GlowingEffect
-                    blur={8}
-                    proximity={50}
-                    spread={30}
-                    className="rounded-xl"
-                    disabled={false}
-                  />
+                  <div className="absolute inset-0 pointer-events-none">
+                    <GlowingEffect
+                      blur={8}
+                      proximity={50}
+                      spread={30}
+                      className="rounded-xl"
+                      disabled={false}
+                    />
+                  </div>
                   <Card className="relative bg-card/50 backdrop-blur-xl border-border/50 hover:bg-card/60 transition-all duration-300 h-full">
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
