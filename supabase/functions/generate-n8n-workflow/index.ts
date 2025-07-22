@@ -154,17 +154,38 @@ serve(async (req) => {
         console.log('🚀 Deploying workflow to n8n:', workflow?.name);
         
         try {
-          // Clean workflow for deployment - remove read-only fields
+          // Clean workflow for deployment - remove read-only fields and include credentials
           const cleanWorkflow = {
             name: workflow.name,
-            nodes: (workflow.nodes || []).map((node: any) => ({
-              id: node.id,
-              name: node.name,
-              type: node.type,
-              typeVersion: node.typeVersion || 1,
-              position: node.position,
-              parameters: node.parameters || {}
-            })),
+            nodes: (workflow.nodes || []).map((node: any) => {
+              const cleanNode: any = {
+                id: node.id,
+                name: node.name,
+                type: node.type,
+                typeVersion: node.typeVersion || 1,
+                position: node.position,
+                parameters: node.parameters || {}
+              };
+              
+              // Include credentials if they exist
+              if (node.credentials && Object.keys(node.credentials).length > 0) {
+                cleanNode.credentials = {};
+                
+                // Map credentials to N8N format
+                Object.entries(node.credentials).forEach(([credType, credValue]: [string, any]) => {
+                  if (credValue && typeof credValue === 'string' && credValue.trim() !== '') {
+                    // Create credential object for N8N
+                    cleanNode.credentials[credType] = {
+                      id: '',
+                      name: `${node.name}_${credType}`,
+                      data: { [credType]: credValue }
+                    };
+                  }
+                });
+              }
+              
+              return cleanNode;
+            }),
             connections: workflow.connections || {},
             settings: {
               saveExecutionProgress: true,
@@ -219,17 +240,38 @@ serve(async (req) => {
             throw new Error('Workflow ID is required for update');
           }
 
-          // Clean workflow for update - remove read-only fields
+          // Clean workflow for update - remove read-only fields and include credentials
           const cleanWorkflow = {
             name: workflow.name,
-            nodes: (workflow.nodes || []).map((node: any) => ({
-              id: node.id,
-              name: node.name,
-              type: node.type,
-              typeVersion: node.typeVersion || 1,
-              position: node.position,
-              parameters: node.parameters || {}
-            })),
+            nodes: (workflow.nodes || []).map((node: any) => {
+              const cleanNode: any = {
+                id: node.id,
+                name: node.name,
+                type: node.type,
+                typeVersion: node.typeVersion || 1,
+                position: node.position,
+                parameters: node.parameters || {}
+              };
+              
+              // Include credentials if they exist
+              if (node.credentials && Object.keys(node.credentials).length > 0) {
+                cleanNode.credentials = {};
+                
+                // Map credentials to N8N format
+                Object.entries(node.credentials).forEach(([credType, credValue]: [string, any]) => {
+                  if (credValue && typeof credValue === 'string' && credValue.trim() !== '') {
+                    // Create credential object for N8N
+                    cleanNode.credentials[credType] = {
+                      id: '',
+                      name: `${node.name}_${credType}`,
+                      data: { [credType]: credValue }
+                    };
+                  }
+                });
+              }
+              
+              return cleanNode;
+            }),
             connections: workflow.connections || {},
             settings: {
               saveExecutionProgress: true,
