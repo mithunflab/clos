@@ -1,13 +1,61 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Bot, Zap, Shield, Cpu, Sparkles, Eye, EyeOff } from 'lucide-react';
+import { Bot, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import ThemeToggle from '@/components/ThemeToggle';
+
+const sampleTestimonials = [
+  {
+    avatarSrc: "https://randomuser.me/api/portraits/women/57.jpg",
+    name: "Sarah Chen",
+    handle: "@sarahdigital",
+    text: "Amazing platform! The user experience is seamless and the features are exactly what I needed."
+  },
+  {
+    avatarSrc: "https://randomuser.me/api/portraits/men/64.jpg",
+    name: "Marcus Johnson",
+    handle: "@marcustech",
+    text: "This service has transformed how I work. Clean design, powerful features, and excellent support."
+  },
+  {
+    avatarSrc: "https://randomuser.me/api/portraits/men/32.jpg",
+    name: "David Martinez",
+    handle: "@davidcreates",
+    text: "I've tried many platforms, but this one stands out. Intuitive, reliable, and genuinely helpful for productivity."
+  },
+];
+
+const GoogleIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 48 48">
+    <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s12-5.373 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-2.641-.21-5.236-.611-7.743z" />
+    <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z" />
+    <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z" />
+    <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l6.19 5.238C42.022 35.026 44 30.038 44 24c0-2.641-.21-5.236-.611-7.743z" />
+  </svg>
+);
+
+const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
+  <div className="rounded-2xl border border-border bg-foreground/5 backdrop-blur-sm transition-colors focus-within:border-violet-400/70 focus-within:bg-violet-500/10">
+    {children}
+  </div>
+);
+
+const TestimonialCard = ({ testimonial, delay }: { testimonial: any, delay: string }) => (
+  <div className={`animate-fade-in ${delay} flex items-start gap-3 rounded-3xl bg-card/40 dark:bg-zinc-800/40 backdrop-blur-xl border border-white/10 p-5 w-64`}>
+    <img src={testimonial.avatarSrc} className="h-10 w-10 object-cover rounded-2xl" alt="avatar" />
+    <div className="text-sm leading-snug">
+      <p className="flex items-center gap-1 font-medium">{testimonial.name}</p>
+      <p className="text-muted-foreground">{testimonial.handle}</p>
+      <p className="mt-1 text-foreground/80">{testimonial.text}</p>
+    </div>
+  </div>
+);
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -70,7 +118,10 @@ const Auth = () => {
 
         const { error } = await supabase.auth.signUp({
           email,
-          password
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/`
+          }
         });
 
         if (error) {
@@ -97,296 +148,175 @@ const Auth = () => {
     }
   };
 
-  const features = [
-    {
-      icon: <Bot className="w-6 h-6 text-white" />,
-      title: "Autonomous Decision Making",
-      description: "Advanced AI that analyzes situations and makes intelligent decisions without human intervention."
-    },
-    {
-      icon: <Zap className="w-6 h-6 text-white" />,
-      title: "Instant Task Execution",
-      description: "From simple commands to complex workflows, casel executes tasks with lightning speed."
-    },
-    {
-      icon: <Shield className="w-6 h-6 text-white" />,
-      title: "Secure & Private",
-      description: "Enterprise-grade security ensures your data and processes remain protected."
-    },
-    {
-      icon: <Cpu className="w-6 h-6 text-white" />,
-      title: "Adaptive Learning",
-      description: "Continuously learns from your patterns to become more efficient over time."
+  const handleGoogleSignIn = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/dashboard`
+      }
+    });
+    
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     }
-  ];
+  };
 
   return (
-    <div className="min-h-screen bg-black text-white flex relative overflow-hidden">
-      {/* Global Moving Background */}
-      <div className="fixed inset-0 z-0">
-        <div
-          className="
-          [--white-gradient:repeating-linear-gradient(165deg,var(--white)_0%,var(--white)_2%,var(--transparent)_4%,var(--transparent)_6%,var(--white)_8%)]
-          [--dark-gradient:repeating-linear-gradient(165deg,var(--black)_0%,var(--black)_2%,var(--dark-gray)_4%,var(--dark-gray)_6%,var(--black)_8%)]
-          [--aurora:repeating-linear-gradient(165deg,var(--dark-blue)_3%,var(--dark-gray)_6%,var(--charcoal)_9%,var(--dark-slate)_12%,var(--black)_15%)]
-          [background-image:var(--dark-gradient),var(--aurora)]
-          [background-size:100%_200%,100%_160%]
-          [background-position:0%_0%,0%_0%]
-          filter blur-[6px] invert-0
-          animate-aurora
-          pointer-events-none
-          absolute inset-0 opacity-70 will-change-transform
-          "
-        ></div>
-        <div
-          className="
-          [--aurora-alt:repeating-linear-gradient(170deg,var(--charcoal)_0%,var(--dark-slate)_5%,var(--dark-gray)_10%,var(--black)_15%,var(--charcoal)_20%)]
-          [--dark-alt:repeating-linear-gradient(170deg,var(--black)_0%,var(--black)_3%,var(--dark-gray)_6%,var(--dark-gray)_9%,var(--black)_12%)]
-          [background-image:var(--dark-alt),var(--aurora-alt)]
-          [background-size:100%_180%,100%_140%]
-          [background-position:0%_0%,0%_50%]
-          filter blur-[8px] invert-0
-          animate-aurora-secondary
-          pointer-events-none
-          absolute inset-0 opacity-50 will-change-transform mix-blend-multiply
-          "
-        ></div>
-      </div>
-
-      <style>{`
-        @keyframes aurora {
-          0% {
-            background-position: 0% 0%, 0% 0%;
-            transform: translateX(-20px) translateY(0px);
-          }
-          25% {
-            background-position: 25% 15%, 15% 25%;
-            transform: translateX(-10px) translateY(25px);
-          }
-          50% {
-            background-position: 50% 30%, 30% 50%;
-            transform: translateX(0px) translateY(50px);
-          }
-          75% {
-            background-position: 75% 45%, 45% 75%;
-            transform: translateX(10px) translateY(75px);
-          }
-          100% {
-            background-position: 100% 60%, 60% 100%;
-            transform: translateX(20px) translateY(100px);
-          }
-        }
-        
-        @keyframes aurora-secondary {
-          0% {
-            background-position: 100% 0%, 0% 50%;
-            transform: translateX(-15px) translateY(0px) scale(1);
-          }
-          33% {
-            background-position: 67% 33%, 33% 83%;
-            transform: translateX(-5px) translateY(35px) scale(1.01);
-          }
-          66% {
-            background-position: 33% 66%, 66% 116%;
-            transform: translateX(5px) translateY(70px) scale(0.99);
-          }
-          100% {
-            background-position: 0% 100%, 100% 150%;
-            transform: translateX(15px) translateY(105px) scale(1);
-          }
-        }
-        
-        .animate-aurora {
-          animation: aurora 35s ease-in-out infinite;
-        }
-        
-        .animate-aurora-secondary {
-          animation: aurora-secondary 28s ease-in-out infinite reverse;
-        }
-        
-        :root {
-          --white: #ffffff;
-          --black: #000000;
-          --transparent: transparent;
-          --dark-blue: #0f172a;
-          --dark-gray: #1e293b;
-          --charcoal: #334155;
-          --dark-slate: #475569;
-          --background: #000000;
-        }
-      `}</style>
-
-      {/* Left Side - Auth Form (40% width) */}
-      <div className="w-2/5 flex items-center justify-center p-6 relative z-10">
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6 }}
-          className="w-full max-w-sm"
-        >
-          <div className="bg-black/40 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+    <div className="h-[100dvh] flex flex-col md:flex-row w-[100dvw] bg-background text-foreground">
+      <ThemeToggle />
+      
+      {/* Left column: sign-in form */}
+      <section className="flex-1 flex items-center justify-center p-8">
+        <div className="w-full max-w-md">
+          <div className="flex flex-col gap-6">
             <div className="text-center mb-6">
               <div className="flex items-center justify-center space-x-2 mb-3">
-                <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
-                  <Bot className="w-5 h-5 text-black" />
+                <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                  <Bot className="w-5 h-5 text-primary-foreground" />
                 </div>
-                <span className="text-white font-bold text-xl">casel</span>
+                <span className="text-foreground font-bold text-xl">casel</span>
               </div>
-              <h1 className="text-xl font-bold mb-2">
-                {isLogin ? 'Welcome back' : 'Get started'}
-              </h1>
-              <p className="text-white/60 text-sm">
-                {isLogin 
-                  ? 'Sign in to your autonomous AI workspace' 
-                  : 'Create your account and start automating'
-                }
-              </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-white text-sm">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="bg-white/5 border-white/20 text-white placeholder:text-white/40 focus:border-white/40"
-                  placeholder="Enter your email"
-                />
+            <h1 className="text-4xl md:text-5xl font-semibold leading-tight text-center">
+              <span className="font-light text-foreground tracking-tighter">
+                {isLogin ? 'Welcome Back' : 'Get Started'}
+              </span>
+            </h1>
+            <p className="text-muted-foreground text-center">
+              {isLogin 
+                ? 'Access your account and continue your journey with us' 
+                : 'Create your account and start automating'
+              }
+            </p>
+
+            <form className="space-y-5" onSubmit={handleSubmit}>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Email Address</label>
+                <GlassInputWrapper>
+                  <input 
+                    name="email" 
+                    type="email" 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter your email address" 
+                    className="w-full bg-transparent text-sm p-4 rounded-2xl focus:outline-none text-foreground" 
+                    required
+                  />
+                </GlassInputWrapper>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-white text-sm">Password</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="bg-white/5 border-white/20 text-white placeholder:text-white/40 focus:border-white/40 pr-10"
-                    placeholder="Enter your password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/40 hover:text-white/60"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Password</label>
+                <GlassInputWrapper>
+                  <div className="relative">
+                    <input 
+                      name="password" 
+                      type={showPassword ? 'text' : 'password'} 
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter your password" 
+                      className="w-full bg-transparent text-sm p-4 pr-12 rounded-2xl focus:outline-none text-foreground" 
+                      required
+                    />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-3 flex items-center">
+                      {showPassword ? <EyeOff className="w-5 h-5 text-muted-foreground hover:text-foreground transition-colors" /> : <Eye className="w-5 h-5 text-muted-foreground hover:text-foreground transition-colors" />}
+                    </button>
+                  </div>
+                </GlassInputWrapper>
               </div>
 
               {!isLogin && (
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword" className="text-white text-sm">Confirm Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="confirmPassword"
-                      type={showConfirmPassword ? "text" : "password"}
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      required
-                      className="bg-white/5 border-white/20 text-white placeholder:text-white/40 focus:border-white/40 pr-10"
-                      placeholder="Confirm your password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/40 hover:text-white/60"
-                    >
-                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Confirm Password</label>
+                  <GlassInputWrapper>
+                    <div className="relative">
+                      <input 
+                        name="confirmPassword" 
+                        type={showConfirmPassword ? 'text' : 'password'} 
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Confirm your password" 
+                        className="w-full bg-transparent text-sm p-4 pr-12 rounded-2xl focus:outline-none text-foreground" 
+                        required
+                      />
+                      <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute inset-y-0 right-3 flex items-center">
+                        {showConfirmPassword ? <EyeOff className="w-5 h-5 text-muted-foreground hover:text-foreground transition-colors" /> : <Eye className="w-5 h-5 text-muted-foreground hover:text-foreground transition-colors" />}
+                      </button>
+                    </div>
+                  </GlassInputWrapper>
                 </div>
               )}
 
-              <Button
-                type="submit"
+              {isLogin && (
+                <div className="flex items-center justify-between text-sm">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" name="rememberMe" className="rounded border-border" />
+                    <span className="text-foreground/90">Keep me signed in</span>
+                  </label>
+                  <a href="#" className="hover:underline text-violet-400 transition-colors">Reset password</a>
+                </div>
+              )}
+
+              <button 
+                type="submit" 
                 disabled={loading}
-                className="w-full bg-white text-black hover:bg-white/90 font-medium py-3"
+                className="w-full rounded-2xl bg-primary py-4 font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
                 {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
-              </Button>
+              </button>
             </form>
 
-            <div className="mt-4 text-center">
-              <button
-                onClick={() => setIsLogin(!isLogin)}
-                className="text-white/60 hover:text-white transition-colors text-sm"
-              >
-                {isLogin 
-                  ? "Don't have an account? Sign up" 
-                  : "Already have an account? Sign in"
-                }
-              </button>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Right Side - Brand & Features (60% width) */}
-      <div className="w-3/5 relative overflow-hidden flex items-center">
-        <div className="relative z-10 flex flex-col justify-center p-8 w-full">
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="space-y-6"
-          >
-            <div>
-              <h2 className="text-4xl font-bold mb-4">
-                Experience True
-                <br />
-                <span className="bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
-                  Automation
-                </span>
-              </h2>
-              <p className="text-xl text-white/70 leading-relaxed">
-                Join thousands of professionals who have transformed their workflow with casel's autonomous AI.
-              </p>
+            <div className="relative flex items-center justify-center">
+              <span className="w-full border-t border-border"></span>
+              <span className="px-4 text-sm text-muted-foreground bg-background absolute">Or continue with</span>
             </div>
 
-            <div className="space-y-4">
-              {features.map((feature, index) => (
-                <motion.div
-                  key={feature.title}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.4 + index * 0.1 }}
-                  className="flex items-start space-x-4"
-                >
-                  <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                    {feature.icon}
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-white mb-1">
-                      {feature.title}
-                    </h3>
-                    <p className="text-white/60 text-sm leading-relaxed">
-                      {feature.description}
-                    </p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.8 }}
-              className="pt-6"
+            <button 
+              onClick={handleGoogleSignIn}
+              className="w-full flex items-center justify-center gap-3 border border-border rounded-2xl py-4 hover:bg-secondary transition-colors"
             >
-              <div className="flex items-center space-x-2 text-white/40 text-sm">
-                <Sparkles className="w-4 h-4" />
-                <span>Trusted by 10,000+ professionals worldwide</span>
-              </div>
-            </motion.div>
-          </motion.div>
+              <GoogleIcon />
+              Continue with Google
+            </button>
+
+            <p className="text-center text-sm text-muted-foreground">
+              {isLogin 
+                ? "New to our platform? " 
+                : "Already have an account? "
+              }
+              <a 
+                href="#" 
+                onClick={(e) => { e.preventDefault(); setIsLogin(!isLogin); }} 
+                className="text-violet-400 hover:underline transition-colors"
+              >
+                {isLogin ? 'Create Account' : 'Sign In'}
+              </a>
+            </p>
+          </div>
         </div>
-      </div>
+      </section>
+
+      {/* Right column: hero image + testimonials */}
+      <section className="hidden md:block flex-1 relative p-4">
+        <div 
+          className="absolute inset-4 rounded-3xl bg-cover bg-center" 
+          style={{ backgroundImage: `url(/lovable-uploads/3b539045-7cf7-4ec2-bcea-880d2ebd6ea4.png)` }}
+        ></div>
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-4 px-8 w-full justify-center">
+          <TestimonialCard testimonial={sampleTestimonials[0]} delay="opacity-100" />
+          <div className="hidden xl:flex">
+            <TestimonialCard testimonial={sampleTestimonials[1]} delay="opacity-100" />
+          </div>
+          <div className="hidden 2xl:flex">
+            <TestimonialCard testimonial={sampleTestimonials[2]} delay="opacity-100" />
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
