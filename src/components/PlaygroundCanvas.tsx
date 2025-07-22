@@ -8,7 +8,7 @@ interface PlaygroundCanvasProps {
 
 const PlaygroundCanvas = ({ children, className = '' }: PlaygroundCanvasProps) => {
   return (
-    <div className={`min-h-screen ${className}`}>
+    <div className={`min-h-screen bg-white ${className}`}>
       {children}
     </div>
   );
