@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { X, Check, Gift, QrCode, Sparkles, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -200,7 +199,7 @@ const PricingPage: React.FC<PricingPageProps> = ({
                   <Card 
                     className={`relative h-full transform transition-all duration-500 hover:scale-105 overflow-hidden rounded-xl border-[0.75px] shadow-xl bg-card/60 ${
                       planItem.popular 
-                        ? 'border-primary/50 shadow-2xl animate-pulse' 
+                        ? 'border-primary/50 shadow-2xl' 
                         : 'border-border/50 hover:shadow-2xl'
                     }`}
                     style={{
@@ -211,7 +210,7 @@ const PricingPage: React.FC<PricingPageProps> = ({
                   >
                     {planItem.popular && (
                       <>
-                        <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-primary/20 via-primary/10 to-primary/20 animate-pulse"></div>
+                        <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-primary/20 via-primary/10 to-primary/20"></div>
                         <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
                           <Badge className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground px-6 py-2 text-sm font-bold rounded-full border-2 border-primary/50 shadow-lg">
                             ⭐ Most Popular
