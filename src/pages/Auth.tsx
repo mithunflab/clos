@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Bot, Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -304,7 +305,7 @@ const Auth = () => {
         </div>
       </motion.section>
 
-      {/* Right column: hero image - 2/3 of the width */}
+      {/* Right column: hero image - 2/3 of the width with perfect rectangle corners */}
       <motion.section 
         className="hidden md:block md:flex-[2] relative"
         initial={{ opacity: 0, scale: 0.95 }}
@@ -312,10 +313,13 @@ const Auth = () => {
         transition={{ duration: 0.8, delay: 0.3 }}
       >
         <div 
-          className={`absolute inset-0 bg-cover bg-center rounded-l-3xl transition-all duration-300 ${
+          className={`absolute inset-0 bg-cover bg-center transition-all duration-300 ${
             showBlur ? 'auth-image-loading' : 'auth-image-loaded'
           }`}
-          style={{ backgroundImage: `url(/lovable-uploads/f64f8323-0f7f-46cf-8e49-f083f09ef9ff.png)` }}
+          style={{ 
+            backgroundImage: `url(/lovable-uploads/f64f8323-0f7f-46cf-8e49-f083f09ef9ff.png)`,
+            borderRadius: '0px' // Perfect rectangle corners
+          }}
         ></div>
       </motion.section>
     </div>
