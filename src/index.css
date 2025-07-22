@@ -98,34 +98,19 @@ All colors MUST be HSL.
   }
 }
 
-/* LIGHT MODE - Override ALL background patterns */
-.light body,
-.light .dashboard-page,
-.light .workflows-page,
-.light .canvas-background,
-.light .playground-canvas {
-  background-color: white !important;
-  background-image: none !important;
-  background-attachment: initial !important;
-  background-size: initial !important;
+/* FIXED BACKGROUNDS - No switching, no overlapping */
+.light body {
+  background-color: #f8fafc;
+  background-image: none;
+  min-height: 100vh;
 }
 
-/* DARK MODE - Canvas dotted background pattern */
-.dark .canvas-background {
+.dark body {
   background-color: #000000;
-  background-image: 
-    radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0);
+  background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0);
   background-size: 20px 20px;
   background-attachment: fixed;
-}
-
-/* Dark mode playground */
-.dark .playground-canvas {
-  background-color: #000000;
-  background-image: 
-    radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0);
-  background-size: 20px 20px;
-  background-attachment: fixed;
+  min-height: 100vh;
 }
 
 /* Auth page - always dark with pattern */

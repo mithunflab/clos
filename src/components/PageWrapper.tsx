@@ -1,7 +1,5 @@
 
 import React from 'react';
-import { useLocation } from 'react-router-dom';
-import { useTheme } from '@/hooks/useTheme';
 
 interface PageWrapperProps {
   children: React.ReactNode;
@@ -9,31 +7,8 @@ interface PageWrapperProps {
 }
 
 const PageWrapper = ({ children, className = '' }: PageWrapperProps) => {
-  const location = useLocation();
-  const { theme } = useTheme();
-
-  const getPageClass = () => {
-    if (theme === 'light') {
-      return 'bg-white';
-    }
-    
-    if (location.pathname === '/dashboard') return 'dashboard-page';
-    if (location.pathname.startsWith('/workflows')) return 'workflows-page';
-    if (location.pathname.includes('/playground')) return 'canvas-background';
-    
-    return 'canvas-background';
-  };
-
-  const lightModeStyle = theme === 'light' ? {
-    backgroundColor: 'white',
-    backgroundImage: 'none'
-  } : undefined;
-
   return (
-    <div 
-      className={`${getPageClass()} ${className}`}
-      style={lightModeStyle}
-    >
+    <div className={`min-h-screen ${className}`}>
       {children}
     </div>
   );

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,7 +46,7 @@ const Profile = () => {
 
   if (profileLoading || planLoading) {
     return (
-      <div className="min-h-screen canvas-background p-6">
+      <div className="min-h-screen p-6">
         <div className="container mx-auto max-w-6xl">
           <div className="animate-pulse space-y-6">
             <div className="h-10 bg-muted rounded-lg w-1/4"></div>
@@ -63,9 +62,9 @@ const Profile = () => {
   }
 
   return (
-    <div className="min-h-screen canvas-background">
+    <div className="min-h-screen">
       <div className="container mx-auto p-6 space-y-8 max-w-6xl">
-        {/* Header */}
+        {/* Header - Floating */}
         <div className="relative min-h-[8rem]">
           <div className="relative h-full rounded-[1.25rem] border-[0.75px] border-border p-2">
             <GlowingEffect
@@ -76,7 +75,7 @@ const Profile = () => {
               inactiveZone={0.01}
               borderWidth={3}
             />
-            <div className="relative bg-card/80 backdrop-blur-xl rounded-xl p-8 border-[0.75px] border-border/50 overflow-hidden">
+            <div className="relative bg-card/90 backdrop-blur-xl rounded-xl p-8 border-[0.75px] border-border/50 overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5"></div>
               <div className="relative flex items-center justify-between">
                 <div>
@@ -88,7 +87,7 @@ const Profile = () => {
                 <Button 
                   variant="outline" 
                   onClick={handleSignOut}
-                  className="flex items-center gap-2 border-destructive/30 text-destructive hover:bg-destructive/10 hover:border-destructive bg-card/50 backdrop-blur-sm transition-all duration-300"
+                  className="flex items-center gap-2 border-destructive/30 text-destructive hover:bg-destructive/10 hover:border-destructive bg-card/80 backdrop-blur-sm transition-all duration-300"
                 >
                   <LogOut className="w-4 h-4" />
                   Sign Out
@@ -99,7 +98,7 @@ const Profile = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Profile Information */}
+          {/* Profile Information - Floating */}
           <div className="relative min-h-[24rem]">
             <div className="relative h-full rounded-[1.25rem] border-[0.75px] border-border p-2">
               <GlowingEffect
@@ -110,7 +109,7 @@ const Profile = () => {
                 inactiveZone={0.01}
                 borderWidth={3}
               />
-              <Card className="relative h-full bg-card/60 backdrop-blur-xl border-border/50 shadow-2xl rounded-xl overflow-hidden border-[0.75px]">
+              <Card className="relative h-full bg-card/90 backdrop-blur-xl border-border/50 shadow-2xl rounded-xl overflow-hidden border-[0.75px]">
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent"></div>
                 <CardHeader className="relative bg-gradient-to-r from-primary/10 to-transparent rounded-t-xl border-b border-border/50 p-8">
                   <CardTitle className="flex items-center gap-3 text-2xl text-card-foreground">
@@ -164,7 +163,7 @@ const Profile = () => {
             </div>
           </div>
 
-          {/* Plan & Credits */}
+          {/* Plan & Credits - Floating */}
           <div className="relative min-h-[24rem]">
             <div className="relative h-full rounded-[1.25rem] border-[0.75px] border-border p-2">
               <GlowingEffect
@@ -175,7 +174,7 @@ const Profile = () => {
                 inactiveZone={0.01}
                 borderWidth={3}
               />
-              <Card className="relative h-full bg-card/60 backdrop-blur-xl border-border/50 shadow-2xl rounded-xl overflow-hidden border-[0.75px]">
+              <Card className="relative h-full bg-card/90 backdrop-blur-xl border-border/50 shadow-2xl rounded-xl overflow-hidden border-[0.75px]">
                 <div className="absolute inset-0 bg-gradient-to-br from-green-600/5 via-transparent to-blue-600/5"></div>
                 <CardHeader className="relative bg-gradient-to-r from-green-500/10 to-blue-500/10 rounded-t-xl border-b border-border/50 p-8">
                   <CardTitle className="flex items-center gap-3 text-2xl text-card-foreground">
@@ -224,7 +223,7 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* Account Settings */}
+        {/* Account Settings - Floating */}
         <div className="relative min-h-[12rem]">
           <div className="relative h-full rounded-[1.25rem] border-[0.75px] border-border p-2">
             <GlowingEffect
@@ -235,7 +234,7 @@ const Profile = () => {
               inactiveZone={0.01}
               borderWidth={3}
             />
-            <Card className="relative h-full bg-card/60 backdrop-blur-xl border-border/50 shadow-2xl rounded-xl overflow-hidden border-[0.75px]">
+            <Card className="relative h-full bg-card/90 backdrop-blur-xl border-border/50 shadow-2xl rounded-xl overflow-hidden border-[0.75px]">
               <div className="absolute inset-0 bg-gradient-to-br from-purple-600/5 via-transparent to-blue-600/5"></div>
               <CardHeader className="relative bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-t-xl border-b border-border/50 p-8">
                 <CardTitle className="flex items-center gap-3 text-2xl text-card-foreground">
