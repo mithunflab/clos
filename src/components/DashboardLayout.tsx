@@ -127,7 +127,9 @@ const DashboardLayout = () => {
             <span className="text-foreground font-bold text-xl">casel</span>
           </div>
           <div className="flex items-center space-x-2">
-            <ThemeToggle />
+            <div className="bg-card/80 backdrop-blur-sm rounded-lg p-1 border border-border/50">
+              <ThemeToggle />
+            </div>
             <Button
               variant="ghost"
               size="sm"
@@ -162,7 +164,9 @@ const DashboardLayout = () => {
                   <span className="text-foreground font-bold text-xl">casel</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <ThemeToggle />
+                  <div className="bg-card/80 backdrop-blur-sm rounded-lg p-1 border border-border/50 shadow-sm">
+                    <ThemeToggle />
+                  </div>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -178,7 +182,9 @@ const DashboardLayout = () => {
                 <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center glow-border-primary">
                   <Bot className="w-5 h-5 text-primary-foreground" />
                 </div>
-                <ThemeToggle />
+                <div className="bg-card/80 backdrop-blur-sm rounded-lg p-1 border border-border/50 shadow-sm">
+                  <ThemeToggle />
+                </div>
                 <Button
                   variant="ghost"
                   size="sm"

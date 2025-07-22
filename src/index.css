@@ -49,11 +49,11 @@ All colors MUST be HSL.
     --sidebar-border: 226 232 240;
     --sidebar-ring: 236 72 153;
 
-    /* Premium Multi-Color Glow System for Light Mode */
-    --glow-primary: 236 72 153;
-    --glow-secondary: 167 139 250;
-    --glow-accent: 34 197 94;
-    --glow-warning: 245 158 11;
+    /* Blue Glow System for Light Mode */
+    --glow-primary: 59 130 246;
+    --glow-secondary: 59 130 246;
+    --glow-accent: 59 130 246;
+    --glow-warning: 59 130 246;
     --glow-info: 59 130 246;
   }
 
@@ -96,12 +96,12 @@ All colors MUST be HSL.
     --sidebar-border: 30 41 59;
     --sidebar-ring: 147 197 253;
 
-    /* Premium Glow System for Dark Mode */
-    --glow-primary: 147 197 253;
-    --glow-secondary: 196 181 253;
-    --glow-accent: 74 222 128;
-    --glow-warning: 251 191 36;
-    --glow-info: 96 165 250;
+    /* Red Glow System for Dark Mode */
+    --glow-primary: 239 68 68;
+    --glow-secondary: 239 68 68;
+    --glow-accent: 239 68 68;
+    --glow-warning: 239 68 68;
+    --glow-info: 239 68 68;
   }
 }
 
@@ -119,9 +119,9 @@ All colors MUST be HSL.
 body {
   background: linear-gradient(135deg, 
     hsl(var(--background)) 0%,
-    hsl(320 100% 98%) 25%,
-    hsl(200 100% 98%) 50%,
-    hsl(120 100% 98%) 75%,
+    hsl(210 100% 98%) 25%,
+    hsl(220 100% 98%) 50%,
+    hsl(200 100% 98%) 75%,
     hsl(var(--background)) 100%
   );
   background-attachment: fixed;
@@ -132,8 +132,8 @@ body {
 .dark body {
   background: 
     radial-gradient(circle at 20% 80%, hsla(var(--glow-primary), 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, hsla(var(--glow-secondary), 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 40% 40%, hsla(var(--glow-accent), 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, hsla(var(--glow-primary), 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, hsla(var(--glow-primary), 0.05) 0%, transparent 50%),
     linear-gradient(135deg, 
       hsl(var(--background)) 0%,
       hsl(220 91% 2%) 50%,
@@ -162,7 +162,7 @@ body {
   filter: blur(0px);
 }
 
-/* Premium Glowing Effects for Multi-Color Light Mode */
+/* Premium Glowing Effects for Blue Light Mode */
 .light .glow-border {
   position: relative;
   border: 1px solid hsl(var(--border));
@@ -199,43 +199,43 @@ body {
 
 .light .glow-border-secondary {
   position: relative;
-  border: 1px solid hsl(var(--glow-secondary) / 0.4);
+  border: 1px solid hsl(var(--glow-primary) / 0.4);
   background: hsl(var(--card));
   box-shadow: 
-    0 0 15px hsla(var(--glow-secondary), 0.2),
-    0 0 30px hsla(var(--glow-secondary), 0.1),
-    inset 0 0 15px hsla(var(--glow-secondary), 0.05);
+    0 0 15px hsla(var(--glow-primary), 0.2),
+    0 0 30px hsla(var(--glow-primary), 0.1),
+    inset 0 0 15px hsla(var(--glow-primary), 0.05);
   transition: all 0.3s ease;
 }
 
 .light .glow-border-secondary:hover {
-  border-color: hsl(var(--glow-secondary));
+  border-color: hsl(var(--glow-primary));
   box-shadow: 
-    0 0 25px hsla(var(--glow-secondary), 0.4),
-    0 0 50px hsla(var(--glow-secondary), 0.2),
-    inset 0 0 25px hsla(var(--glow-secondary), 0.1);
+    0 0 25px hsla(var(--glow-primary), 0.4),
+    0 0 50px hsla(var(--glow-primary), 0.2),
+    inset 0 0 25px hsla(var(--glow-primary), 0.1);
 }
 
 .light .glow-border-accent {
   position: relative;
-  border: 1px solid hsl(var(--glow-accent) / 0.4);
+  border: 1px solid hsl(var(--glow-primary) / 0.4);
   background: hsl(var(--card));
   box-shadow: 
-    0 0 15px hsla(var(--glow-accent), 0.2),
-    0 0 30px hsla(var(--glow-accent), 0.1),
-    inset 0 0 15px hsla(var(--glow-accent), 0.05);
+    0 0 15px hsla(var(--glow-primary), 0.2),
+    0 0 30px hsla(var(--glow-primary), 0.1),
+    inset 0 0 15px hsla(var(--glow-primary), 0.05);
   transition: all 0.3s ease;
 }
 
 .light .glow-border-accent:hover {
-  border-color: hsl(var(--glow-accent));
+  border-color: hsl(var(--glow-primary));
   box-shadow: 
-    0 0 25px hsla(var(--glow-accent), 0.4),
-    0 0 50px hsla(var(--glow-accent), 0.2),
-    inset 0 0 25px hsla(var(--glow-accent), 0.1);
+    0 0 25px hsla(var(--glow-primary), 0.4),
+    0 0 50px hsla(var(--glow-primary), 0.2),
+    inset 0 0 25px hsla(var(--glow-primary), 0.1);
 }
 
-/* Premium Dark Mode Glowing Effects */
+/* Premium Red Glowing Effects for Dark Mode */
 .dark .glow-border {
   position: relative;
   border: 1px solid hsl(var(--border));
@@ -272,40 +272,40 @@ body {
 
 .dark .glow-border-secondary {
   position: relative;
-  border: 1px solid hsl(var(--glow-secondary) / 0.5);
+  border: 1px solid hsl(var(--glow-primary) / 0.5);
   background: hsl(var(--card));
   box-shadow: 
-    0 0 20px hsla(var(--glow-secondary), 0.3),
-    0 0 40px hsla(var(--glow-secondary), 0.15),
-    inset 0 0 20px hsla(var(--glow-secondary), 0.08);
+    0 0 20px hsla(var(--glow-primary), 0.3),
+    0 0 40px hsla(var(--glow-primary), 0.15),
+    inset 0 0 20px hsla(var(--glow-primary), 0.08);
   transition: all 0.3s ease;
 }
 
 .dark .glow-border-secondary:hover {
-  border-color: hsl(var(--glow-secondary));
+  border-color: hsl(var(--glow-primary));
   box-shadow: 
-    0 0 35px hsla(var(--glow-secondary), 0.5),
-    0 0 70px hsla(var(--glow-secondary), 0.3),
-    inset 0 0 35px hsla(var(--glow-secondary), 0.15);
+    0 0 35px hsla(var(--glow-primary), 0.5),
+    0 0 70px hsla(var(--glow-primary), 0.3),
+    inset 0 0 35px hsla(var(--glow-primary), 0.15);
 }
 
 .dark .glow-border-accent {
   position: relative;
-  border: 1px solid hsl(var(--glow-accent) / 0.5);
+  border: 1px solid hsl(var(--glow-primary) / 0.5);
   background: hsl(var(--card));
   box-shadow: 
-    0 0 20px hsla(var(--glow-accent), 0.3),
-    0 0 40px hsla(var(--glow-accent), 0.15),
-    inset 0 0 20px hsla(var(--glow-accent), 0.08);
+    0 0 20px hsla(var(--glow-primary), 0.3),
+    0 0 40px hsla(var(--glow-primary), 0.15),
+    inset 0 0 20px hsla(var(--glow-primary), 0.08);
   transition: all 0.3s ease;
 }
 
 .dark .glow-border-accent:hover {
-  border-color: hsl(var(--glow-accent));
+  border-color: hsl(var(--glow-primary));
   box-shadow: 
-    0 0 35px hsla(var(--glow-accent), 0.5),
-    0 0 70px hsla(var(--glow-accent), 0.3),
-    inset 0 0 35px hsla(var(--glow-accent), 0.15);
+    0 0 35px hsla(var(--glow-primary), 0.5),
+    0 0 70px hsla(var(--glow-primary), 0.3),
+    inset 0 0 35px hsla(var(--glow-primary), 0.15);
 }
 
 /* Premium Card Effects */
@@ -313,8 +313,8 @@ body {
   border: 1px solid hsl(var(--border));
   box-shadow: 
     0 4px 20px hsla(var(--glow-primary), 0.1),
-    0 0 40px hsla(var(--glow-secondary), 0.05),
-    0 0 60px hsla(var(--glow-accent), 0.03);
+    0 0 40px hsla(var(--glow-primary), 0.05),
+    0 0 60px hsla(var(--glow-primary), 0.03);
   transition: all 0.3s ease;
 }
 
@@ -322,16 +322,16 @@ body {
   border-color: hsl(var(--glow-primary) / 0.4);
   box-shadow: 
     0 8px 30px hsla(var(--glow-primary), 0.2),
-    0 0 60px hsla(var(--glow-secondary), 0.1),
-    0 0 80px hsla(var(--glow-accent), 0.05);
+    0 0 60px hsla(var(--glow-primary), 0.1),
+    0 0 80px hsla(var(--glow-primary), 0.05);
 }
 
 .dark .glow-card {
   border: 1px solid hsl(var(--border));
   box-shadow: 
     0 4px 25px hsla(var(--glow-primary), 0.2),
-    0 0 50px hsla(var(--glow-secondary), 0.1),
-    0 0 80px hsla(var(--glow-accent), 0.05);
+    0 0 50px hsla(var(--glow-primary), 0.1),
+    0 0 80px hsla(var(--glow-primary), 0.05);
   transition: all 0.3s ease;
 }
 
@@ -339,9 +339,11 @@ body {
   border-color: hsl(var(--glow-primary) / 0.6);
   box-shadow: 
     0 8px 40px hsla(var(--glow-primary), 0.3),
-    0 0 80px hsla(var(--glow-secondary), 0.2),
-    0 0 120px hsla(var(--glow-accent), 0.1);
+    0 0 80px hsla(var(--glow-primary), 0.2),
+    0 0 120px hsla(var(--glow-primary), 0.1);
 }
+
+/* ... keep existing code (animations and utility classes) the same ... */
 
 /* Custom animations for the sign-in page */
 @keyframes fadeSlideIn {

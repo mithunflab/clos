@@ -10,6 +10,7 @@ import { useWorkflowStorageV2 } from '@/hooks/useWorkflowStorageV2';
 import { useUserPlan } from '@/hooks/useUserPlan';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { motion } from 'framer-motion';
 
 interface WorkflowItem {
   id: string;
@@ -191,121 +192,157 @@ const Workflows = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto p-6 max-w-7xl">
-        {/* Header */}
-        <Card className="bg-card border-border shadow-sm mb-8">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-                  <Bot className="w-6 h-6 text-primary-foreground" />
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          {/* Header */}
+          <Card glowVariant="premium" enableGlowEffect={true} className="shadow-xl mb-8">
+            <CardContent className="p-8">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-xl flex items-center justify-center border border-primary/20">
+                    <Bot className="w-8 h-8 text-primary" />
+                  </div>
+                  <div>
+                    <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent mb-2">
+                      Workflows
+                    </h1>
+                    <p className="text-muted-foreground text-lg">
+                      Manage your automation workflows 
+                      <span className={`ml-2 font-medium ${getWorkflowLimitColor()}`}>
+                        ({getWorkflowLimitText()})
+                      </span>
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-foreground">Workflows</h1>
-                  <p className="text-muted-foreground">
-                    Manage your automation workflows 
-                    <span className={`ml-2 font-medium ${getWorkflowLimitColor()}`}>
-                      ({getWorkflowLimitText()})
-                    </span>
-                  </p>
-                </div>
+                <Button 
+                  onClick={handleCreateWorkflow}
+                  className="bg-gradient-to-r from-primary to-secondary text-white hover:from-primary/90 hover:to-secondary/90 px-6 py-3 shadow-lg hover:shadow-xl transition-all duration-300"
+                >
+                  <Plus className="w-5 h-5 mr-2" />
+                  Create Workflow
+                </Button>
               </div>
-              <Button 
-                onClick={handleCreateWorkflow}
-                className="flex items-center space-x-2 bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Create Workflow</span>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Workflows Grid */}
-        {workflows.length === 0 ? (
-          <Card className="bg-card border-border shadow-sm">
-            <CardContent className="text-center py-12">
-              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                <Bot className="w-8 h-8 text-muted-foreground" />
-              </div>
-              <h3 className="text-xl font-semibold text-foreground mb-2">No workflows yet</h3>
-              <p className="text-muted-foreground mb-6">
-                Create your first workflow to get started with automation
-              </p>
-              <Button 
-                onClick={handleCreateWorkflow}
-                className="bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Create Your First Workflow
-              </Button>
             </CardContent>
           </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {workflows.map((workflow) => (
-              <Card key={workflow.id} className="bg-card border-border shadow-sm hover:shadow-md transition-shadow duration-200">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg mb-1 text-card-foreground">{workflow.name}</CardTitle>
-                      <CardDescription className="text-sm text-muted-foreground">
-                        {workflow.description}
-                      </CardDescription>
-                    </div>
-                    <Badge className={getStatusColor(workflow.status)}>
-                      <div className="flex items-center space-x-1">
-                        {getStatusIcon(workflow.status)}
-                        <span className="capitalize">{workflow.status}</span>
+
+          {/* Workflows Grid */}
+          {workflows.length === 0 ? (
+            <Card glowVariant="primary" enableGlowEffect={false} className="shadow-lg hover:shadow-xl transition-all duration-300">
+              <CardContent className="text-center py-16">
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                >
+                  <div className="w-20 h-20 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-primary/20">
+                    <Bot className="w-10 h-10 text-primary" />
+                  </div>
+                  <h3 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-3">
+                    No workflows yet
+                  </h3>
+                  <p className="text-muted-foreground mb-8 text-lg">
+                    Create your first workflow to get started with automation
+                  </p>
+                  <Button 
+                    onClick={handleCreateWorkflow}
+                    className="bg-gradient-to-r from-primary to-secondary text-white hover:from-primary/90 hover:to-secondary/90 px-8 py-3 shadow-lg hover:shadow-xl transition-all duration-300"
+                  >
+                    <Plus className="w-5 h-5 mr-2" />
+                    Create Your First Workflow
+                  </Button>
+                </motion.div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {workflows.map((workflow, index) => (
+                <motion.div
+                  key={workflow.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                >
+                  <Card 
+                    glowVariant="primary" 
+                    enableGlowEffect={false} 
+                    className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                  >
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="text-xl mb-2 text-card-foreground font-bold">
+                            {workflow.name}
+                          </CardTitle>
+                          <CardDescription className="text-muted-foreground">
+                            {workflow.description}
+                          </CardDescription>
+                        </div>
+                        <Badge className={`${getStatusColor(workflow.status)} flex items-center gap-2 px-3 py-1 border text-sm font-medium`}>
+                          {getStatusIcon(workflow.status)}
+                          <span className="capitalize">{workflow.status}</span>
+                        </Badge>
                       </div>
-                    </Badge>
-                  </div>
-                </CardHeader>
-                
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="text-xs text-muted-foreground">
-                      <div>Created: {formatDate(workflow.created_at)}</div>
-                      {workflow.updated_at && (
-                        <div>Updated: {formatDate(workflow.updated_at)}</div>
-                      )}
-                    </div>
+                    </CardHeader>
                     
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditWorkflow(workflow.id)}
-                        className="flex-1"
-                      >
-                        <Edit className="w-4 h-4 mr-2" />
-                        Edit
-                      </Button>
-                      
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeleteWorkflow(workflow.id)}
-                        className="bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                      
-                      {workflow.deployment_url && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => window.open(workflow.deployment_url, '_blank')}
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="bg-gradient-to-br from-muted/30 to-card rounded-xl p-4 border border-border/50">
+                          <div className="text-sm text-muted-foreground space-y-1">
+                            <div className="flex justify-between">
+                              <span>Created:</span>
+                              <span className="font-medium">{formatDate(workflow.created_at)}</span>
+                            </div>
+                            {workflow.updated_at && (
+                              <div className="flex justify-between">
+                                <span>Updated:</span>
+                                <span className="font-medium">{formatDate(workflow.updated_at)}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditWorkflow(workflow.id)}
+                            className="flex-1 bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/30 hover:border-primary/60 hover:bg-primary/10 transition-all duration-300"
+                          >
+                            <Edit className="w-4 h-4 mr-2" />
+                            Edit
+                          </Button>
+                          
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteWorkflow(workflow.id)}
+                            className="bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20 hover:border-destructive/50 transition-all duration-300"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                          
+                          {workflow.deployment_url && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.open(workflow.deployment_url, '_blank')}
+                              className="bg-accent/10 border-accent/30 text-accent hover:bg-accent/20 hover:border-accent/50 transition-all duration-300"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </motion.div>
       </div>
     </div>
   );
