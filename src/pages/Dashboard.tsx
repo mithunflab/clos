@@ -72,7 +72,7 @@ const Dashboard = () => {
   }, [getUserWorkflows]);
 
   return (
-    <div className="min-h-screen bg-transparent text-white">
+    <div className="min-h-screen text-white">
       <div className="relative z-10 p-6 lg:p-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

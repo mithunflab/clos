@@ -178,10 +178,10 @@ const Workflows = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background text-foreground">
+      <div className="min-h-screen text-white">
         <div className="container mx-auto p-6">
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-foreground"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
           </div>
         </div>
       </div>
@@ -189,17 +189,17 @@ const Workflows = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen text-white">
       <div className="container mx-auto p-6 max-w-7xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-              <Bot className="w-6 h-6 text-primary-foreground" />
+            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
+              <Bot className="w-6 h-6 text-black" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Workflows</h1>
-              <p className="text-muted-foreground">
+              <h1 className="text-3xl font-bold text-white">Workflows</h1>
+              <p className="text-white/70">
                 Manage your automation workflows 
                 <span className={`ml-2 font-medium ${getWorkflowLimitColor()}`}>
                   ({getWorkflowLimitText()})
@@ -209,7 +209,7 @@ const Workflows = () => {
           </div>
           <Button 
             onClick={handleCreateWorkflow}
-            className="flex items-center space-x-2 bg-primary text-primary-foreground hover:bg-primary/90"
+            className="flex items-center space-x-2 bg-white text-black hover:bg-white/90"
           >
             <Plus className="w-4 h-4" />
             <span>Create Workflow</span>
@@ -219,16 +219,16 @@ const Workflows = () => {
         {/* Workflows Grid */}
         {workflows.length === 0 ? (
           <div className="text-center py-12">
-            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-              <Bot className="w-8 h-8 text-muted-foreground" />
+            <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Bot className="w-8 h-8 text-white/70" />
             </div>
-            <h3 className="text-xl font-semibold text-foreground mb-2">No workflows yet</h3>
-            <p className="text-muted-foreground mb-6">
+            <h3 className="text-xl font-semibold text-white mb-2">No workflows yet</h3>
+            <p className="text-white/70 mb-6">
               Create your first workflow to get started with automation
             </p>
             <Button 
               onClick={handleCreateWorkflow}
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
+              className="bg-white text-black hover:bg-white/90"
             >
               <Plus className="w-4 h-4 mr-2" />
               Create Your First Workflow
@@ -247,12 +247,12 @@ const Workflows = () => {
                     inactiveZone={0.01}
                     borderWidth={3}
                   />
-                  <Card className="relative h-full bg-card/40 backdrop-blur-sm border-card-foreground/10 hover:bg-card/60 transition-all duration-200 rounded-xl border-[0.75px] shadow-sm">
+                  <Card className="relative h-full bg-black/30 backdrop-blur-sm border border-white/10 hover:bg-black/40 transition-all duration-200 rounded-xl shadow-sm">
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <CardTitle className="text-lg mb-1 text-card-foreground">{workflow.name}</CardTitle>
-                          <CardDescription className="text-sm text-muted-foreground">
+                          <CardTitle className="text-lg mb-1 text-white">{workflow.name}</CardTitle>
+                          <CardDescription className="text-sm text-white/60">
                             {workflow.description}
                           </CardDescription>
                         </div>
@@ -267,7 +267,7 @@ const Workflows = () => {
                     
                     <CardContent>
                       <div className="space-y-3">
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-xs text-white/60">
                           <div>Created: {formatDate(workflow.created_at)}</div>
                           {workflow.updated_at && (
                             <div>Updated: {formatDate(workflow.updated_at)}</div>
@@ -279,7 +279,7 @@ const Workflows = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => handleEditWorkflow(workflow.id)}
-                            className="flex-1 bg-muted/50 border-border text-foreground hover:bg-muted"
+                            className="flex-1 bg-white/10 border-white/20 text-white hover:bg-white/20"
                           >
                             <Edit className="w-4 h-4 mr-2" />
                             Edit
@@ -289,7 +289,7 @@ const Workflows = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => handleDeleteWorkflow(workflow.id)}
-                            className="bg-destructive/20 border-destructive/30 text-destructive hover:bg-destructive/30"
+                            className="bg-red-500/20 border-red-500/30 text-red-400 hover:bg-red-500/30"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -299,7 +299,7 @@ const Workflows = () => {
                               variant="outline"
                               size="sm"
                               onClick={() => window.open(workflow.deployment_url, '_blank')}
-                              className="bg-muted/50 border-border text-foreground hover:bg-muted"
+                              className="bg-white/10 border-white/20 text-white hover:bg-white/20"
                             >
                               <ExternalLink className="w-4 h-4" />
                             </Button>
