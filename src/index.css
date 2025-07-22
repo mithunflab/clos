@@ -98,7 +98,7 @@ All colors MUST be HSL.
   }
 }
 
-/* DARK MODE ONLY - Canvas dotted background pattern */
+/* DARK MODE - Canvas dotted background pattern */
 .dark .canvas-background {
   background-color: #000000;
   background-image: 
@@ -107,26 +107,36 @@ All colors MUST be HSL.
   background-attachment: fixed;
 }
 
-/* LIGHT MODE - Force clean white backgrounds, remove ALL overlapping patterns */
-.light,
-.light *,
-.light body,
+/* LIGHT MODE - Clean white backgrounds for specific containers only */
+.light body {
+  background-color: hsl(var(--background));
+  background-image: none;
+}
+
 .light .dashboard-page,
 .light .workflows-page,
 .light .canvas-background,
 .light .playground-canvas {
   background-color: hsl(var(--background)) !important;
   background-image: none !important;
-  background-attachment: initial !important;
+}
+
+/* Dark mode playground - keep existing dark style */
+.dark .playground-canvas {
+  background-color: #000000;
+  background-image: 
+    radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0);
+  background-size: 20px 20px;
+  background-attachment: fixed;
 }
 
 /* Auth page - always dark with pattern */
 .auth-bg {
-  background-color: #000000 !important;
+  background-color: #000000;
   background-image: 
-    radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0) !important;
-  background-size: 20px 20px !important;
-  background-attachment: fixed !important;
+    radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0);
+  background-size: 20px 20px;
+  background-attachment: fixed;
 }
 
 /* Auth page blur loading effect */
