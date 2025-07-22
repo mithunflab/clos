@@ -36,21 +36,21 @@ const Navigation = () => {
             <Button
               variant={location.pathname === '/dashboard' ? 'default' : 'ghost'}
               onClick={() => navigate('/dashboard')}
-              className="text-foreground"
+              className="text-foreground dark:text-foreground"
             >
               Dashboard
             </Button>
             <Button
               variant={location.pathname.startsWith('/workflows') ? 'default' : 'ghost'}
               onClick={() => navigate('/workflows')}
-              className="text-foreground"
+              className="text-foreground dark:text-foreground"
             >
               Workflows
             </Button>
             <Button
               variant={location.pathname === '/playground' ? 'default' : 'ghost'}
               onClick={() => navigate('/playground')}
-              className="text-foreground"
+              className="text-foreground dark:text-foreground"
             >
               Playground
             </Button>
@@ -61,7 +61,7 @@ const Navigation = () => {
           <Button
             variant="ghost"
             onClick={() => navigate('/profile')}
-            className="text-foreground"
+            className="text-foreground dark:text-foreground"
           >
             <User className="w-4 h-4 mr-2" />
             Profile
@@ -69,7 +69,7 @@ const Navigation = () => {
           <Button
             variant="ghost"
             onClick={handleSignOut}
-            className="text-foreground hover:text-destructive"
+            className="text-foreground hover:text-destructive dark:text-foreground dark:hover:text-destructive"
           >
             <LogOut className="w-4 h-4 mr-2" />
             Sign Out

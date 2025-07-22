@@ -141,15 +141,44 @@ All colors MUST be HSL.
   }
 }
 
-/* Light Mode Premium Gradient Background */
-body:not(.dark) {
-  background: linear-gradient(135deg, 
-    hsl(240 100% 98%) 0%,
-    hsl(260 100% 99%) 25%,
-    hsl(280 60% 98%) 50%,
-    hsl(300 40% 99%) 75%,
-    hsl(240 100% 98%) 100%);
+/* Enhanced Light Mode Premium Multicolor Background with Texture */
+body:not(.dark):not(.playground-dark-mode) {
+  background: 
+    /* Textured overlay */
+    radial-gradient(circle at 20% 20%, hsla(262, 100%, 50%, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 80% 20%, hsla(340, 100%, 50%, 0.06) 0%, transparent 40%),
+    radial-gradient(circle at 40% 60%, hsla(217, 91%, 60%, 0.07) 0%, transparent 40%),
+    radial-gradient(circle at 70% 80%, hsla(45, 100%, 51%, 0.05) 0%, transparent 40%),
+    radial-gradient(circle at 10% 80%, hsla(200, 100%, 50%, 0.06) 0%, transparent 40%),
+    /* Dot pattern texture */
+    radial-gradient(circle at 1px 1px, hsla(262, 100%, 50%, 0.1) 1px, transparent 0),
+    /* Animated gradient background */
+    linear-gradient(135deg, 
+      hsl(240 100% 98%) 0%,
+      hsl(260 80% 98%) 15%,
+      hsl(280 60% 99%) 30%,
+      hsl(300 40% 98%) 45%,
+      hsl(320 50% 99%) 60%,
+      hsl(280 60% 98%) 75%,
+      hsl(240 100% 98%) 100%);
+  background-size: 
+    800px 800px,
+    900px 900px,
+    700px 700px,
+    600px 600px,
+    850px 850px,
+    40px 40px,
+    400% 400%;
   background-attachment: fixed;
+  background-position: 
+    0% 0%,
+    100% 0%,
+    50% 50%,
+    0% 100%,
+    100% 100%,
+    0 0,
+    0% 50%;
+  animation: multicolor-background 20s ease-in-out infinite;
   min-height: 100vh;
 }
 
@@ -454,6 +483,14 @@ body:not(.dark) {
       0 0 20px hsla(262, 100%, 50%, 0.3),
       0 0 40px hsla(262, 100%, 50%, 0.1);
   }
+}
+
+@keyframes multicolor-background {
+  0% { background-position: 0% 0%, 100% 0%, 50% 50%, 0% 100%, 100% 100%, 0 0, 0% 50%; }
+  25% { background-position: 25% 25%, 75% 25%, 25% 75%, 25% 75%, 75% 75%, 0 0, 25% 50%; }
+  50% { background-position: 50% 50%, 50% 50%, 0% 100%, 50% 50%, 50% 50%, 0 0, 50% 50%; }
+  75% { background-position: 75% 25%, 25% 75%, 75% 25%, 75% 25%, 25% 25%, 0 0, 75% 50%; }
+  100% { background-position: 0% 0%, 100% 0%, 50% 50%, 0% 100%, 100% 100%, 0 0, 0% 50%; }
 }
 
 .animate-element {
