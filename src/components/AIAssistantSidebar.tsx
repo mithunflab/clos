@@ -145,25 +145,29 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
     console.log('🎬 Animated file writing completed for:', fileName);
   };
 
-  // Helper function to animate text character by character
-  const animateTextResponse = async (text: string, messageId: string, currentContent: string) => {
+  // Helper function to animate text character by character (non-blocking)
+  const animateTextResponse = (text: string, messageId: string, currentContent: string) => {
     const words = text.split(' ');
     let animatedContent = currentContent;
+    let wordIndex = 0;
     
-    for (let i = 0; i < words.length; i++) {
-      animatedContent += (i > 0 ? ' ' : '') + words[i];
-      
-      setMessages(prev => prev.map(msg => 
-        msg.id === messageId 
-          ? { ...msg, content: animatedContent }
-          : msg
-      ));
-      
-      // Animate word by word for smooth effect
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
+    const animateNextWord = () => {
+      if (wordIndex < words.length) {
+        animatedContent += (wordIndex > 0 ? ' ' : '') + words[wordIndex];
+        
+        setMessages(prev => prev.map(msg => 
+          msg.id === messageId 
+            ? { ...msg, content: animatedContent }
+            : msg
+        ));
+        
+        wordIndex++;
+        setTimeout(animateNextWord, 30); // Faster animation
+      }
+    };
     
-    return animatedContent;
+    animateNextWord();
+    return currentContent + text; // Return the final content immediately for the stream to continue
   };
 
   const sendMessage = async () => {
@@ -415,7 +419,7 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
                 }
                 
                 // Normal text content (not JSON) - animate text response
-                assistantContent = await animateTextResponse(textContent, assistantMessage.id, assistantContent);
+                assistantContent = animateTextResponse(textContent, assistantMessage.id, assistantContent);
               } else if (data.type === 'workflow') {
                 workflowData = data.content;
                 console.log('🎯 Received workflow data:', {
