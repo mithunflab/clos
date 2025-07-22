@@ -1,308 +1,279 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { Bot, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
-import { Loader2, Eye, EyeOff } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import ThemeToggle from '@/components/ThemeToggle';
-import { GlowingEffect } from '@/components/ui/glowing-effect';
+
+const GoogleIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 48 48">
+    <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s12-5.373 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-2.641-.21-5.236-.611-7.743z" />
+    <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z" />
+    <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z" />
+    <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l6.19 5.238C42.022 35.026 44 30.038 44 24c0-2.641-.21-5.236-.611-7.743z" />
+  </svg>
+);
+
+const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
+  <div className="rounded-2xl border border-border bg-foreground/5 backdrop-blur-sm transition-colors focus-within:border-violet-400/70 focus-within:bg-violet-500/10">
+    {children}
+  </div>
+);
 
 const Auth = () => {
-  const [loading, setLoading] = useState(false);
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    confirmPassword: ''
-  });
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (session?.user) {
+          navigate('/dashboard');
+        }
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        navigate('/dashboard');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      if (isLogin) {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        
+        if (error) {
+          toast({
+            title: "Login Failed",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
+      } else {
+        if (password !== confirmPassword) {
+          toast({
+            title: "Password Mismatch",
+            description: "Passwords do not match",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/`
+          }
+        });
+
+        if (error) {
+          toast({
+            title: "Signup Failed",
+            description: error.message,
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Success!",
+            description: "Check your email to confirm your account",
+          });
+        }
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGoogleSignIn = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/dashboard`
+      }
+    });
     
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
       });
-
-      if (error) throw error;
-      
-      toast.success('Check your email for the confirmation link!');
-    } catch (error: any) {
-      toast.error(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password,
-      });
-
-      if (error) throw error;
-      
-      toast.success('Welcome back!');
-      navigate('/dashboard');
-    } catch (error: any) {
-      toast.error(error.message);
-    } finally {
-      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Left Side - Sign In Form */}
-      <div className="w-1/3 flex items-center justify-center p-8 relative">
-        <div className="absolute top-6 right-6">
-          <ThemeToggle />
-        </div>
-        
-        <div className="w-full max-w-md space-y-8">
-          {/* Brand Header */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-12"
-          >
-            <h1 className="text-4xl font-bold text-foreground mb-2 tracking-tight">
-              Welcome to <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">CASEL</span>
+    <div className="h-[100dvh] flex flex-col md:flex-row w-[100dvw] bg-background text-foreground">
+      <ThemeToggle />
+      
+      {/* Left column: sign-in form - 1/3 of the width */}
+      <section className="flex-1 md:flex-[1] flex items-center justify-center p-8">
+        <div className="w-full max-w-md">
+          <div className="flex flex-col gap-6">
+            <div className="text-center mb-6">
+              <div className="flex items-center justify-center space-x-2 mb-3">
+                <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                  <Bot className="w-5 h-5 text-primary-foreground" />
+                </div>
+                <span className="text-foreground font-bold text-xl tracking-wider" style={{ fontFamily: 'system-ui, -apple-system, sans-serif', letterSpacing: '0.05em' }}>casel</span>
+              </div>
+            </div>
+
+            <h1 className="text-4xl md:text-5xl font-light leading-tight text-center tracking-tight">
+              {isLogin ? 'Welcome to\nOnlook' : 'Get Started'}
             </h1>
-            <p className="text-muted-foreground text-lg">
-              Your AI-powered automation platform
+            <p className="text-muted-foreground text-center">
+              {isLogin 
+                ? 'Access your account and continue your journey with us' 
+                : 'Create your account and start automating'
+              }
             </p>
-          </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="relative"
-          >
-            <GlowingEffect
-              blur={20}
-              proximity={100}
-              spread={80}
-              className="rounded-xl"
-              disabled={false}
-            />
-            <Card className="relative bg-card/50 backdrop-blur-xl border-border/50 shadow-2xl">
-              <CardHeader className="text-center pb-4">
-                <CardTitle className="text-2xl font-semibold text-card-foreground">
-                  Get Started
-                </CardTitle>
-                <CardDescription className="text-muted-foreground">
-                  Sign in to your account or create a new one
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Tabs defaultValue="signin" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 mb-6">
-                    <TabsTrigger value="signin" className="text-sm font-medium">
-                      Sign In
-                    </TabsTrigger>
-                    <TabsTrigger value="signup" className="text-sm font-medium">
-                      Sign Up
-                    </TabsTrigger>
-                  </TabsList>
+            <form className="space-y-5" onSubmit={handleSubmit}>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Email Address</label>
+                <GlassInputWrapper>
+                  <input 
+                    name="email" 
+                    type="email" 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter your email address" 
+                    className="w-full bg-transparent text-sm p-4 rounded-2xl focus:outline-none text-foreground" 
+                    required
+                  />
+                </GlassInputWrapper>
+              </div>
 
-                  <TabsContent value="signin">
-                    <form onSubmit={handleSignIn} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="email" className="text-sm font-medium text-foreground">
-                          Email
-                        </Label>
-                        <Input
-                          id="email"
-                          name="email"
-                          type="email"
-                          value={formData.email}
-                          onChange={handleInputChange}
-                          required
-                          className="bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20"
-                          placeholder="Enter your email"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="password" className="text-sm font-medium text-foreground">
-                          Password
-                        </Label>
-                        <div className="relative">
-                          <Input
-                            id="password"
-                            name="password"
-                            type={showPassword ? "text" : "password"}
-                            value={formData.password}
-                            onChange={handleInputChange}
-                            required
-                            className="bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 pr-10"
-                            placeholder="Enter your password"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                          >
-                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </div>
-                      <Button 
-                        type="submit" 
-                        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2.5 mt-6"
-                        disabled={loading}
-                      >
-                        {loading ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Signing in...
-                          </>
-                        ) : (
-                          'Sign In'
-                        )}
-                      </Button>
-                    </form>
-                  </TabsContent>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Password</label>
+                <GlassInputWrapper>
+                  <div className="relative">
+                    <input 
+                      name="password" 
+                      type={showPassword ? 'text' : 'password'} 
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter your password" 
+                      className="w-full bg-transparent text-sm p-4 pr-12 rounded-2xl focus:outline-none text-foreground" 
+                      required
+                    />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-3 flex items-center">
+                      {showPassword ? <EyeOff className="w-5 h-5 text-muted-foreground hover:text-foreground transition-colors" /> : <Eye className="w-5 h-5 text-muted-foreground hover:text-foreground transition-colors" />}
+                    </button>
+                  </div>
+                </GlassInputWrapper>
+              </div>
 
-                  <TabsContent value="signup">
-                    <form onSubmit={handleSignUp} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="signup-email" className="text-sm font-medium text-foreground">
-                          Email
-                        </Label>
-                        <Input
-                          id="signup-email"
-                          name="email"
-                          type="email"
-                          value={formData.email}
-                          onChange={handleInputChange}
-                          required
-                          className="bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20"
-                          placeholder="Enter your email"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="signup-password" className="text-sm font-medium text-foreground">
-                          Password
-                        </Label>
-                        <div className="relative">
-                          <Input
-                            id="signup-password"
-                            name="password"
-                            type={showPassword ? "text" : "password"}
-                            value={formData.password}
-                            onChange={handleInputChange}
-                            required
-                            className="bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 pr-10"
-                            placeholder="Create a password"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                          >
-                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="confirm-password" className="text-sm font-medium text-foreground">
-                          Confirm Password
-                        </Label>
-                        <Input
-                          id="confirm-password"
-                          name="confirmPassword"
-                          type={showPassword ? "text" : "password"}
-                          value={formData.confirmPassword}
-                          onChange={handleInputChange}
-                          required
-                          className="bg-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20"
-                          placeholder="Confirm your password"
-                        />
-                      </div>
-                      <Button 
-                        type="submit" 
-                        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2.5 mt-6"
-                        disabled={loading}
-                      >
-                        {loading ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Creating account...
-                          </>
-                        ) : (
-                          'Create Account'
-                        )}
-                      </Button>
-                    </form>
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
-      </div>
+              {!isLogin && (
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Confirm Password</label>
+                  <GlassInputWrapper>
+                    <div className="relative">
+                      <input 
+                        name="confirmPassword" 
+                        type={showConfirmPassword ? 'text' : 'password'} 
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Confirm your password" 
+                        className="w-full bg-transparent text-sm p-4 pr-12 rounded-2xl focus:outline-none text-foreground" 
+                        required
+                      />
+                      <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute inset-y-0 right-3 flex items-center">
+                        {showConfirmPassword ? <EyeOff className="w-5 h-5 text-muted-foreground hover:text-foreground transition-colors" /> : <Eye className="w-5 h-5 text-muted-foreground hover:text-foreground transition-colors" />}
+                      </button>
+                    </div>
+                  </GlassInputWrapper>
+                </div>
+              )}
 
-      {/* Right Side - Hero Image */}
-      <div className="w-2/3 relative overflow-hidden">
-        <motion.div
-          initial={{ opacity: 0, scale: 1.1 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 1, ease: "easeOut" }}
-          className="w-full h-full"
-        >
-          <img
-            src="/lovable-uploads/411af4f6-22f5-41c6-99f7-e4b976cc62b4.png"
-            alt="CASEL Platform"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-l from-transparent via-background/5 to-background/20" />
-        </motion.div>
-        
-        {/* Floating Elements */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.5 }}
-          className="absolute bottom-12 left-12 max-w-md"
-        >
-          <div className="bg-card/80 backdrop-blur-xl rounded-2xl p-8 border border-border/30 shadow-2xl">
-            <h3 className="text-2xl font-bold text-card-foreground mb-4">
-              Automate Everything
-            </h3>
-            <p className="text-muted-foreground text-lg leading-relaxed">
-              Build powerful n8n workflows with AI assistance. Generate, deploy, and monitor your automations effortlessly.
+              {isLogin && (
+                <div className="flex items-center justify-between text-sm">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" name="rememberMe" className="rounded border-border" />
+                    <span className="text-foreground/90">Keep me signed in</span>
+                  </label>
+                  <a href="#" className="hover:underline text-violet-400 transition-colors">Reset password</a>
+                </div>
+              )}
+
+              <button 
+                type="submit" 
+                disabled={loading}
+                className="w-full rounded-2xl bg-primary py-4 font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
+              </button>
+            </form>
+
+            <div className="relative flex items-center justify-center">
+              <span className="w-full border-t border-border"></span>
+              <span className="px-4 text-sm text-muted-foreground bg-background absolute">Or continue with</span>
+            </div>
+
+            <button 
+              onClick={handleGoogleSignIn}
+              className="w-full flex items-center justify-center gap-3 border border-border rounded-2xl py-4 hover:bg-secondary transition-colors"
+            >
+              <GoogleIcon />
+              Continue with Google
+            </button>
+
+            <p className="text-center text-sm text-muted-foreground">
+              {isLogin 
+                ? "New to our platform? " 
+                : "Already have an account? "
+              }
+              <a 
+                href="#" 
+                onClick={(e) => { e.preventDefault(); setIsLogin(!isLogin); }} 
+                className="text-violet-400 hover:underline transition-colors"
+              >
+                {isLogin ? 'Create Account' : 'Sign In'}
+              </a>
             </p>
           </div>
-        </motion.div>
-      </div>
+        </div>
+      </section>
+
+      {/* Right column: hero image - 2/3 of the width */}
+      <section className="hidden md:block md:flex-[2] relative p-4">
+        <div 
+          className="absolute inset-4 rounded-3xl bg-cover bg-center" 
+          style={{ backgroundImage: `url(/lovable-uploads/21a8d36f-8c72-476a-aaf2-939176747be3.png)` }}
+        ></div>
+      </section>
     </div>
   );
 };

@@ -1,287 +1,168 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { Plus, Play, Settings, GitBranch, Zap, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Workflow, Zap, Clock, TrendingUp, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useWorkflowStorage } from '@/hooks/useWorkflowStorage';
-import { useAuth } from '@/hooks/useAuth';
-import DashboardLayout from '@/components/DashboardLayout';
+import { useNavigate } from 'react-router-dom';
+import { useWorkflowStorageV2 } from '@/hooks/useWorkflowStorageV2';
+import { useUserPlan } from '@/hooks/useUserPlan';
 import { GlowingEffect } from '@/components/ui/glowing-effect';
 
-interface WorkflowSummary {
-  id: string;
-  name: string;
-  created_at: string;
-  nodes_count?: number;
-  status?: 'active' | 'inactive' | 'draft';
-  last_run?: string;
-}
-
-const Dashboard = () => {
-  const navigate = useNavigate();
-  const [workflows, setWorkflows] = useState<WorkflowSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { getUserWorkflows } = useWorkflowStorage();
-  const { user } = useAuth();
-
-  useEffect(() => {
-    const fetchWorkflows = async () => {
-      try {
-        if (user?.id) {
-          const userWorkflows = await getUserWorkflows();
-          // Map the workflow data to match our WorkflowSummary interface
-          const mappedWorkflows: WorkflowSummary[] = userWorkflows.map(workflow => ({
-            id: workflow.workflow_id,
-            name: workflow.workflow_name,
-            created_at: workflow.created_at || new Date().toISOString(),
-            nodes_count: (workflow.metadata && typeof workflow.metadata === 'object' && 'nodes_count' in workflow.metadata) 
-              ? Number(workflow.metadata.nodes_count) || 0 
-              : 0,
-            status: workflow.deployment_status === 'deployed' ? 'active' : 'draft',
-            last_run: workflow.updated_at
-          }));
-          setWorkflows(mappedWorkflows);
-        }
-      } catch (error) {
-        console.error('Failed to load workflows:', error);
-        setWorkflows([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (user) {
-      fetchWorkflows();
-    }
-  }, [user, getUserWorkflows]);
-
-  const getStatusColor = (status?: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-500/20 text-green-300 border-green-500/30';
-      case 'inactive':
-        return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30';
-      default:
-        return 'bg-gray-500/20 text-gray-300 border-gray-500/30';
-    }
-  };
-
-  const getStatusIcon = (status?: string) => {
-    switch (status) {
-      case 'active':
-        return <CheckCircle className="w-3 h-3" />;
-      case 'inactive':
-        return <Clock className="w-3 h-3" />;
-      default:
-        return <AlertCircle className="w-3 h-3" />;
-    }
-  };
-
-  const handleCreateWorkflow = () => {
-    navigate('/playground');
-  };
-
-  const handleOpenWorkflow = (workflow: WorkflowSummary) => {
-    navigate(`/playground?id=${workflow.id}`);
-  };
-
-  const cardVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 }
-  };
-
+const StatCard = ({
+  icon,
+  title,
+  value,
+  subtitle
+}: {
+  icon: React.ReactNode;
+  title: string;
+  value: string;
+  subtitle: string;
+}) => {
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="flex items-center justify-between"
-      >
-        <div>
-          <h1 className="text-4xl font-bold text-foreground mb-2">
-            Welcome back to <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">CASEL</span>
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            Manage your AI-powered workflows and automations
-          </p>
+    <div className="relative min-h-[8rem]">
+      <div className="relative h-full rounded-[1.25rem] border-[0.75px] border-border p-2">
+        <GlowingEffect
+          spread={40}
+          glow={true}
+          disabled={false}
+          proximity={64}
+          inactiveZone={0.01}
+          borderWidth={2}
+        />
+        <div className="relative h-full bg-black/30 backdrop-blur-sm border border-white/10 rounded-2xl p-6 hover:bg-black/40 transition-all duration-300">
+          <div className="flex items-center space-x-4 mb-4">
+            <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center">
+              {icon}
+            </div>
+            <div>
+              <h3 className="text-white font-semibold text-lg">{title}</h3>
+              <p className="text-white/60 text-sm">{subtitle}</p>
+            </div>
+          </div>
+          <div className="text-3xl font-bold text-white">{value}</div>
         </div>
-        
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
-          className="relative"
-        >
-          <GlowingEffect className="rounded-lg absolute inset-0 pointer-events-none" disabled={false} />
-          <Button
-            onClick={handleCreateWorkflow}
-            size="lg"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-8 py-3 relative"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Create Workflow
-          </Button>
-        </motion.div>
-      </motion.div>
-
-      {/* Stats Cards */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.3 }}
-        className="grid grid-cols-1 md:grid-cols-4 gap-6"
-      >
-        {[
-          { title: 'Total Workflows', value: workflows.length, icon: GitBranch, color: 'text-blue-400' },
-          { title: 'Active', value: workflows.filter(w => w.status === 'active').length, icon: Play, color: 'text-green-400' },
-          { title: 'Draft', value: workflows.filter(w => w.status === 'draft').length, icon: Settings, color: 'text-yellow-400' },
-          { title: 'This Month', value: workflows.filter(w => {
-            const created = new Date(w.created_at);
-            const now = new Date();
-            return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
-          }).length, icon: Zap, color: 'text-purple-400' }
-        ].map((stat, index) => (
-          <div key={stat.title} className="relative">
-            <GlowingEffect className="rounded-xl absolute inset-0 pointer-events-none" disabled={false} />
-            <Card className="relative bg-card/50 backdrop-blur-xl border-border/50 hover:bg-card/60 transition-all duration-300">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">
-                      {stat.title}
-                    </p>
-                    <p className="text-3xl font-bold text-card-foreground">
-                      {stat.value}
-                    </p>
-                  </div>
-                  <div className={`p-3 rounded-lg bg-muted/20 ${stat.color}`}>
-                    <stat.icon className="w-6 h-6" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        ))}
-      </motion.div>
-
-      {/* Workflows Grid */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.4 }}
-      >
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold text-foreground">Your Workflows</h2>
-          <Button variant="outline" className="border-border/50 hover:bg-muted/50">
-            View All
-          </Button>
-        </div>
-
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="relative">
-                <GlowingEffect className="rounded-xl absolute inset-0 pointer-events-none" disabled={false} />
-                <Card className="relative bg-card/30 backdrop-blur-xl border-border/30 animate-pulse">
-                  <CardContent className="p-6 space-y-4">
-                    <div className="h-4 bg-muted/30 rounded w-3/4"></div>
-                    <div className="h-3 bg-muted/20 rounded w-1/2"></div>
-                    <div className="h-8 bg-muted/20 rounded w-full"></div>
-                  </CardContent>
-                </Card>
-              </div>
-            ))}
-          </div>
-        ) : workflows.length === 0 ? (
-          <motion.div
-            variants={cardVariants}
-            initial="hidden"
-            animate="visible"
-            className="relative"
-          >
-            <GlowingEffect className="rounded-xl absolute inset-0 pointer-events-none" disabled={false} />
-            <Card className="relative bg-card/30 backdrop-blur-xl border-border/30 border-dashed">
-              <CardContent className="p-12 text-center">
-                <div className="w-16 h-16 mx-auto mb-4 bg-muted/20 rounded-full flex items-center justify-center">
-                  <Plus className="w-8 h-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-xl font-semibold text-card-foreground mb-2">
-                  No workflows yet
-                </h3>
-                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                  Get started by creating your first AI-powered workflow. Our assistant will guide you through the process.
-                </p>
-                <Button onClick={handleCreateWorkflow} className="bg-primary hover:bg-primary/90">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Your First Workflow
-                </Button>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {workflows.map((workflow, index) => (
-              <motion.div
-                key={workflow.id}
-                variants={cardVariants}
-                initial="hidden"
-                animate="visible"
-                transition={{ duration: 0.4, delay: index * 0.1 }}
-                className="relative cursor-pointer"
-                onClick={() => handleOpenWorkflow(workflow)}
-              >
-                <GlowingEffect className="rounded-xl absolute inset-0 pointer-events-none" disabled={false} />
-                <Card className="relative bg-card/50 backdrop-blur-xl border-border/50 hover:bg-card/60 transition-all duration-300 h-full">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <CardTitle className="text-lg font-semibold text-card-foreground line-clamp-1">
-                        {workflow.name}
-                      </CardTitle>
-                      <Badge 
-                        variant="outline" 
-                        className={`ml-2 flex items-center gap-1 ${getStatusColor(workflow.status)}`}
-                      >
-                        {getStatusIcon(workflow.status)}
-                        {workflow.status || 'draft'}
-                      </Badge>
-                    </div>
-                    <CardDescription className="text-muted-foreground">
-                      Created {new Date(workflow.created_at).toLocaleDateString()}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        {workflow.nodes_count || 0} nodes
-                      </span>
-                      {workflow.last_run && (
-                        <span className="text-muted-foreground">
-                          Last run: {new Date(workflow.last_run).toLocaleDateString()}
-                        </span>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </motion.div>
+      </div>
     </div>
   );
 };
 
-const DashboardWrapper = () => {
+const Dashboard = () => {
+  const navigate = useNavigate();
+  const { getUserWorkflows } = useWorkflowStorageV2();
+  const { plan, credits } = useUserPlan();
+  const [workflowStats, setWorkflowStats] = useState({
+    total: 0,
+    active: 0
+  });
+
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const workflows = await getUserWorkflows();
+        setWorkflowStats({
+          total: workflows.length,
+          active: workflows.length // Assuming all workflows are active for now
+        });
+      } catch (error) {
+        console.error('Error loading workflow stats:', error);
+      }
+    };
+    loadStats();
+  }, [getUserWorkflows]);
+
   return (
-    <DashboardLayout>
-      <Dashboard />
-    </DashboardLayout>
+    <div className="min-h-screen bg-transparent text-white">
+      <div className="relative z-10 p-6 lg:p-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="max-w-7xl mx-auto"
+        >
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold text-white mb-2">Welcome back</h1>
+            <p className="text-white/70 text-lg">Monitor and manage your autonomous workflows</p>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="mb-8">
+            <Button
+              className="bg-white text-black hover:bg-white/90 px-6 py-3"
+              onClick={() => navigate('/playground')}
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              Create New Workflow
+            </Button>
+          </div>
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <StatCard
+              icon={<Workflow className="w-6 h-6 text-white" />}
+              title="Total Workflows"
+              value={workflowStats.total.toString()}
+              subtitle="Created workflows"
+            />
+            <StatCard
+              icon={<Zap className="w-6 h-6 text-white" />}
+              title="Active Workflows"
+              value={workflowStats.active.toString()}
+              subtitle="Currently running"
+            />
+            <StatCard
+              icon={<Clock className="w-6 h-6 text-white" />}
+              title="Credits Remaining"
+              value={credits?.current_credits?.toString() || '0'}
+              subtitle={`${plan?.plan_type || 'free'} plan`}
+            />
+            <StatCard
+              icon={<TrendingUp className="w-6 h-6 text-white" />}
+              title="Plan Type"
+              value={plan?.plan_type?.toUpperCase() || 'FREE'}
+              subtitle="Current subscription"
+            />
+          </div>
+
+          {/* Quick Links */}
+          <div className="relative">
+            <div className="relative rounded-[1.25rem] border-[0.75px] border-border p-2">
+              <GlowingEffect
+                spread={40}
+                glow={true}
+                disabled={false}
+                proximity={64}
+                inactiveZone={0.01}
+                borderWidth={2}
+              />
+              <div className="relative bg-black/30 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+                <h2 className="text-2xl font-bold text-white mb-6">Quick Actions</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate('/workflows')}
+                    className="border-white/20 justify-start h-12 bg-slate-50 text-stone-950 text-base rounded-2xl font-medium"
+                  >
+                    <Workflow className="w-5 h-5 mr-3" />
+                    View All Workflows
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate('/playground')}
+                    className="border-white/20 justify-start h-12 text-stone-950 bg-slate-50 rounded-2xl"
+                  >
+                    <Plus className="w-5 h-5 mr-3" />
+                    Create New Workflow
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </div>
   );
 };
 
-export default DashboardWrapper;
+export default Dashboard;
