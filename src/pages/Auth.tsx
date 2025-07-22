@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Bot, Eye, EyeOff } from 'lucide-react';
@@ -8,7 +7,6 @@ import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import ThemeToggle from '@/components/ThemeToggle';
 
 const GoogleIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 48 48">
@@ -33,6 +31,7 @@ const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [pageLoaded, setPageLoaded] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -51,6 +50,13 @@ const Auth = () => {
         navigate('/dashboard');
       }
     });
+
+    // Preload the background image
+    const img = new Image();
+    img.onload = () => {
+      setPageLoaded(true);
+    };
+    img.src = '/lovable-uploads/f64f8323-0f7f-46cf-8e49-f083f09ef9ff.png';
 
     return () => subscription.unsubscribe();
   }, [navigate]);
@@ -133,12 +139,17 @@ const Auth = () => {
     }
   };
 
+  // Don't render until the page is fully loaded
+  if (!pageLoaded) {
+    return (
+      <div className="h-[100dvh] w-[100dvw] bg-black flex items-center justify-center">
+        <div className="text-white text-lg">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-[100dvh] flex flex-col md:flex-row w-[100dvw] bg-black text-white">
-      <div className="absolute top-4 right-4 z-10">
-        <ThemeToggle />
-      </div>
-      
       {/* Left column: sign-in form - 1/3 of the width */}
       <section className="flex-1 md:flex-[1] flex items-center justify-center p-8 bg-black">
         <div className="w-full max-w-md">

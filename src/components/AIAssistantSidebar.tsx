@@ -24,6 +24,8 @@ interface AIAssistantSidebarProps {
   deploymentMessage?: string | null;
   onDeploymentMessageShown?: () => void;
   initialChatHistory?: any[];
+  onJsonWritingStart?: () => void;
+  onJsonWritingEnd?: () => void;
 }
 
 const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({ 
@@ -35,7 +37,9 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
   currentWorkflow,
   deploymentMessage,
   onDeploymentMessageShown,
-  initialChatHistory = []
+  initialChatHistory = [],
+  onJsonWritingStart,
+  onJsonWritingEnd
 }) => {
   const { plan, credits, loading: planLoading, deductCredit, refetch: refetchPlan } = useUserPlan();
   
@@ -97,6 +101,11 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
     console.log('🎬 Starting animated file writing for:', fileName);
     setIsWritingFile(true);
     
+    // Switch to code preview when JSON writing starts
+    if (onJsonWritingStart) {
+      onJsonWritingStart();
+    }
+    
     setMessages(prev => prev.map(msg => 
       msg.id === assistantMessageId 
         ? { ...msg, content: msg.content + `\n\n📄 **Creating ${fileName}**\n🔄 **Initializing file structure...**` }
@@ -142,6 +151,14 @@ const AIAssistantSidebar: React.FC<AIAssistantSidebarProps> = ({
     ));
     
     setIsWritingFile(false);
+    
+    // Switch back to canvas after JSON writing ends
+    if (onJsonWritingEnd) {
+      setTimeout(() => {
+        onJsonWritingEnd();
+      }, 1000); // Small delay to let user see completion message
+    }
+    
     console.log('🎬 Animated file writing completed for:', fileName);
   };
 
