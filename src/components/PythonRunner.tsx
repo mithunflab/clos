@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -214,117 +213,13 @@ print("\\nFile created: output.txt")
   };
 
   const sampleCodes = {
-    'Data Analysis': `import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
+    'Data Analysis': 'import pandas as pd\nimport numpy as np\nimport matplotlib.pyplot as plt\n\n# Create sample data\ndata = pd.DataFrame({\n    \'product\': [\'A\', \'B\', \'C\', \'D\'],\n    \'sales\': [100, 150, 80, 200],\n    \'profit\': [20, 30, 15, 40]\n})\n\nprint("Sales Data Analysis")\nprint("=" * 20)\nprint(data)\nprint(f"Total Sales: ${data[\'sales\'].sum()}")\nprint(f"Average Profit: ${data[\'profit\'].mean():.2f}")\nprint(f"Best Product: {data.loc[data[\'sales\'].idxmax(), \'product\']}")\n\n# Save results to file\ndata.to_csv(\'sales_analysis.csv\', index=False)\nprint("Results saved to sales_analysis.csv")',
 
-# Create sample data
-data = pd.DataFrame({
-    'product': ['A', 'B', 'C', 'D'],
-    'sales': [100, 150, 80, 200],
-    'profit': [20, 30, 15, 40]
-})
+    'File Operations': 'import os\nimport json\nfrom datetime import datetime\n\n# Create directory structure\nos.makedirs(\'project/data\', exist_ok=True)\nos.makedirs(\'project/logs\', exist_ok=True)\n\n# Write configuration file\nconfig = {\n    "app_name": "Python Runner",\n    "version": "1.0.0",\n    "timestamp": datetime.now().isoformat()\n}\n\nwith open(\'project/config.json\', \'w\') as f:\n    json.dump(config, f, indent=2)\n\n# Create log file\nlog_entry = f"{datetime.now()}: Application started"\nwith open(\'project/logs/app.log\', \'w\') as f:\n    f.write(log_entry)\n\n# List created files\nfor root, dirs, files in os.walk(\'project\'):\n    for file in files:\n        filepath = os.path.join(root, file)\n        print(f"Created: {filepath}")',
 
-print("Sales Data Analysis")
-print("=" * 20)
-print(data)
-print(f"Total Sales: ${ data['sales'].sum() }")
-print(f"Average Profit: ${ data['profit'].mean():.2f }")
-print(f"Best Product: { data.loc[data['sales'].idxmax(), 'product'] }")
+    'Web Scraping': 'import requests\nfrom bs4 import BeautifulSoup\nimport json\n\nprint("🌐 Web Scraping Example")\nprint("=" * 25)\n\n# Example API call\ntry:\n    response = requests.get("https://jsonplaceholder.typicode.com/posts/1")\n    data = response.json()\n    \n    print(f"Status Code: {response.status_code}")\n    print(f"Post Title: {data[\'title\']}")\n    \n    # Save response to file\n    with open(\'api_response.json\', \'w\') as f:\n        json.dump(data, f, indent=2)\n    \n    print("Response saved to api_response.json")\n    \nexcept Exception as e:\n    print(f"Request failed: {e}")',
 
-# Save results to file
-data.to_csv('sales_analysis.csv', index=False)
-print("Results saved to sales_analysis.csv")`,
-
-    'File Operations': `import os
-import json
-from datetime import datetime
-
-# Create directory structure
-os.makedirs('project/data', exist_ok=True)
-os.makedirs('project/logs', exist_ok=True)
-
-# Write configuration file
-config = {
-    "app_name": "Python Runner",
-    "version": "1.0.0",
-    "timestamp": datetime.now().isoformat()
-}
-
-with open('project/config.json', 'w') as f:
-    json.dump(config, f, indent=2)
-
-# Create log file
-log_entry = f"{ datetime.now() }: Application started"
-with open('project/logs/app.log', 'w') as f:
-    f.write(log_entry)
-
-# List created files
-for root, dirs, files in os.walk('project'):
-    for file in files:
-        filepath = os.path.join(root, file)
-        print(f"Created: { filepath }")`,
-
-    'Web Scraping': `import requests
-from bs4 import BeautifulSoup
-import json
-
-print("🌐 Web Scraping Example")
-print("=" * 25)
-
-# Example API call
-try:
-    response = requests.get("https://jsonplaceholder.typicode.com/posts/1")
-    data = response.json()
-    
-    print(f"Status Code: { response.status_code }")
-    print(f"Post Title: { data['title'] }")
-    
-    # Save response to file
-    with open('api_response.json', 'w') as f:
-        json.dump(data, f, indent=2)
-    
-    print("Response saved to api_response.json")
-    
-except Exception as e:
-    print(f"Request failed: { e }")`,
-
-    'Machine Learning': `import numpy as np
-import pandas as pd
-from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error
-import pickle
-
-print("🤖 Machine Learning Example")
-print("=" * 30)
-
-# Generate sample data
-np.random.seed(42)
-X = np.random.rand(100, 1) * 10
-y = 2 * X.ravel() + 1 + np.random.rand(100) * 2
-
-# Create DataFrame
-df = pd.DataFrame({'feature': X.ravel(), 'target': y})
-
-# Train model
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-model = LinearRegression()
-model.fit(X_train, y_train)
-
-# Make predictions
-y_pred = model.predict(X_test)
-mse = mean_squared_error(y_test, y_pred)
-
-print(f"Model R² Score: { model.score(X_test, y_test):.4f }")
-print(f"Mean Squared Error: { mse:.4f }")
-
-# Save model
-with open('model.pkl', 'wb') as f:
-    pickle.dump(model, f)
-
-print("Model saved to model.pkl")`
+    'Machine Learning': 'import numpy as np\nimport pandas as pd\nfrom sklearn.linear_model import LinearRegression\nfrom sklearn.model_selection import train_test_split\nfrom sklearn.metrics import mean_squared_error\nimport pickle\n\nprint("🤖 Machine Learning Example")\nprint("=" * 30)\n\n# Generate sample data\nnp.random.seed(42)\nX = np.random.rand(100, 1) * 10\ny = 2 * X.ravel() + 1 + np.random.rand(100) * 2\n\n# Create DataFrame\ndf = pd.DataFrame({\'feature\': X.ravel(), \'target\': y})\n\n# Train model\nX_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)\n\nmodel = LinearRegression()\nmodel.fit(X_train, y_train)\n\n# Make predictions\ny_pred = model.predict(X_test)\nmse = mean_squared_error(y_test, y_pred)\n\nprint(f"Model R² Score: {model.score(X_test, y_test):.4f}")\nprint(f"Mean Squared Error: {mse:.4f}")\n\n# Save model\nwith open(\'model.pkl\', \'wb\') as f:\n    pickle.dump(model, f)\n\nprint("Model saved to model.pkl")'
   };
 
   const formatExecutionTime = (ms: number) => {
