@@ -24,7 +24,8 @@ import {
   Menu,
   X,
   Minimize2,
-  Maximize2
+  Maximize2,
+  AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -63,6 +64,7 @@ const CloudRunner = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [sidebarMinimized, setSidebarMinimized] = useState(false);
   const [renderServiceId, setRenderServiceId] = useState<string>('');
+  const [hasApiKeys, setHasApiKeys] = useState(false);
 
   useEffect(() => {
     if (projectId) {
@@ -70,7 +72,26 @@ const CloudRunner = () => {
     } else {
       setProjectName(`cloud-bot-${Date.now()}`);
     }
+    checkApiKeys();
   }, [projectId]);
+
+  const checkApiKeys = async () => {
+    try {
+      // Check if required secrets are configured
+      const { data, error } = await supabase.functions.invoke('cloud-runner-manager', {
+        body: { action: 'check-config' }
+      });
+      
+      if (!error && data?.hasKeys) {
+        setHasApiKeys(true);
+      } else {
+        console.warn('API keys not configured properly');
+        setRenderLogs(prev => [...prev, 'Warning: API keys not configured. GitHub and Render features may not work.']);
+      }
+    } catch (error) {
+      console.error('Error checking API keys:', error);
+    }
+  };
 
   const loadExistingProject = async () => {
     if (!projectId || !user) return;
@@ -98,6 +119,7 @@ const CloudRunner = () => {
         setDeploymentStatus(project.deployment_status || 'draft');
         setGithubRepoUrl(project.github_repo_url || '');
         setRenderServiceId(project.render_service_id || '');
+        setRenderLogs(prev => [...prev, `Loaded project: ${project.project_name}`]);
 
         if (project.github_repo_name) {
           await loadCodeFromGitHub(project.github_repo_name);
@@ -115,6 +137,8 @@ const CloudRunner = () => {
 
   const loadCodeFromGitHub = async (repoName: string) => {
     try {
+      setRenderLogs(prev => [...prev, `Loading code from GitHub: ${repoName}`]);
+      
       const { data, error } = await supabase.functions.invoke('cloud-runner-manager', {
         body: {
           action: 'load-code',
@@ -124,19 +148,28 @@ const CloudRunner = () => {
 
       if (error) {
         console.error('Error loading code from GitHub:', error);
+        setRenderLogs(prev => [...prev, `Error loading code: ${error.message}`]);
         return;
       }
 
       if (data && data.files) {
         setProjectFiles(data.files);
+        setRenderLogs(prev => [...prev, `Loaded ${data.files.length} files from GitHub`]);
       }
     } catch (error) {
       console.error('Error loading code from GitHub:', error);
+      setRenderLogs(prev => [...prev, `Error loading code: ${error.message}`]);
     }
   };
 
   const handleFilesGenerated = useCallback((files: ProjectFile[]) => {
-    console.log('Files generated:', files);
+    console.log('Files generated callback received:', files);
+    
+    if (files.length === 0) {
+      setIsGenerating(false);
+      return;
+    }
+    
     setProjectFiles(prev => {
       const updatedFiles = [...prev];
       files.forEach(newFile => {
@@ -150,14 +183,25 @@ const CloudRunner = () => {
       return updatedFiles;
     });
     
-    // CRITICAL FIX: Set isGenerating to false AFTER files are processed
-    setIsGenerating(false);
-    
     setRenderLogs(prev => [
       ...prev,
-      `Generated ${files.length} files`,
-      ...files.map(f => `Created: ${f.fileName}`)
+      `Generated ${files.length} files at ${new Date().toLocaleTimeString()}`,
+      ...files.map(f => `✓ Created: ${f.fileName}`)
     ]);
+    
+    // Important: Set generating to false after processing files
+    setIsGenerating(false);
+  }, []);
+
+  const handleGeneratingStart = useCallback(() => {
+    console.log('Generation started - setting isGenerating to true');
+    setIsGenerating(true);
+    setRenderLogs(prev => [...prev, `AI generation started at ${new Date().toLocaleTimeString()}`]);
+  }, []);
+
+  const handleGeneratingEnd = useCallback(() => {
+    console.log('Generation ended - setting isGenerating to false');
+    setIsGenerating(false);
   }, []);
 
   const handleSessionFileUpload = (file: File) => {
@@ -180,7 +224,7 @@ const CloudRunner = () => {
         return [...prev, sessionFileContent];
       });
       
-      setRenderLogs(prev => [...prev, `Session file uploaded: ${file.name}`]);
+      setRenderLogs(prev => [...prev, `Session file uploaded: ${file.name} at ${new Date().toLocaleTimeString()}`]);
       toast({
         title: "Success",
         description: "Session file uploaded and added to file tree",
@@ -200,7 +244,7 @@ const CloudRunner = () => {
         file.fileName === fileName ? { ...file, content } : file
       )
     );
-    setRenderLogs(prev => [...prev, `Updated: ${fileName}`]);
+    setRenderLogs(prev => [...prev, `Updated: ${fileName} at ${new Date().toLocaleTimeString()}`]);
   };
 
   const handleCreateGitHubRepo = async () => {
@@ -213,8 +257,17 @@ const CloudRunner = () => {
       return;
     }
 
+    if (!hasApiKeys) {
+      toast({
+        title: "Configuration Required",
+        description: "GitHub API key not configured. Please contact administrator.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsCreatingRepo(true);
-    setRenderLogs(prev => [...prev, 'Creating GitHub repository...']);
+    setRenderLogs(prev => [...prev, `Creating GitHub repository at ${new Date().toLocaleTimeString()}...`]);
     
     try {
       const { data, error } = await supabase.functions.invoke('cloud-runner-manager', {
@@ -234,7 +287,11 @@ const CloudRunner = () => {
 
       if (data && data.success) {
         setGithubRepoUrl(data.repoUrl);
-        setRenderLogs(prev => [...prev, `GitHub repository created: ${data.repoUrl}`]);
+        setRenderLogs(prev => [
+          ...prev, 
+          `✓ GitHub repository created successfully`,
+          `Repository URL: ${data.repoUrl}`
+        ]);
         
         toast({
           title: "Success",
@@ -246,7 +303,7 @@ const CloudRunner = () => {
 
     } catch (error) {
       console.error('Error creating GitHub repo:', error);
-      setRenderLogs(prev => [...prev, `Error creating repository: ${error.message}`]);
+      setRenderLogs(prev => [...prev, `❌ Error creating repository: ${error.message}`]);
       toast({
         title: "Error",
         description: `Failed to create GitHub repository: ${error.message}`,
@@ -268,7 +325,7 @@ const CloudRunner = () => {
     }
 
     setIsSyncing(true);
-    setRenderLogs(prev => [...prev, 'Syncing files to existing GitHub repository...']);
+    setRenderLogs(prev => [...prev, `Syncing files to GitHub at ${new Date().toLocaleTimeString()}...`]);
     
     try {
       const { data, error } = await supabase.functions.invoke('cloud-runner-manager', {
@@ -285,10 +342,10 @@ const CloudRunner = () => {
       if (error) throw error;
 
       if (data && data.success) {
-        setRenderLogs(prev => [...prev, 'Files synced to existing GitHub repository successfully']);
+        setRenderLogs(prev => [...prev, '✓ Files synced to GitHub repository successfully']);
         toast({
           title: "Success",
-          description: "Files synced to existing repository successfully!",
+          description: "Files synced to repository successfully!",
         });
       } else {
         throw new Error(data?.error || 'Sync failed');
@@ -296,7 +353,7 @@ const CloudRunner = () => {
 
     } catch (error) {
       console.error('Error syncing to Git:', error);
-      setRenderLogs(prev => [...prev, `Sync error: ${error.message}`]);
+      setRenderLogs(prev => [...prev, `❌ Sync error: ${error.message}`]);
       toast({
         title: "Error",
         description: `Failed to sync files: ${error.message}`,
@@ -317,9 +374,18 @@ const CloudRunner = () => {
       return;
     }
 
+    if (!hasApiKeys) {
+      toast({
+        title: "Configuration Required",
+        description: "Render API key not configured. Please contact administrator.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsDeploying(true);
     setDeploymentStatus('deploying');
-    setRenderLogs(prev => [...prev, 'Starting deployment to Render...']);
+    setRenderLogs(prev => [...prev, `Starting deployment to Render at ${new Date().toLocaleTimeString()}...`]);
 
     try {
       if (projectFiles.length > 0) {
@@ -342,8 +408,9 @@ const CloudRunner = () => {
         setRenderServiceId(data.serviceId);
         setRenderLogs(prev => [
           ...prev, 
-          'Deployment successful!', 
-          `Service URL: ${data.serviceUrl}`
+          '✓ Deployment successful!', 
+          `Service URL: ${data.serviceUrl}`,
+          `Service ID: ${data.serviceId}`
         ]);
 
         toast({
@@ -357,7 +424,7 @@ const CloudRunner = () => {
     } catch (error) {
       console.error('Error deploying to Render:', error);
       setDeploymentStatus('error');
-      setRenderLogs(prev => [...prev, `Deployment failed: ${error.message}`]);
+      setRenderLogs(prev => [...prev, `❌ Deployment failed: ${error.message}`]);
       toast({
         title: "Error",
         description: `Failed to deploy: ${error.message}`,
@@ -390,37 +457,36 @@ const CloudRunner = () => {
 
   return (
     <div className="h-screen flex bg-background relative">
-      {/* Sidebar */}
+      {/* Sidebar with proper navigation */}
       <div className={`transition-all duration-300 ${sidebarMinimized ? 'w-16' : 'w-96'} border-r border-border flex flex-col bg-card`}>
-        <div className="p-4 border-b border-border flex items-center justify-between">
+        {/* Fixed Header with Navigation Controls */}
+        <div className="p-4 border-b border-border flex items-center justify-between bg-card">
           {!sidebarMinimized && (
-            <h2 className="font-semibold text-lg">
+            <h2 className="font-semibold text-lg text-foreground">
               Cloud Runner
             </h2>
           )}
           <div className="flex items-center space-x-2">
-            {sidebarMinimized && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigate('/dashboard')}
-                  className="p-2"
-                  title="Dashboard"
-                >
-                  <Home className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={toggleTheme}
-                  className="p-2"
-                  title="Toggle Theme"
-                >
-                  {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                </Button>
-              </>
-            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/dashboard')}
+              className="p-2"
+              title="Dashboard"
+            >
+              <Home className="w-4 h-4" />
+              {!sidebarMinimized && <span className="ml-2">Dashboard</span>}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleTheme}
+              className="p-2"
+              title="Toggle Theme"
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              {!sidebarMinimized && <span className="ml-2">{theme === 'dark' ? 'Light' : 'Dark'}</span>}
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -433,44 +499,41 @@ const CloudRunner = () => {
           </div>
         </div>
         
+        {/* API Keys Status Indicator */}
         {!sidebarMinimized && (
-          <>
-            <div className="p-4 border-b border-border">
-              <div className="flex items-center space-x-2 mb-4">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigate('/dashboard')}
-                  className="p-2"
-                  title="Dashboard"
-                >
-                  <Home className="w-4 h-4 mr-2" />
-                  Dashboard
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={toggleTheme}
-                  className="p-2"
-                  title="Toggle Theme"
-                >
-                  {theme === 'dark' ? <Sun className="w-4 h-4 mr-2" /> : <Moon className="w-4 h-4 mr-2" />}
-                  {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-                </Button>
-              </div>
+          <div className="px-4 py-2 border-b border-border bg-muted/30">
+            <div className="flex items-center space-x-2 text-sm">
+              {hasApiKeys ? (
+                <>
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-green-600">API Keys Configured</span>
+                </>
+              ) : (
+                <>
+                  <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                  <span className="text-yellow-600 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" />
+                    API Keys Missing
+                  </span>
+                </>
+              )}
             </div>
+          </div>
+        )}
+        
+        {/* AI Assistant */}
+        {!sidebarMinimized && (
+          <div className="flex-1 overflow-hidden">
             <CloudRunnerAIAssistant
               onFilesGenerated={handleFilesGenerated}
               onSessionFileRequest={handleSessionFileRequest}
               sessionFile={sessionFile}
               currentFiles={projectFiles}
               onSessionFileUpload={handleSessionFileUpload}
-              onGeneratingStart={() => {
-                console.log('Generation started - setting isGenerating to true');
-                setIsGenerating(true);
-              }}
+              onGeneratingStart={handleGeneratingStart}
+              onGeneratingEnd={handleGeneratingEnd}
             />
-          </>
+          </div>
         )}
       </div>
 
@@ -494,12 +557,18 @@ const CloudRunner = () => {
               <Badge className={getStatusColor(deploymentStatus)}>
                 {deploymentStatus}
               </Badge>
+              {isGenerating && (
+                <Badge variant="secondary" className="animate-pulse">
+                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  Generating
+                </Badge>
+              )}
             </div>
             
             <div className="flex items-center space-x-4">
               <Button
                 onClick={handleCreateGitHubRepo}
-                disabled={!projectFiles.length || isCreatingRepo}
+                disabled={!projectFiles.length || isCreatingRepo || !hasApiKeys}
                 variant="outline"
                 className="px-4"
               >
@@ -512,29 +581,40 @@ const CloudRunner = () => {
               </Button>
               
               {githubRepoUrl && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleGitSync}
-                  disabled={isSyncing || !projectFiles.length}
-                >
-                  {isSyncing ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Syncing...
-                    </>
-                  ) : (
-                    <>
-                      <GitBranch className="w-4 h-4 mr-2" />
-                      Git Sync
-                    </>
-                  )}
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleGitSync}
+                    disabled={isSyncing || !projectFiles.length || !hasApiKeys}
+                  >
+                    {isSyncing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Syncing...
+                      </>
+                    ) : (
+                      <>
+                        <GitBranch className="w-4 h-4 mr-2" />
+                        Git Sync
+                      </>
+                    )}
+                  </Button>
+                  
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => window.open(githubRepoUrl, '_blank')}
+                    title="View GitHub Repository"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </Button>
+                </>
               )}
               
               <Button 
                 onClick={handleDeploy}
-                disabled={!githubRepoUrl || isDeploying}
+                disabled={!githubRepoUrl || isDeploying || !hasApiKeys}
                 className="px-6 bg-green-500 hover:bg-green-600 text-white"
               >
                 {isDeploying ? (

@@ -23,6 +23,7 @@ interface CloudRunnerAIAssistantProps {
   currentFiles?: Array<{ fileName: string; content: string; language: string; }>;
   onSessionFileUpload?: (file: File) => void;
   onGeneratingStart?: () => void;
+  onGeneratingEnd?: () => void;
 }
 
 const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
@@ -31,7 +32,8 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
   sessionFile,
   currentFiles = [],
   onSessionFileUpload,
-  onGeneratingStart
+  onGeneratingStart,
+  onGeneratingEnd
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -133,8 +135,8 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
     setCurrentMessage('');
     setIsLoading(true);
     
-    // CRITICAL FIX: Call onGeneratingStart immediately when starting generation
-    console.log('Calling onGeneratingStart');
+    // Signal generation start
+    console.log('Starting AI generation...');
     onGeneratingStart?.();
 
     try {
@@ -160,14 +162,10 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
 
       setMessages(prev => [...prev, assistantMessage]);
 
-      // Handle file generation - this will call onFilesGenerated which sets isGenerating to false
+      // Handle file generation with proper state management
       if (data.files && data.files.length > 0) {
-        console.log('Calling onFilesGenerated with files:', data.files);
+        console.log('Files generated successfully:', data.files.length);
         onFilesGenerated?.(data.files);
-      } else {
-        // If no files generated, stop generating state
-        console.log('No files generated, calling onFilesGenerated with empty array');
-        onFilesGenerated?.([]);
       }
 
       // Check if AI is requesting session file
@@ -188,13 +186,13 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
       
       setMessages(prev => [...prev, errorMessage]);
       toast.error('Failed to send message');
-      
-      // Stop generating state on error
-      onFilesGenerated?.([]);
     } finally {
       setIsLoading(false);
+      // Always signal generation end
+      console.log('AI generation completed');
+      onGeneratingEnd?.();
     }
-  }, [currentMessage, isLoading, messages, sessionFile, currentFiles, onFilesGenerated, onSessionFileRequest, onGeneratingStart]);
+  }, [currentMessage, isLoading, messages, sessionFile, currentFiles, onFilesGenerated, onSessionFileRequest, onGeneratingStart, onGeneratingEnd]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {

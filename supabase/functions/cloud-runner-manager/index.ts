@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -30,27 +31,46 @@ serve(async (req) => {
     const { data: { user } } = await supabaseClient.auth.getUser(token)
 
     if (!user) {
+      console.error('Authentication failed - no user found')
       return new Response('Unauthorized', { status: 401, headers: corsHeaders })
     }
 
     const { action, projectName, files, sessionFile, repoName, githubRepoUrl, projectId, updateExisting } = await req.json()
 
-    if (!GIT_TOKEN) {
+    console.log(`Processing action: ${action} for user: ${user.id}`)
+
+    // Handle configuration check
+    if (action === 'check-config') {
+      const hasKeys = !!(GIT_TOKEN && RENDER_API_KEY)
+      console.log(`Configuration check - GIT_TOKEN: ${!!GIT_TOKEN}, RENDER_API_KEY: ${!!RENDER_API_KEY}`)
+      
+      return new Response(JSON.stringify({ 
+        hasKeys: hasKeys,
+        success: true
+      }), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    // Verify API keys for GitHub and Render operations
+    if (['create-github-repo', 'sync-to-git', 'load-code'].includes(action) && !GIT_TOKEN) {
       console.error('GitHub token not configured')
       return new Response(JSON.stringify({ 
-        error: 'GitHub token not configured. Please check your secrets.',
-        success: false
+        error: 'GitHub API token not configured. Please contact your administrator to add the GIT_TOKEN secret.',
+        success: false,
+        requiresConfig: true
       }), { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    if (!RENDER_API_KEY) {
+    if (action === 'deploy-to-render' && !RENDER_API_KEY) {
       console.error('Render API key not configured')
       return new Response(JSON.stringify({ 
-        error: 'Render API key not configured. Please check your secrets.',
-        success: false
+        error: 'Render API key not configured. Please contact your administrator to add the RENDER_API secret.',
+        success: false,
+        requiresConfig: true
       }), { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -69,23 +89,38 @@ serve(async (req) => {
       'Content-Type': 'application/json',
     }
 
-    // Get GitHub username
-    const userResponse = await fetch('https://api.github.com/user', {
-      headers: githubHeaders
-    })
-    
-    if (!userResponse.ok) {
-      const errorText = await userResponse.text()
-      console.error('GitHub authentication failed:', errorText)
-      throw new Error(`Failed to authenticate with GitHub: ${userResponse.status} ${errorText}`)
+    // Get GitHub username with better error handling
+    let githubUsername = '';
+    try {
+      const userResponse = await fetch('https://api.github.com/user', {
+        headers: githubHeaders
+      })
+      
+      if (!userResponse.ok) {
+        const errorText = await userResponse.text()
+        console.error('GitHub authentication failed:', errorText)
+        throw new Error(`GitHub authentication failed: ${userResponse.status} ${errorText}`)
+      }
+      
+      const githubUser = await userResponse.json()
+      githubUsername = githubUser.login
+      console.log(`GitHub authenticated for user: ${githubUsername}`)
+    } catch (error) {
+      console.error('Failed to authenticate with GitHub:', error)
+      return new Response(JSON.stringify({
+        error: 'Failed to authenticate with GitHub. Please check your API token.',
+        success: false
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
     }
-    
-    const githubUser = await userResponse.json()
-    const githubUsername = githubUser.login
 
     switch (action) {
       case 'sync-to-git': {
         try {
+          console.log(`Syncing ${files?.length || 0} files to Git repository: ${githubRepoUrl}`)
+          
           // Extract repo name from URL
           const urlParts = githubRepoUrl.split('/')
           const repoNameFromUrl = urlParts[urlParts.length - 1]
@@ -93,9 +128,14 @@ serve(async (req) => {
 
           console.log('Syncing to existing repository:', fullRepoName)
 
+          let filesUpdated = 0;
+          let filesSkipped = 0;
+
           // Update project files in existing repository
           for (const file of files) {
             try {
+              console.log(`Processing file: ${file.fileName}`)
+              
               const fileResponse = await fetch(`https://api.github.com/repos/${fullRepoName}/contents/${file.fileName}`, {
                 headers: githubHeaders
               })
@@ -104,6 +144,9 @@ serve(async (req) => {
               if (fileResponse.ok) {
                 const existingFile = await fileResponse.json()
                 sha = existingFile.sha
+                console.log(`Found existing file ${file.fileName} with SHA: ${sha}`)
+              } else {
+                console.log(`File ${file.fileName} does not exist, creating new`)
               }
 
               const updateResponse = await fetch(`https://api.github.com/repos/${fullRepoName}/contents/${file.fileName}`, {
@@ -119,17 +162,22 @@ serve(async (req) => {
               if (!updateResponse.ok) {
                 const errorText = await updateResponse.text()
                 console.error(`Failed to update file ${file.fileName}:`, errorText)
+                filesSkipped++
               } else {
                 console.log(`Successfully updated ${file.fileName}`)
+                filesUpdated++
               }
             } catch (error) {
               console.error(`Error updating file ${file.fileName}:`, error)
+              filesSkipped++
             }
           }
 
           // Upload session file if provided
           if (sessionFile) {
             try {
+              console.log('Processing session file upload')
+              
               const sessionResponse = await fetch(`https://api.github.com/repos/${fullRepoName}/contents/session.session`, {
                 headers: githubHeaders
               })
@@ -151,14 +199,18 @@ serve(async (req) => {
                   sha: sessionSha
                 })
               })
+              
+              console.log('Session file uploaded successfully')
             } catch (error) {
               console.error('Error uploading session file:', error)
             }
           }
 
+          console.log(`Sync completed - Updated: ${filesUpdated}, Skipped: ${filesSkipped}`)
+
           return new Response(JSON.stringify({
             success: true,
-            message: 'Files synced to existing repository successfully'
+            message: `Files synced successfully - Updated: ${filesUpdated}, Skipped: ${filesSkipped}`
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
@@ -176,6 +228,8 @@ serve(async (req) => {
 
       case 'create-github-repo': {
         try {
+          console.log(`Creating GitHub repo for project: ${projectName} with ${files?.length || 0} files`)
+          
           // Check if this project already has a GitHub repository
           if (projectId) {
             const { data: existingProject } = await supabaseClient
@@ -192,6 +246,8 @@ serve(async (req) => {
               const urlParts = existingProject.github_repo_url.split('/')
               const repoNameFromUrl = urlParts[urlParts.length - 1]
               const fullRepoName = `${githubUsername}/${repoNameFromUrl}`
+
+              let filesUpdated = 0;
 
               // Update files in existing repository
               for (const file of files) {
@@ -216,20 +272,21 @@ serve(async (req) => {
                     })
                   })
 
-                  if (!updateResponse.ok) {
-                    const errorText = await updateResponse.text()
-                    console.error(`Failed to update file ${file.fileName}:`, errorText)
+                  if (updateResponse.ok) {
+                    filesUpdated++
                   }
                 } catch (error) {
                   console.error(`Error updating file ${file.fileName}:`, error)
                 }
               }
 
+              console.log(`Updated existing repository with ${filesUpdated} files`)
+
               return new Response(JSON.stringify({
                 success: true,
                 repoName: existingProject.github_repo_name,
                 repoUrl: existingProject.github_repo_url,
-                message: 'Updated existing repository'
+                message: `Updated existing repository with ${filesUpdated} files`
               }), {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' }
               })
@@ -263,6 +320,8 @@ serve(async (req) => {
           const repo = await repoResponse.json()
           console.log('Repository created:', repo.full_name)
 
+          let filesUploaded = 0;
+
           // Upload project files
           for (const file of files) {
             try {
@@ -275,7 +334,10 @@ serve(async (req) => {
                 })
               })
 
-              if (!uploadResponse.ok) {
+              if (uploadResponse.ok) {
+                filesUploaded++
+                console.log(`Uploaded file: ${file.fileName}`)
+              } else {
                 const errorText = await uploadResponse.text()
                 console.error(`Failed to upload file ${file.fileName}:`, errorText)
               }
@@ -304,34 +366,50 @@ python main.py
 ## Files
 
 ${files.map(f => `- \`${f.fileName}\`: ${f.fileName === 'main.py' ? 'Main application file' : f.fileName === 'requirements.txt' ? 'Python dependencies' : 'Project file'}`).join('\n')}
+
+Generated on: ${new Date().toISOString()}
 `
 
-          await fetch(`https://api.github.com/repos/${repo.full_name}/contents/README.md`, {
-            method: 'PUT',
-            headers: githubHeaders,
-            body: JSON.stringify({
-              message: 'Add README.md',
-              content: encodeBase64(readmeContent)
+          try {
+            await fetch(`https://api.github.com/repos/${repo.full_name}/contents/README.md`, {
+              method: 'PUT',
+              headers: githubHeaders,
+              body: JSON.stringify({
+                message: 'Add README.md',
+                content: encodeBase64(readmeContent)
+              })
             })
-          })
+          } catch (error) {
+            console.error('Failed to create README:', error)
+          }
 
           // Save to database
-          await supabaseClient
-            .from('cloud_runner_projects')
-            .upsert({
-              id: projectId || undefined,
-              user_id: user.id,
-              project_name: projectName,
-              github_repo_name: uniqueRepoName,
-              github_repo_url: repo.html_url,
-              session_file_uploaded: !!sessionFile
-            })
+          try {
+            await supabaseClient
+              .from('cloud_runner_projects')
+              .upsert({
+                id: projectId || undefined,
+                user_id: user.id,
+                project_name: projectName,
+                github_repo_name: uniqueRepoName,
+                github_repo_url: repo.html_url,
+                session_file_uploaded: !!sessionFile,
+                updated_at: new Date().toISOString()
+              })
+            
+            console.log('Project saved to database')
+          } catch (error) {
+            console.error('Failed to save project to database:', error)
+          }
+
+          console.log(`Repository created with ${filesUploaded} files uploaded`)
 
           return new Response(JSON.stringify({
             success: true,
             repoName: uniqueRepoName,
             repoUrl: repo.html_url,
-            cloneUrl: repo.clone_url
+            cloneUrl: repo.clone_url,
+            filesUploaded: filesUploaded
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
@@ -399,52 +477,66 @@ ${files.map(f => `- \`${f.fileName}\`: ${f.fileName === 'main.py' ? 'Main applic
 
       case 'deploy-to-render': {
         try {
-          console.log('Deploying to Render:', projectName)
+          console.log('Starting deployment to Render for project:', projectName)
           
-          // Create Render service
+          // Create Render service with enhanced configuration
+          const serviceName = projectName.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 32)
+          
+          const renderPayload = {
+            type: 'web_service',
+            name: serviceName,
+            repo: githubRepoUrl,
+            branch: 'main',
+            runtime: 'python',
+            buildCommand: 'pip install -r requirements.txt',
+            startCommand: 'python main.py',
+            plan: 'free',
+            autoDeploy: 'yes',
+            envVars: [],
+            rootDir: '.'
+          }
+
+          console.log('Creating Render service with payload:', JSON.stringify(renderPayload, null, 2))
+          
           const renderResponse = await fetch('https://api.render.com/v1/services', {
             method: 'POST',
             headers: renderHeaders,
-            body: JSON.stringify({
-              type: 'web_service',
-              name: projectName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-              repo: githubRepoUrl,
-              branch: 'main',
-              env: 'python',
-              buildCommand: 'pip install -r requirements.txt',
-              startCommand: 'python main.py',
-              plan: 'free',
-              autoDeploy: 'yes',
-              envVars: []
-            })
+            body: JSON.stringify(renderPayload)
           })
 
           if (!renderResponse.ok) {
             const errorText = await renderResponse.text()
-            console.error('Render deployment failed:', errorText)
-            throw new Error(`Render deployment failed: ${renderResponse.status} ${errorText}`)
+            console.error('Render deployment failed:', renderResponse.status, errorText)
+            throw new Error(`Render deployment failed: ${renderResponse.status} - ${errorText}`)
           }
 
           const service = await renderResponse.json()
-          console.log('Render service created:', service.service.id)
+          console.log('Render service created:', service.service?.id)
 
-          const serviceUrl = service.service.serviceDetails?.url || `https://${service.service.name}.onrender.com`
+          const serviceUrl = service.service?.serviceDetails?.url || `https://${serviceName}.onrender.com`
 
           // Update database with deployment info
-          await supabaseClient
-            .from('cloud_runner_projects')
-            .update({
-              render_service_id: service.service.id,
-              render_service_url: serviceUrl,
-              deployment_status: 'deployed'
-            })
-            .eq('id', projectId)
+          try {
+            await supabaseClient
+              .from('cloud_runner_projects')
+              .update({
+                render_service_id: service.service?.id,
+                render_service_url: serviceUrl,
+                deployment_status: 'deployed',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', projectId)
+            
+            console.log('Database updated with deployment info')
+          } catch (error) {
+            console.error('Failed to update database with deployment info:', error)
+          }
 
           return new Response(JSON.stringify({
             success: true,
-            serviceId: service.service.id,
+            serviceId: service.service?.id,
             serviceUrl: serviceUrl,
-            deployId: service.service.id
+            deployId: service.service?.id
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
@@ -461,6 +553,7 @@ ${files.map(f => `- \`${f.fileName}\`: ${f.fileName === 'main.py' ? 'Main applic
       }
 
       default:
+        console.error('Invalid action requested:', action)
         return new Response('Invalid action', { status: 400, headers: corsHeaders })
     }
 
