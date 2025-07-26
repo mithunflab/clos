@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -227,13 +228,13 @@ data = pd.DataFrame({
 print("Sales Data Analysis")
 print("=" * 20)
 print(data)
-print(f"\\nTotal Sales: ${data['sales'].sum()}")
-print(f"Average Profit: ${data['profit'].mean():.2f}")
-print(f"Best Product: {data.loc[data['sales'].idxmax(), 'product']}")
+print(f"Total Sales: ${ data['sales'].sum() }")
+print(f"Average Profit: ${ data['profit'].mean():.2f }")
+print(f"Best Product: { data.loc[data['sales'].idxmax(), 'product'] }")
 
 # Save results to file
 data.to_csv('sales_analysis.csv', index=False)
-print("\\nResults saved to sales_analysis.csv")`,
+print("Results saved to sales_analysis.csv")`,
 
     'File Operations': `import os
 import json
@@ -254,7 +255,7 @@ with open('project/config.json', 'w') as f:
     json.dump(config, f, indent=2)
 
 # Create log file
-log_entry = f"{datetime.now()}: Application started\\n"
+log_entry = f"{ datetime.now() }: Application started"
 with open('project/logs/app.log', 'w') as f:
     f.write(log_entry)
 
@@ -262,7 +263,7 @@ with open('project/logs/app.log', 'w') as f:
 for root, dirs, files in os.walk('project'):
     for file in files:
         filepath = os.path.join(root, file)
-        print(f"Created: {filepath}")`,
+        print(f"Created: { filepath }")`,
 
     'Web Scraping': `import requests
 from bs4 import BeautifulSoup
@@ -276,17 +277,17 @@ try:
     response = requests.get("https://jsonplaceholder.typicode.com/posts/1")
     data = response.json()
     
-    print(f"Status Code: {response.status_code}")
-    print(f"Post Title: {data['title']}")
+    print(f"Status Code: { response.status_code }")
+    print(f"Post Title: { data['title'] }")
     
     # Save response to file
     with open('api_response.json', 'w') as f:
         json.dump(data, f, indent=2)
     
-    print("\\nResponse saved to api_response.json")
+    print("Response saved to api_response.json")
     
 except Exception as e:
-    print(f"Request failed: {e}")`,
+    print(f"Request failed: { e }")`,
 
     'Machine Learning': `import numpy as np
 import pandas as pd
@@ -316,14 +317,14 @@ model.fit(X_train, y_train)
 y_pred = model.predict(X_test)
 mse = mean_squared_error(y_test, y_pred)
 
-print(f"Model R² Score: {model.score(X_test, y_test):.4f}")
-print(f"Mean Squared Error: {mse:.4f}")
+print(f"Model R² Score: { model.score(X_test, y_test):.4f }")
+print(f"Mean Squared Error: { mse:.4f }")
 
 # Save model
 with open('model.pkl', 'wb') as f:
     pickle.dump(model, f)
 
-print("\\nModel saved to model.pkl")`
+print("Model saved to model.pkl")`
   };
 
   const formatExecutionTime = (ms: number) => {
