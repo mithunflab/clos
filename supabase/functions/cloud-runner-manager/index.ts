@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -143,7 +142,7 @@ serve(async (req) => {
       console.log(`GitHub authenticated for user: ${githubUsername}`)
 
       // Get Render owner ID for deployments
-      if (RENDER_API_KEY && (action === 'deploy-to-render')) {
+      if (RENDER_API_KEY && (action === 'deploy-to-render' || action === 'get-deployment-logs' || action === 'get-deployment-status')) {
         try {
           const renderUserResponse = await fetch('https://api.render.com/v1/owners', {
             headers: renderHeaders
@@ -504,31 +503,21 @@ Generated on: ${new Date().toISOString()}
 
           const serviceName = projectName.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 32)
           
-          // Updated payload structure with required serviceDetails
+          // Correct Render API payload structure for web service creation
           const renderPayload = {
-            type: 'web_service',
             name: serviceName,
             ownerId: renderOwnerId,
+            type: 'web_service',
             repo: githubRepoUrl,
+            autoDeploy: 'yes',
             branch: 'main',
-            serviceDetails: {
-              env: 'python',
-              buildCommand: 'pip install -r requirements.txt',
-              startCommand: 'python main.py',
-              plan: 'free',
-              region: 'oregon',
-              pullRequestPreviewsEnabled: false,
-              autoDeploy: true,
-              rootDir: '',
-              dockerCommand: '',
-              dockerContext: '',
-              dockerfilePath: '',
-              publishPath: '',
-              previewsEnabled: false,
-              headers: [],
-              routes: [],
-              envVars: []
-            }
+            buildCommand: 'pip install -r requirements.txt',
+            startCommand: 'python main.py',
+            envVars: [],
+            region: 'oregon',
+            plan: 'starter',
+            rootDir: '',
+            runtime: 'python3'
           }
 
           console.log('Creating Render service with payload:', JSON.stringify(renderPayload, null, 2))
@@ -539,16 +528,27 @@ Generated on: ${new Date().toISOString()}
             body: JSON.stringify(renderPayload)
           })
 
+          console.log('Render response status:', renderResponse.status)
+          const responseText = await renderResponse.text()
+          console.log('Render response body:', responseText)
+
           if (!renderResponse.ok) {
-            const errorText = await renderResponse.text()
-            console.error('Render deployment failed:', renderResponse.status, errorText)
-            throw new Error(`Render deployment failed: ${renderResponse.status} - ${errorText}`)
+            console.error('Render deployment failed:', renderResponse.status, responseText)
+            throw new Error(`Render deployment failed: ${renderResponse.status} - ${responseText}`)
           }
 
-          const service = await renderResponse.json()
+          let service
+          try {
+            service = JSON.parse(responseText)
+          } catch (e) {
+            console.error('Failed to parse Render response:', responseText)
+            throw new Error('Invalid response from Render API')
+          }
+
           console.log('Render service created:', service.service?.id)
 
           const serviceUrl = service.service?.serviceDetails?.url || `https://${serviceName}.onrender.com`
+          const serviceId = service.service?.id
 
           // Update project with deployment info
           if (projectId) {
@@ -556,7 +556,7 @@ Generated on: ${new Date().toISOString()}
               await supabaseClient
                 .from('cloud_runner_projects')
                 .update({
-                  render_service_id: service.service?.id,
+                  render_service_id: serviceId,
                   render_service_url: serviceUrl,
                   deployment_status: 'deployed',
                   updated_at: new Date().toISOString()
@@ -572,9 +572,9 @@ Generated on: ${new Date().toISOString()}
 
           return new Response(JSON.stringify({
             success: true,
-            serviceId: service.service?.id,
+            serviceId: serviceId,
             serviceUrl: serviceUrl,
-            deployId: service.service?.id,
+            deployId: serviceId,
             ownerId: renderOwnerId
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -600,7 +600,7 @@ Generated on: ${new Date().toISOString()}
           }
 
           // Get service logs from Render API
-          const logsResponse = await fetch(`https://api.render.com/v1/services/${projectId}/logs`, {
+          const logsResponse = await fetch(`https://api.render.com/v1/services/${projectId}/logs?limit=100`, {
             headers: renderHeaders
           })
 
@@ -613,9 +613,21 @@ Generated on: ${new Date().toISOString()}
           const logs = await logsResponse.text()
           console.log('Logs fetched successfully, length:', logs.length)
 
+          // Parse logs and format them for display
+          const logLines = logs.split('\n').filter(line => line.trim())
+          const formattedLogs = logLines.map(line => {
+            try {
+              const logEntry = JSON.parse(line)
+              const timestamp = new Date(logEntry.timestamp).toLocaleTimeString()
+              return `[${timestamp}] ${logEntry.message}`
+            } catch (e) {
+              return line
+            }
+          })
+
           return new Response(JSON.stringify({
             success: true,
-            logs: logs,
+            logs: formattedLogs.join('\n'),
             timestamp: new Date().toISOString()
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }

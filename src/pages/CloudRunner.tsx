@@ -89,12 +89,13 @@ const CloudRunner: React.FC = () => {
     }
   }, [files, githubRepoName, autoSyncEnabled, isGenerating]);
 
-  // Monitor deployment status
+  // Monitor deployment status and fetch logs
   useEffect(() => {
     if (renderServiceId) {
-      const statusInterval = setInterval(() => {
-        checkDeploymentStatus();
-      }, 10000); // Check every 10 seconds
+      const statusInterval = setInterval(async () => {
+        await checkDeploymentStatus();
+        await fetchRenderLogs();
+      }, 5000); // Check every 5 seconds for real-time updates
       
       return () => clearInterval(statusInterval);
     }
@@ -113,6 +114,31 @@ const CloudRunner: React.FC = () => {
     
     return () => clearInterval(interval);
   }, [logs, liveLogs]);
+
+  const fetchRenderLogs = async () => {
+    if (!renderServiceId) return;
+
+    try {
+      const result = await getDeploymentLogs(renderServiceId);
+      if (result.success && result.logs) {
+        const newLogs = result.logs.split('\n').filter(log => log.trim());
+        
+        // Add new logs to live logs with timestamp
+        newLogs.forEach(log => {
+          if (log && !liveLogs.some(existing => existing.includes(log))) {
+            addLiveLog(`[RENDER] ${log}`);
+          }
+        });
+
+        setDeploymentStatus(prev => ({
+          ...prev,
+          logs: newLogs
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch Render logs:', error);
+    }
+  };
 
   const handleAutoSync = async () => {
     if (!githubRepoName || files.length === 0 || isSyncing) return;
@@ -167,24 +193,19 @@ const CloudRunner: React.FC = () => {
     try {
       const result = await getDeploymentStatus(renderServiceId);
       if (result.success && result.status) {
+        const currentStatus = result.status;
+        
         setDeploymentStatus(prev => ({
           ...prev,
-          status: result.status,
+          status: currentStatus,
           lastUpdate: new Date().toISOString(),
-          progress: result.status === 'live' ? 100 : prev.progress
+          progress: currentStatus === 'live' ? 100 : 
+                   currentStatus === 'building' ? 50 : 
+                   currentStatus === 'deploying' ? 75 : prev.progress
         }));
 
-        // Get logs if deployment is running
-        if (['building', 'deploying'].includes(result.status)) {
-          const logsResult = await getDeploymentLogs(renderServiceId);
-          if (logsResult.success && logsResult.logs) {
-            const newLogs = logsResult.logs.split('\n').filter(log => log.trim());
-            setDeploymentStatus(prev => ({
-              ...prev,
-              logs: newLogs
-            }));
-          }
-        }
+        // Add status change to live logs
+        addLiveLog(`[${new Date().toLocaleTimeString()}] [RENDER] Status: ${currentStatus}`);
       }
     } catch (error) {
       console.error('Failed to check deployment status:', error);
@@ -232,7 +253,7 @@ const CloudRunner: React.FC = () => {
   };
 
   const addLiveLog = (message: string) => {
-    setLiveLogs(prev => [...prev, message].slice(-100)); // Keep last 100 logs
+    setLiveLogs(prev => [...prev, message].slice(-200)); // Keep last 200 logs
   };
 
   const handlePythonLogsUpdate = (pythonLogs: string[]) => {
@@ -322,13 +343,19 @@ const CloudRunner: React.FC = () => {
         setRenderServiceId(data.serviceId);
         setDeploymentStatus({
           status: 'building',
-          progress: 75,
+          progress: 50,
           logs: ['Deployment created successfully', 'Building application...'],
           lastUpdate: new Date().toISOString()
         });
         addLog(`🚀 Deployed successfully: ${data.serviceUrl}`);
-        addLiveLog(`[${new Date().toLocaleTimeString()}] 🚀 Deployed successfully: ${data.serviceUrl}`);
+        addLiveLog(`[${new Date().toLocaleTimeString()}] 🚀 Deployed to Render: ${data.serviceUrl}`);
+        addLiveLog(`[${new Date().toLocaleTimeString()}] 📦 Service ID: ${data.serviceId}`);
         toast.success('Deployment successful!');
+        
+        // Start monitoring deployment immediately
+        setTimeout(() => {
+          fetchRenderLogs();
+        }, 2000);
       } else {
         throw new Error(data?.error || 'Deployment failed');
       }
@@ -342,7 +369,7 @@ const CloudRunner: React.FC = () => {
         lastUpdate: new Date().toISOString()
       });
       addLog(`❌ ${errorMessage}`);
-      addLiveLog(`[${new Date().toLocaleTimeString()}] ❌ ${errorMessage}`);
+      addLiveLog(`[${new Date().toLocaleTimeString()}] ❌ Render deployment failed: ${errorMessage}`);
       toast.error(errorMessage);
     } finally {
       setIsDeploying(false);
@@ -478,6 +505,20 @@ const CloudRunner: React.FC = () => {
               <Activity className="h-3 w-3 mr-1" />
               {liveLogs.length} Live Logs
             </Badge>
+
+            {renderServiceId && (
+              <Badge 
+                variant="outline" 
+                className={`${
+                  deploymentStatus.status === 'live' ? 'bg-green-100 text-green-800' : 
+                  deploymentStatus.status === 'error' ? 'bg-red-100 text-red-800' :
+                  'bg-blue-100 text-blue-800'
+                }`}
+              >
+                <Cloud className="h-3 w-3 mr-1" />
+                Render: {deploymentStatus.status.toUpperCase()}
+              </Badge>
+            )}
           </div>
         </div>
         
@@ -518,6 +559,9 @@ const CloudRunner: React.FC = () => {
               <div className="flex items-center gap-2">
                 {getStatusIcon(deploymentStatus.status)}
                 <span className="font-medium capitalize">{deploymentStatus.status}</span>
+                {renderServiceId && (
+                  <span className="text-xs text-muted-foreground">({renderServiceId})</span>
+                )}
               </div>
               <span className="text-sm text-muted-foreground">
                 {deploymentStatus.progress}%
@@ -644,6 +688,12 @@ const CloudRunner: React.FC = () => {
                       <Badge variant="secondary" className="bg-green-100 text-green-800">
                         {liveLogs.length} entries
                       </Badge>
+                      {renderServiceId && (
+                        <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                          <Cloud className="h-3 w-3 mr-1" />
+                          Render Connected
+                        </Badge>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
@@ -659,7 +709,13 @@ const CloudRunner: React.FC = () => {
                       {liveLogs.length > 0 ? (
                         <div className="space-y-1">
                           {liveLogs.map((log, index) => (
-                            <div key={index} className="text-green-400 font-mono text-sm">
+                            <div key={index} className={`font-mono text-sm ${
+                              log.includes('[RENDER]') ? 'text-blue-400' :
+                              log.includes('✅') ? 'text-green-400' :
+                              log.includes('❌') ? 'text-red-400' :
+                              log.includes('🔄') ? 'text-yellow-400' :
+                              'text-green-400'
+                            }`}>
                               {log}
                             </div>
                           ))}
