@@ -121,7 +121,10 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
   };
 
   const handleSendMessage = useCallback(async () => {
-    if (!currentMessage.trim() || isLoading) return;
+    if (!currentMessage.trim() || isLoading) {
+      console.log('Cannot send message:', { empty: !currentMessage.trim(), loading: isLoading });
+      return;
+    }
 
     const analyzedMessage = analyzeUserMessage(currentMessage);
     const newMessage: ChatMessage = {
@@ -130,8 +133,11 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
       timestamp: new Date()
     };
 
-    // Update messages first
+    console.log('Sending message:', currentMessage);
+    
+    // Update messages and clear input immediately
     setMessages(prev => [...prev, newMessage]);
+    const messageToSend = currentMessage;
     setCurrentMessage('');
     setIsLoading(true);
     
@@ -162,10 +168,17 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
 
       setMessages(prev => [...prev, assistantMessage]);
 
-      // Handle file generation with proper state management
+      // Handle file generation with improved state management
       if (data.files && data.files.length > 0) {
         console.log('Files generated successfully:', data.files.length);
-        onFilesGenerated?.(data.files);
+        console.log('File details:', data.files.map(f => ({ name: f.fileName, lines: f.content.split('\n').length })));
+        
+        // Ensure unique filenames before passing to parent
+        const uniqueFiles = data.files.filter((file, index, self) => 
+          index === self.findIndex(f => f.fileName === file.fileName)
+        );
+        
+        onFilesGenerated?.(uniqueFiles);
       }
 
       // Check if AI is requesting session file
@@ -227,7 +240,7 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
                       </Badge>
                       {message.files.map((file, fileIndex) => (
                         <div key={fileIndex} className="text-xs text-muted-foreground">
-                          📄 {file.fileName}
+                          📄 {file.fileName} ({file.content.split('\n').length} lines)
                         </div>
                       ))}
                     </div>

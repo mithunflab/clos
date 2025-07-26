@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
@@ -176,8 +175,10 @@ const CloudRunner = () => {
         const existingIndex = updatedFiles.findIndex(f => f.fileName === newFile.fileName);
         if (existingIndex >= 0) {
           updatedFiles[existingIndex] = newFile;
+          console.log(`Updated existing file: ${newFile.fileName}`);
         } else {
           updatedFiles.push(newFile);
+          console.log(`Added new file: ${newFile.fileName}`);
         }
       });
       return updatedFiles;
@@ -186,11 +187,14 @@ const CloudRunner = () => {
     setRenderLogs(prev => [
       ...prev,
       `Generated ${files.length} files at ${new Date().toLocaleTimeString()}`,
-      ...files.map(f => `✓ Created: ${f.fileName}`)
+      ...files.map(f => `✓ Created: ${f.fileName} (${f.content.split('\\n').length} lines)`)
     ]);
     
     // Important: Set generating to false after processing files
-    setIsGenerating(false);
+    setTimeout(() => {
+      console.log('Setting isGenerating to false after file processing');
+      setIsGenerating(false);
+    }, 500);
   }, []);
 
   const handleGeneratingStart = useCallback(() => {
@@ -201,7 +205,10 @@ const CloudRunner = () => {
 
   const handleGeneratingEnd = useCallback(() => {
     console.log('Generation ended - setting isGenerating to false');
-    setIsGenerating(false);
+    // Small delay to ensure file processing is complete
+    setTimeout(() => {
+      setIsGenerating(false);
+    }, 1000);
   }, []);
 
   const handleSessionFileUpload = (file: File) => {
@@ -526,10 +533,47 @@ const CloudRunner = () => {
           <div className="flex-1 overflow-hidden">
             <CloudRunnerAIAssistant
               onFilesGenerated={handleFilesGenerated}
-              onSessionFileRequest={handleSessionFileRequest}
+              onSessionFileRequest={() => {
+                toast({
+                  title: "Session File Required",
+                  description: "Please upload a Telegram session file using the attachment button in the chat",
+                });
+              }}
               sessionFile={sessionFile}
               currentFiles={projectFiles}
-              onSessionFileUpload={handleSessionFileUpload}
+              onSessionFileUpload={(file: File) => {
+                if (file && file.name.endsWith('.session')) {
+                  setSessionFile(file);
+                  
+                  const sessionFileContent = {
+                    fileName: file.name,
+                    content: 'Binary session file - content not displayed',
+                    language: 'text'
+                  };
+                  
+                  setProjectFiles(prev => {
+                    const existingIndex = prev.findIndex(f => f.fileName === file.name);
+                    if (existingIndex >= 0) {
+                      const updated = [...prev];
+                      updated[existingIndex] = sessionFileContent;
+                      return updated;
+                    }
+                    return [...prev, sessionFileContent];
+                  });
+                  
+                  setRenderLogs(prev => [...prev, `Session file uploaded: ${file.name} at ${new Date().toLocaleTimeString()}`]);
+                  toast({
+                    title: "Success",
+                    description: "Session file uploaded and added to file tree",
+                  });
+                } else {
+                  toast({
+                    title: "Error",
+                    description: "Please upload a valid .session file",
+                    variant: "destructive",
+                  });
+                }
+              }}
               onGeneratingStart={handleGeneratingStart}
               onGeneratingEnd={handleGeneratingEnd}
             />

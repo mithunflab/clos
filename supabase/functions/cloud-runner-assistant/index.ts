@@ -26,17 +26,18 @@ serve(async (req) => {
 Key guidelines:
 1. Always generate complete, working Python code
 2. For Telegram bots, use Telethon library
-3. Generate main.py and requirements.txt files
+3. Generate main.py and requirements.txt files - NEVER duplicate filenames
 4. Be brief - max 2-3 sentences in chat
 5. Focus on next steps
 6. Session file status: ${sessionFileUploaded ? 'Available' : 'NEEDED - remind user to upload session.session file for Telegram bots'}
 
-Current files: ${currentFiles?.length ? currentFiles.map(f => f.name).join(', ') : 'None'}
+Current files: ${currentFiles?.length ? currentFiles.map(f => f.fileName).join(', ') : 'None'}
 
 Response format:
 - Keep chat responses under 50 words
 - End with clear next step
-- Generate files when user describes what they want`
+- Generate files when user describes what they want
+- NEVER create duplicate filenames`
 
     const latestMessage = messages[messages.length - 1]
     
@@ -70,8 +71,9 @@ Response format:
     const data = await response.json()
     let aiResponse = data.candidates[0]?.content?.parts[0]?.text || 'I can help you create Python automation scripts. What would you like to build?'
 
-    // Parse response to extract code files
+    // Parse response to extract code files with improved logic
     const files = []
+    const seenFilenames = new Set()
     
     // Look for code blocks and extract files
     const codeBlockRegex = /```(\w+)?\s*(?:# (\w+\.[\w.]+))?\s*\n([\s\S]*?)```/g
@@ -79,24 +81,47 @@ Response format:
     
     while ((match = codeBlockRegex.exec(aiResponse)) !== null) {
       const language = match[1] || 'python'
-      const filename = match[2] || (language === 'python' ? 'main.py' : `file.${language}`)
+      let filename = match[2]
       const content = match[3].trim()
       
-      if (content) {
+      // Determine filename if not specified
+      if (!filename) {
+        if (language === 'python') {
+          filename = 'main.py'
+        } else if (language === 'text' || language === 'txt') {
+          filename = 'requirements.txt'
+        } else {
+          filename = `file.${language}`
+        }
+      }
+      
+      // Avoid duplicate filenames
+      let finalFilename = filename
+      let counter = 1
+      while (seenFilenames.has(finalFilename)) {
+        const nameParts = filename.split('.')
+        const extension = nameParts.pop()
+        const baseName = nameParts.join('.')
+        finalFilename = `${baseName}_${counter}.${extension}`
+        counter++
+      }
+      
+      if (content && content.length > 5) {
+        seenFilenames.add(finalFilename)
         files.push({
-          name: filename,
+          fileName: finalFilename,
           content: content,
           language: language
         })
       }
     }
 
-    // Add requirements.txt for Python projects
+    // Add requirements.txt for Python projects if not already present
     if (aiResponse.toLowerCase().includes('telegram') || aiResponse.toLowerCase().includes('telethon')) {
-      if (!files.some(f => f.name === 'requirements.txt')) {
+      if (!files.some(f => f.fileName === 'requirements.txt')) {
         files.push({
-          name: 'requirements.txt',
-          content: 'telethon>=1.30.0\npython-dotenv>=0.19.0\naiofiles>=0.8.0',
+          fileName: 'requirements.txt',
+          content: 'telethon>=1.30.0\nopenai>=1.0.0\npython-dotenv>=0.19.0\naiofiles>=0.8.0',
           language: 'text'
         })
       }
@@ -108,6 +133,8 @@ Response format:
       const sentences = aiResponse.split('. ')
       aiResponse = sentences.slice(0, 2).join('. ') + '.'
     }
+
+    console.log('Generated files:', files.map(f => f.fileName))
 
     return new Response(JSON.stringify({
       response: aiResponse,
