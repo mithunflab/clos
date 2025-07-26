@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -6,7 +5,7 @@ import { Loader2, Play, Brain, CheckCircle, AlertCircle, FileCode } from 'lucide
 import { supabase } from '@/integrations/supabase/client';
 
 interface WorkflowGeneratorProps {
-  onWorkflowGenerated: (workflow: any, code: any) => void;
+  onWorkflowGenerated: (workflow: any, code: any, regenerateFunction?: () => void) => void;
   onNodesGenerated: (nodes: any[]) => void;
 }
 
@@ -16,6 +15,7 @@ export const WorkflowGenerator: React.FC<WorkflowGeneratorProps> = ({
 }) => {
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [lastPrompt, setLastPrompt] = useState('');
   const [generationStatus, setGenerationStatus] = useState<{
     stage: string;
     message: string;
@@ -23,10 +23,12 @@ export const WorkflowGenerator: React.FC<WorkflowGeneratorProps> = ({
     modelUsed?: string;
   } | null>(null);
 
-  const generateWorkflow = async () => {
-    if (!prompt.trim()) return;
+  const generateWorkflow = async (promptToUse?: string) => {
+    const currentPrompt = promptToUse || prompt;
+    if (!currentPrompt.trim()) return;
 
     setIsGenerating(true);
+    setLastPrompt(currentPrompt);
     setGenerationStatus({
       stage: 'Initializing',
       message: 'Generating complex multi-node workflow...',
@@ -34,11 +36,11 @@ export const WorkflowGenerator: React.FC<WorkflowGeneratorProps> = ({
     });
 
     try {
-      console.log('🚀 Generating complex workflow for prompt:', prompt);
+      console.log('🚀 Generating complex workflow for prompt:', currentPrompt);
 
       const { data, error } = await supabase.functions.invoke('generate-complex-workflow', {
         body: {
-          prompt: prompt,
+          prompt: currentPrompt,
           complexity: 'high',
           minNodes: 8,
           maxNodes: 15,
@@ -58,6 +60,11 @@ export const WorkflowGenerator: React.FC<WorkflowGeneratorProps> = ({
         throw new Error(data.error || 'Workflow generation failed');
       }
 
+      // Validate that we have actual workflow data
+      if (!data.workflow || !data.workflow.nodes || data.workflow.nodes.length === 0) {
+        throw new Error('Generated workflow is empty or invalid');
+      }
+
       console.log('✅ Complex workflow generated successfully:', {
         nodeCount: data.workflow?.nodes?.length || 0,
         modelUsed: data.modelUsed,
@@ -71,10 +78,16 @@ export const WorkflowGenerator: React.FC<WorkflowGeneratorProps> = ({
         modelUsed: data.modelUsed
       });
 
-      // Pass only the JSON workflow data
+      // Create regeneration function
+      const regenerateFunction = () => {
+        console.log('🔄 Regenerating workflow with last prompt:', lastPrompt);
+        generateWorkflow(lastPrompt);
+      };
+
+      // Pass the workflow data and regeneration function
       onWorkflowGenerated(data.workflow, {
         workflowJson: JSON.stringify(data.workflow, null, 2)
-      });
+      }, regenerateFunction);
       
       // Convert to React Flow nodes for visualization
       if (data.workflow?.nodes) {
@@ -82,7 +95,10 @@ export const WorkflowGenerator: React.FC<WorkflowGeneratorProps> = ({
         onNodesGenerated(reactFlowNodes);
       }
 
-      setPrompt('');
+      // Only clear prompt if this was a new generation (not a regeneration)
+      if (!promptToUse) {
+        setPrompt('');
+      }
 
     } catch (error) {
       console.error('❌ Error generating workflow:', error);
@@ -229,7 +245,7 @@ Be specific about integrations and steps for the most complex results."
         />
         
         <Button
-          onClick={generateWorkflow}
+          onClick={() => generateWorkflow()}
           disabled={!prompt.trim() || isGenerating}
           className="w-full bg-green-500 hover:bg-green-600 text-white"
         >
