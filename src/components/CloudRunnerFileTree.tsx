@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -122,7 +121,12 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
     }
   };
 
-  const getFileIcon = (fileName: string) => {
+  const getFileIcon = (fileName: string | undefined) => {
+    // Add safety check for undefined/null fileName
+    if (!fileName || typeof fileName !== 'string') {
+      return '📄';
+    }
+    
     if (fileName.endsWith('.py')) return '🐍';
     if (fileName.endsWith('.js')) return '📜';
     if (fileName.endsWith('.ts')) return '📘';
