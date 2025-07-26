@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -503,7 +504,7 @@ Generated on: ${new Date().toISOString()}
 
           const serviceName = projectName.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 32)
           
-          // FIXED: Changed 'python3' to 'python' for the correct Render runtime
+          // FIXED: Updated Render API payload with proper envSpecificDetails structure
           const renderPayload = {
             name: serviceName,
             ownerId: renderOwnerId,
@@ -512,12 +513,15 @@ Generated on: ${new Date().toISOString()}
             autoDeploy: 'yes',
             branch: 'main',
             serviceDetails: {
+              env: 'python',
               buildCommand: 'pip install -r requirements.txt',
               startCommand: 'python main.py',
-              env: 'python',  // FIXED: Changed from 'python3' to 'python'
               region: 'oregon',
               plan: 'starter',
               rootDir: '',
+              envSpecificDetails: {
+                pythonVersion: '3.11'
+              },
               envVars: []
             }
           }
