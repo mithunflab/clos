@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,11 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, Send, Play, Github, ExternalLink, Bot, FileCode } from 'lucide-react';
+import { Upload, Send, Play, Github, ExternalLink, Bot, FileCode, GitBranch, Link } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
+import SessionFileUpload from '@/components/SessionFileUpload';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -42,6 +42,7 @@ const CloudRunner = () => {
   const [renderLogs, setRenderLogs] = useState<string[]>([]);
   const [isDeploying, setIsDeploying] = useState(false);
   const [githubRepoUrl, setGithubRepoUrl] = useState<string>('');
+  const [isSyncing, setIsSyncing] = useState(false);
   
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -128,8 +129,7 @@ const CloudRunner = () => {
     }
   };
 
-  const handleSessionFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const handleSessionFileUpload = (file: File) => {
     if (file && file.name.endsWith('.session')) {
       setSessionFile(file);
       toast({
@@ -141,6 +141,67 @@ const CloudRunner = () => {
         title: "Error",
         description: "Please upload a valid .session file",
         variant: "destructive",
+      });
+    }
+  };
+
+  const handleRemoveSessionFile = () => {
+    setSessionFile(null);
+    toast({
+      title: "Success",
+      description: "Session file removed",
+    });
+  };
+
+  const handleGitSync = async () => {
+    if (!user || !githubRepoUrl || projectFiles.length === 0) {
+      toast({
+        title: "Error",
+        description: "No GitHub repository found or no files to sync",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('cloud-runner-manager', {
+        body: {
+          action: 'sync-to-git',
+          projectName: projectName,
+          files: projectFiles,
+          sessionFile: sessionFile,
+          githubRepoUrl: githubRepoUrl
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Success",
+        description: "Files synced to GitHub successfully!",
+      });
+
+    } catch (error) {
+      console.error('Error syncing to Git:', error);
+      toast({
+        title: "Error",
+        description: "Failed to sync files to GitHub",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const copyRepoLinkToClipboard = () => {
+    if (githubRepoUrl) {
+      navigator.clipboard.writeText(githubRepoUrl);
+      toast({
+        title: "Success",
+        description: "Repository link copied to clipboard",
       });
     }
   };
@@ -338,21 +399,6 @@ const CloudRunner = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".session"
-                    onChange={handleSessionFileUpload}
-                    className="hidden"
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-2"
-                  >
-                    <Upload className="w-4 h-4" />
-                    {sessionFile ? 'Session Uploaded' : 'Upload Session'}
-                  </Button>
                   <Button onClick={() => navigate('/workflows')} variant="outline">
                     Back to Workflows
                   </Button>
@@ -366,9 +412,22 @@ const CloudRunner = () => {
             {/* Chat Section */}
             <Card className="flex flex-col">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Bot className="w-5 h-5" />
-                  AI Assistant
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Bot className="w-5 h-5" />
+                    AI Assistant
+                  </div>
+                  {githubRepoUrl && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={copyRepoLinkToClipboard}
+                      className="flex items-center gap-2"
+                    >
+                      <Link className="w-4 h-4" />
+                      Copy Repo Link
+                    </Button>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex-1 flex flex-col p-0">
@@ -393,6 +452,22 @@ const CloudRunner = () => {
                         </div>
                       </div>
                     ))}
+                    {githubRepoUrl && (
+                      <div className="flex justify-center">
+                        <div className="bg-muted/50 p-3 rounded-lg text-center border">
+                          <Github className="w-4 h-4 inline mr-2" />
+                          <span className="text-sm text-muted-foreground">Repository: </span>
+                          <Button
+                            variant="link"
+                            size="sm"
+                            onClick={() => window.open(githubRepoUrl, '_blank')}
+                            className="p-0 h-auto text-primary"
+                          >
+                            {githubRepoUrl.split('/').slice(-1)[0]}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                     {isLoading && (
                       <div className="flex justify-start">
                         <div className="bg-muted p-3 rounded-lg mr-4">
@@ -433,14 +508,34 @@ const CloudRunner = () => {
                   </CardTitle>
                   <div className="flex gap-2">
                     {githubRepoUrl && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => window.open(githubRepoUrl, '_blank')}
-                      >
-                        <Github className="w-4 h-4 mr-2" />
-                        View Repo
-                      </Button>
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleGitSync}
+                          disabled={isSyncing || projectFiles.length === 0}
+                        >
+                          {isSyncing ? (
+                            <>
+                              <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full mr-2"></div>
+                              Syncing...
+                            </>
+                          ) : (
+                            <>
+                              <GitBranch className="w-4 h-4 mr-2" />
+                              Git Sync
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(githubRepoUrl, '_blank')}
+                        >
+                          <Github className="w-4 h-4 mr-2" />
+                          View Repo
+                        </Button>
+                      </>
                     )}
                     <Button
                       variant="outline"
@@ -480,6 +575,9 @@ const CloudRunner = () => {
                           {file.name}
                         </TabsTrigger>
                       ))}
+                      <TabsTrigger value="session-upload">
+                        Session File
+                      </TabsTrigger>
                       {renderLogs.length > 0 && (
                         <TabsTrigger value="logs">
                           Logs
@@ -496,6 +594,20 @@ const CloudRunner = () => {
                           </ScrollArea>
                         </TabsContent>
                       ))}
+                      <TabsContent value="session-upload" className="h-full">
+                        <div className="p-4">
+                          <h3 className="text-lg font-semibold mb-4">Upload Session File</h3>
+                          <SessionFileUpload
+                            onFileUpload={handleSessionFileUpload}
+                            currentFile={sessionFile}
+                            onRemoveFile={handleRemoveSessionFile}
+                          />
+                          <p className="text-sm text-muted-foreground mt-3">
+                            Upload your Telegram session file to include it in the GitHub repository.
+                            This file will be automatically included when creating or syncing your project.
+                          </p>
+                        </div>
+                      </TabsContent>
                       {renderLogs.length > 0 && (
                         <TabsContent value="logs" className="h-full">
                           <ScrollArea className="h-full bg-black rounded-lg p-4">

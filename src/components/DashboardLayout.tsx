@@ -18,18 +18,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import ThemeToggle from './ThemeToggle';
-import N8nConfigToggle from './N8nConfigToggle';
+import { ThemeToggle } from './ThemeToggle';
+import { N8nConfigToggle } from './N8nConfigToggle';
 import Navigation from './Navigation';
 import Dashboard from '@/pages/Dashboard';
 import Workflows from '@/pages/Workflows';
 import WorkflowPlayground from '@/pages/WorkflowPlayground';
 import Profile from '@/pages/Profile';
 import CloudRunner from '@/pages/CloudRunner';
-
-interface DashboardLayoutProps {
-  children: React.ReactNode;
-}
 
 const DashboardLayout = () => {
   const navigate = useNavigate();
@@ -64,7 +60,7 @@ const DashboardLayout = () => {
                       <ChevronDown className="h-4 w-4 ml-2" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" className="bg-background border-border">
                     <DropdownMenuLabel>My Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => navigate('/profile')}>
