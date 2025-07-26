@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
@@ -32,7 +31,7 @@ import PlaygroundCanvas from '@/components/PlaygroundCanvas';
 import { useCloudRunnerProjects } from '@/hooks/useCloudRunnerProjects';
 
 interface ProjectFile {
-  name: string;
+  fileName: string;
   content: string;
   language: string;
 }
@@ -134,7 +133,7 @@ const CloudRunner = () => {
     setRenderLogs(prev => [
       ...prev,
       `Generated ${files.length} files`,
-      ...files.map(f => `Created: ${f.name}`)
+      ...files.map(f => `Created: ${f.fileName}`)
     ]);
   }, []);
 

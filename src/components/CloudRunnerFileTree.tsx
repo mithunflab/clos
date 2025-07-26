@@ -17,7 +17,7 @@ import {
 import { toast } from 'sonner';
 
 interface ProjectFile {
-  name: string;
+  fileName: string;
   content: string;
   language: string;
 }
@@ -39,7 +39,7 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
   logs = [],
   isGenerating = false
 }) => {
-  const [activeFile, setActiveFile] = useState<string>(files[0]?.name || '');
+  const [activeFile, setActiveFile] = useState<string>(files[0]?.fileName || '');
   const [activeTab, setActiveTab] = useState<'files' | 'logs'>('files');
 
   const copyToClipboard = (text: string) => {
@@ -85,7 +85,7 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
     return '📄';
   };
 
-  const activeFileContent = files.find(f => f.name === activeFile);
+  const activeFileContent = files.find(f => f.fileName === activeFile);
 
   return (
     <Card className="h-full flex flex-col">
@@ -126,9 +126,9 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
                 <div className="border-b">
                   <TabsList className="mx-4 mt-4 mb-2">
                     {files.map((file, index) => (
-                      <TabsTrigger key={index} value={file.name} className="flex items-center gap-2">
-                        <span>{getFileIcon(file.name)}</span>
-                        {file.name}
+                      <TabsTrigger key={index} value={file.fileName} className="flex items-center gap-2">
+                        <span>{getFileIcon(file.fileName)}</span>
+                        {file.fileName}
                       </TabsTrigger>
                     ))}
                   </TabsList>
@@ -136,7 +136,7 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
                 
                 <div className="flex-1 overflow-hidden">
                   {files.map((file, index) => (
-                    <TabsContent key={index} value={file.name} className="h-full m-0">
+                    <TabsContent key={index} value={file.fileName} className="h-full m-0">
                       <div className="h-full flex flex-col">
                         <div className="flex items-center justify-between p-4 border-b">
                           <div className="flex items-center gap-2">
@@ -160,7 +160,7 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
                             <Button 
                               variant="ghost" 
                               size="sm"
-                              onClick={() => downloadFile(file.name, file.content)}
+                              onClick={() => downloadFile(file.fileName, file.content)}
                               className="text-xs"
                             >
                               <Download className="h-3 w-3 mr-1" />
