@@ -77,13 +77,13 @@ serve(async (req) => {
       })
     }
 
-    // Enhanced GitHub headers with proper authentication
+    // Fixed GitHub headers with proper authentication
     const githubHeaders = {
-      'Authorization': `token ${GIT_TOKEN}`,
+      'Authorization': `Bearer ${GIT_TOKEN}`,
       'Accept': 'application/vnd.github+json',
       'X-GitHub-Api-Version': '2022-11-28',
       'Content-Type': 'application/json',
-      'User-Agent': 'CloudRunner/1.0',
+      'User-Agent': 'CloudRunner-Bot/1.0'
     }
 
     const renderHeaders = {
@@ -94,28 +94,42 @@ serve(async (req) => {
     // Get GitHub username with proper error handling
     let githubUsername = '';
     try {
-      console.log('Authenticating with GitHub using token...')
+      console.log('Authenticating with GitHub using Bearer token...')
+      console.log('GIT_TOKEN exists:', !!GIT_TOKEN)
+      console.log('GIT_TOKEN length:', GIT_TOKEN?.length || 0)
       
       const userResponse = await fetch('https://api.github.com/user', {
         headers: githubHeaders
       })
       
+      console.log('GitHub user response status:', userResponse.status)
+      
       if (!userResponse.ok) {
         const errorText = await userResponse.text()
-        console.error('GitHub authentication failed:', userResponse.status, errorText)
+        console.error('GitHub authentication failed:', {
+          status: userResponse.status,
+          statusText: userResponse.statusText,
+          headers: Object.fromEntries(userResponse.headers.entries()),
+          body: errorText
+        })
         
-        // Parse error response for better error messages
         let errorMessage = 'GitHub authentication failed'
         try {
           const errorData = JSON.parse(errorText)
           errorMessage = errorData.message || errorMessage
+          console.error('GitHub API error details:', errorData)
         } catch (e) {
-          // Use default message if parsing fails
+          console.error('Could not parse GitHub error response:', errorText)
         }
         
         return new Response(JSON.stringify({
-          error: `GitHub API Error: ${errorMessage}. Please verify your GitHub token in Supabase secrets has proper permissions (repo access).`,
-          success: false
+          error: `GitHub API Error (${userResponse.status}): ${errorMessage}. Please verify your GIT_TOKEN in Supabase secrets has the correct permissions (repo, user).`,
+          success: false,
+          debug: {
+            status: userResponse.status,
+            tokenExists: !!GIT_TOKEN,
+            tokenLength: GIT_TOKEN?.length || 0
+          }
         }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -129,8 +143,12 @@ serve(async (req) => {
     } catch (error) {
       console.error('Failed to authenticate with GitHub:', error)
       return new Response(JSON.stringify({
-        error: `Failed to authenticate with GitHub: ${error.message}. Please verify your GitHub token is valid and has repo permissions.`,
-        success: false
+        error: `Failed to authenticate with GitHub: ${error.message}. Please verify your GIT_TOKEN is a valid GitHub Personal Access Token with repo permissions.`,
+        success: false,
+        debug: {
+          tokenExists: !!GIT_TOKEN,
+          tokenLength: GIT_TOKEN?.length || 0
+        }
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -148,44 +166,61 @@ serve(async (req) => {
           
           console.log('Creating new GitHub repository:', uniqueRepoName)
           
-          // Create GitHub repository
+          // Create GitHub repository with improved payload
+          const repoPayload = {
+            name: uniqueRepoName,
+            description: `Cloud Runner Project - ${projectName}`,
+            private: false,
+            auto_init: false,
+            has_issues: true,
+            has_projects: true,
+            has_wiki: false
+          }
+          
+          console.log('Repository payload:', JSON.stringify(repoPayload, null, 2))
+          
           const repoResponse = await fetch('https://api.github.com/user/repos', {
             method: 'POST',
             headers: githubHeaders,
-            body: JSON.stringify({
-              name: uniqueRepoName,
-              description: `Cloud Runner Project - ${projectName}`,
-              private: false,
-              auto_init: false // Don't auto-init to avoid conflicts
-            })
+            body: JSON.stringify(repoPayload)
           })
+
+          console.log('Repository creation response status:', repoResponse.status)
 
           if (!repoResponse.ok) {
             const error = await repoResponse.text()
-            console.error('Failed to create repository:', repoResponse.status, error)
+            console.error('Failed to create repository:', {
+              status: repoResponse.status,
+              statusText: repoResponse.statusText,
+              headers: Object.fromEntries(repoResponse.headers.entries()),
+              body: error
+            })
             
             let errorMessage = 'Failed to create repository'
             try {
               const errorData = JSON.parse(error)
               errorMessage = errorData.message || errorMessage
+              console.error('Repository creation error details:', errorData)
             } catch (e) {
-              // Use default message if parsing fails
+              console.error('Could not parse repository creation error:', error)
             }
             
-            throw new Error(`${repoResponse.status} - ${errorMessage}`)
+            throw new Error(`Repository creation failed (${repoResponse.status}): ${errorMessage}`)
           }
 
           const repo = await repoResponse.json()
-          console.log('Repository created:', repo.full_name)
+          console.log('Repository created successfully:', repo.full_name)
 
           // Wait a moment for repository to be ready
-          await new Promise(resolve => setTimeout(resolve, 1000))
+          await new Promise(resolve => setTimeout(resolve, 2000))
 
           let filesUploaded = 0;
 
-          // Upload project files
+          // Upload project files with better error handling
           for (const file of files) {
             try {
+              console.log(`Uploading file: ${file.fileName}`)
+              
               const uploadResponse = await fetch(`https://api.github.com/repos/${repo.full_name}/contents/${file.fileName}`, {
                 method: 'PUT',
                 headers: githubHeaders,
@@ -193,7 +228,7 @@ serve(async (req) => {
                   message: `Add ${file.fileName}`,
                   content: encodeBase64(file.content),
                   committer: {
-                    name: 'Cloud Runner',
+                    name: 'Cloud Runner Bot',
                     email: 'cloudrunner@casel.ai'
                   }
                 })
@@ -201,10 +236,13 @@ serve(async (req) => {
 
               if (uploadResponse.ok) {
                 filesUploaded++
-                console.log(`Uploaded file: ${file.fileName}`)
+                console.log(`Successfully uploaded file: ${file.fileName}`)
               } else {
                 const errorText = await uploadResponse.text()
-                console.error(`Failed to upload file ${file.fileName}:`, errorText)
+                console.error(`Failed to upload file ${file.fileName}:`, {
+                  status: uploadResponse.status,
+                  error: errorText
+                })
               }
             } catch (error) {
               console.error(`Error uploading file ${file.fileName}:`, error)
@@ -236,19 +274,26 @@ Generated on: ${new Date().toISOString()}
 `
 
           try {
-            await fetch(`https://api.github.com/repos/${repo.full_name}/contents/README.md`, {
+            console.log('Creating README.md...')
+            const readmeResponse = await fetch(`https://api.github.com/repos/${repo.full_name}/contents/README.md`, {
               method: 'PUT',
               headers: githubHeaders,
               body: JSON.stringify({
                 message: 'Add README.md',
                 content: encodeBase64(readmeContent),
                 committer: {
-                  name: 'Cloud Runner',
+                  name: 'Cloud Runner Bot',
                   email: 'cloudrunner@casel.ai'
                 }
               })
             })
-            console.log('README.md created successfully')
+            
+            if (readmeResponse.ok) {
+              console.log('README.md created successfully')
+            } else {
+              const errorText = await readmeResponse.text()
+              console.error('Failed to create README:', errorText)
+            }
           } catch (error) {
             console.error('Failed to create README:', error)
           }
@@ -265,6 +310,7 @@ Generated on: ${new Date().toISOString()}
                   github_repo_name: uniqueRepoName,
                   github_repo_url: repo.html_url,
                   session_file_uploaded: !!sessionFile,
+                  deployment_status: 'repo_created',
                   updated_at: new Date().toISOString()
                 })
               
@@ -281,7 +327,8 @@ Generated on: ${new Date().toISOString()}
             repoName: uniqueRepoName,
             repoUrl: repo.html_url,
             cloneUrl: repo.clone_url,
-            filesUploaded: filesUploaded
+            filesUploaded: filesUploaded,
+            username: githubUsername
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
@@ -290,7 +337,11 @@ Generated on: ${new Date().toISOString()}
           console.error('Error creating GitHub repo:', error)
           return new Response(JSON.stringify({
             error: `Failed to create GitHub repository: ${error.message}`,
-            success: false
+            success: false,
+            debug: {
+              tokenExists: !!GIT_TOKEN,
+              username: githubUsername || 'unknown'
+            }
           }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
