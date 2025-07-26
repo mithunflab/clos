@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,7 +19,7 @@ interface CloudRunnerAIAssistantProps {
   onFilesGenerated?: (files: Array<{ fileName: string; content: string; language: string; }>) => void;
   onSessionFileRequest?: () => void;
   sessionFile?: File | null;
-  currentFiles?: Array<{ name: string; content: string; language: string; }>;
+  currentFiles?: Array<{ fileName: string; content: string; language: string; }>;
 }
 
 const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
