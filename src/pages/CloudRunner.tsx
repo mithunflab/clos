@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,7 +18,6 @@ import {
   Terminal,
   Activity,
   RefreshCw,
-  Sync,
   CheckCircle,
   XCircle,
   Clock
@@ -433,7 +431,7 @@ const CloudRunner: React.FC = () => {
                   {isSyncing ? (
                     <RefreshCw className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Sync className="h-4 w-4" />
+                    <RefreshCw className="h-4 w-4" />
                   )}
                   {isSyncing ? 'Syncing...' : 'Sync Now'}
                 </Button>
