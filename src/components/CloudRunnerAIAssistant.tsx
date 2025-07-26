@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Bot, Send, Upload, AlertTriangle, Paperclip, X } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Bot, Send, Upload, AlertTriangle, Paperclip, X, Brain } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -14,6 +15,7 @@ interface ChatMessage {
   content: string;
   timestamp: Date;
   files?: Array<{ fileName: string; content: string; language: string; }>;
+  modelUsed?: string;
 }
 
 interface CloudRunnerAIAssistantProps {
@@ -38,13 +40,14 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
-      content: '👋 Ready to build Python automation with Groq! Describe what you want to create and I\'ll generate the code using Groq API only.',
+      content: '👋 Ready to build Python automation! Choose your preferred AI model and describe what you want to create.',
       timestamp: new Date()
     }
   ]);
   const [currentMessage, setCurrentMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [selectedModel, setSelectedModel] = useState<string>('gemini');
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -102,6 +105,27 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
   };
 
   const analyzeUserMessage = (message: string): string => {
+    // Check if user mentions specific AI models in their request
+    let modelInstruction = '';
+    const lowerMessage = message.toLowerCase();
+    
+    if (lowerMessage.includes('use gemini') || lowerMessage.includes('with gemini')) {
+      modelInstruction = '\n\nIMPORTANT: Use Gemini API (google-generativeai library) in the generated code.';
+    } else if (lowerMessage.includes('use groq') || lowerMessage.includes('with groq')) {
+      modelInstruction = '\n\nIMPORTANT: Use Groq API (groq-python library) in the generated code.';
+    } else if (lowerMessage.includes('use openai') || lowerMessage.includes('with openai')) {
+      modelInstruction = '\n\nIMPORTANT: Use OpenAI API (openai library) in the generated code.';
+    } else {
+      // Use the selected model from dropdown
+      if (selectedModel === 'gemini') {
+        modelInstruction = '\n\nIMPORTANT: Use Gemini API (google-generativeai library) in the generated code.';
+      } else if (selectedModel === 'groq') {
+        modelInstruction = '\n\nIMPORTANT: Use Groq API (groq-python library) in the generated code.';
+      } else if (selectedModel === 'openai') {
+        modelInstruction = '\n\nIMPORTANT: Use OpenAI API (openai library) in the generated code.';
+      }
+    }
+    
     // Check if user mentions files or asks for analysis
     const fileNames = currentFiles.map(f => f.fileName);
     const mentionedFiles = fileNames.filter(fileName => 
@@ -114,10 +138,10 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
         return `File: ${fileName}\nContent:\n${file?.content?.substring(0, 500)}...`;
       }).join('\n\n');
       
-      return `${message}\n\nCurrent files context:\n${fileContext}\n\nIMPORTANT: Use only Groq API, never OpenAI. Use groq-python library in requirements.txt.`;
+      return `${message}\n\nCurrent files context:\n${fileContext}${modelInstruction}`;
     }
     
-    return `${message}\n\nIMPORTANT: Use only Groq API, never OpenAI. Use groq-python library in requirements.txt.`;
+    return `${message}${modelInstruction}`;
   };
 
   const handleSendMessage = useCallback(async () => {
@@ -133,7 +157,7 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
       timestamp: new Date()
     };
 
-    console.log('Sending message:', currentMessage);
+    console.log('Sending message with model:', selectedModel);
     
     // Update messages and clear input immediately
     setMessages(prev => [...prev, newMessage]);
@@ -150,7 +174,8 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
         body: {
           messages: [...messages, { ...newMessage, content: analyzedMessage }],
           sessionFileUploaded: !!sessionFile,
-          currentFiles: currentFiles
+          currentFiles: currentFiles,
+          preferredModel: selectedModel
         }
       });
 
@@ -163,7 +188,8 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
         role: 'assistant',
         content: data.response || 'I encountered an error processing your request.',
         timestamp: new Date(),
-        files: data.files || []
+        files: data.files || [],
+        modelUsed: data.modelUsed
       };
 
       setMessages(prev => [...prev, assistantMessage]);
@@ -193,19 +219,19 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
       
       const errorMessage: ChatMessage = {
         role: 'assistant',
-        content: '❌ Failed to process request with Groq. Please ensure GROQ_API_KEY is configured and try again.',
+        content: '❌ Failed to process request. Please check that API keys are configured properly.',
         timestamp: new Date()
       };
       
       setMessages(prev => [...prev, errorMessage]);
-      toast.error('Failed to send message - check Groq API configuration');
+      toast.error('Failed to send message - check API configuration');
     } finally {
       setIsLoading(false);
       // Always signal generation end
       console.log('AI generation completed');
       onGeneratingEnd?.();
     }
-  }, [currentMessage, isLoading, messages, sessionFile, currentFiles, onFilesGenerated, onSessionFileRequest, onGeneratingStart, onGeneratingEnd]);
+  }, [currentMessage, isLoading, messages, sessionFile, currentFiles, selectedModel, onFilesGenerated, onSessionFileRequest, onGeneratingStart, onGeneratingEnd]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -236,7 +262,7 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
                   {message.files && message.files.length > 0 && (
                     <div className="mt-2 space-y-1">
                       <Badge variant="outline" className="text-xs">
-                        {message.files.length} files generated with Groq
+                        {message.files.length} files generated {message.modelUsed ? `with ${message.modelUsed}` : ''}
                       </Badge>
                       {message.files.map((file, fileIndex) => (
                         <div key={fileIndex} className="text-xs text-muted-foreground">
@@ -246,9 +272,16 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
                     </div>
                   )}
                   
-                  <p className="text-xs opacity-70 mt-2">
-                    {message.timestamp.toLocaleTimeString()}
-                  </p>
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-xs opacity-70">
+                      {message.timestamp.toLocaleTimeString()}
+                    </p>
+                    {message.modelUsed && (
+                      <Badge variant="secondary" className="text-xs">
+                        {message.modelUsed}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -258,7 +291,7 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
                 <div className="bg-muted p-3 rounded-lg mr-4">
                   <div className="flex items-center gap-2">
                     <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full"></div>
-                    <span className="text-sm">Creating files with Groq...</span>
+                    <span className="text-sm">Creating files with {selectedModel.toUpperCase()}...</span>
                   </div>
                 </div>
               </div>
@@ -270,6 +303,24 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
       </div>
       
       <div className="border-t p-4 bg-card">
+        {/* AI Model Selection */}
+        <div className="mb-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Brain className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-medium">AI Model</span>
+          </div>
+          <Select value={selectedModel} onValueChange={setSelectedModel}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="gemini">🧠 Gemini (Google)</SelectItem>
+              <SelectItem value="groq">⚡ Groq (Fast)</SelectItem>
+              <SelectItem value="openai">🤖 OpenAI (GPT)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         {sessionFile && (
           <div className="mb-2 flex items-center gap-2 p-2 bg-muted rounded-md">
             <Paperclip className="w-4 h-4" />
@@ -297,7 +348,7 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
           <Input
             value={currentMessage}
             onChange={(e) => setCurrentMessage(e.target.value)}
-            placeholder="Describe your automation project using Groq..."
+            placeholder={`Describe your automation project using ${selectedModel.toUpperCase()}...`}
             onKeyPress={handleKeyPress}
             disabled={isLoading}
             className="flex-1"
