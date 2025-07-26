@@ -3,7 +3,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { 
   Upload, 
@@ -62,7 +61,7 @@ const CloudRunner = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCreatingRepo, setIsCreatingRepo] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [navMinimized, setNavMinimized] = useState(false);
+  const [sidebarMinimized, setSidebarMinimized] = useState(false);
   const [renderServiceId, setRenderServiceId] = useState<string>('');
 
   useEffect(() => {
@@ -139,7 +138,6 @@ const CloudRunner = () => {
   const handleFilesGenerated = useCallback((files: ProjectFile[]) => {
     console.log('Files generated:', files);
     setProjectFiles(prev => {
-      // Merge new files with existing ones, replacing duplicates
       const updatedFiles = [...prev];
       files.forEach(newFile => {
         const existingIndex = updatedFiles.findIndex(f => f.fileName === newFile.fileName);
@@ -164,7 +162,6 @@ const CloudRunner = () => {
     if (file && file.name.endsWith('.session')) {
       setSessionFile(file);
       
-      // Add session file to file tree immediately
       const sessionFileContent = {
         fileName: file.name,
         content: 'Binary session file - content not displayed',
@@ -202,23 +199,6 @@ const CloudRunner = () => {
       )
     );
     setRenderLogs(prev => [...prev, `Updated: ${fileName}`]);
-  };
-
-  const fetchRenderLogs = async (serviceId: string) => {
-    try {
-      // This would fetch real logs from Render API
-      // For now, we'll simulate logs
-      const mockLogs = [
-        `[${new Date().toISOString()}] Starting deployment...`,
-        `[${new Date().toISOString()}] Building Docker image...`,
-        `[${new Date().toISOString()}] Installing dependencies...`,
-        `[${new Date().toISOString()}] Service deployed successfully!`
-      ];
-      
-      setRenderLogs(prev => [...prev, ...mockLogs]);
-    } catch (error) {
-      console.error('Error fetching render logs:', error);
-    }
   };
 
   const handleCreateGitHubRepo = async () => {
@@ -286,7 +266,7 @@ const CloudRunner = () => {
     }
 
     setIsSyncing(true);
-    setRenderLogs(prev => [...prev, 'Syncing files to GitHub...']);
+    setRenderLogs(prev => [...prev, 'Syncing files to existing GitHub repository...']);
     
     try {
       const { data, error } = await supabase.functions.invoke('cloud-runner-manager', {
@@ -295,17 +275,18 @@ const CloudRunner = () => {
           projectName: projectName,
           files: projectFiles,
           sessionFile: sessionFile,
-          githubRepoUrl: githubRepoUrl
+          githubRepoUrl: githubRepoUrl,
+          updateExisting: true
         }
       });
 
       if (error) throw error;
 
       if (data && data.success) {
-        setRenderLogs(prev => [...prev, 'Files synced to GitHub successfully']);
+        setRenderLogs(prev => [...prev, 'Files synced to existing GitHub repository successfully']);
         toast({
           title: "Success",
-          description: "Files synced to GitHub successfully!",
+          description: "Files synced to existing repository successfully!",
         });
       } else {
         throw new Error(data?.error || 'Sync failed');
@@ -339,7 +320,6 @@ const CloudRunner = () => {
     setRenderLogs(prev => [...prev, 'Starting deployment to Render...']);
 
     try {
-      // First sync latest changes to Git
       if (projectFiles.length > 0) {
         await handleGitSync();
       }
@@ -363,11 +343,6 @@ const CloudRunner = () => {
           'Deployment successful!', 
           `Service URL: ${data.serviceUrl}`
         ]);
-
-        // Start fetching real-time logs
-        if (data.serviceId) {
-          await fetchRenderLogs(data.serviceId);
-        }
 
         toast({
           title: "Success",
@@ -413,24 +388,19 @@ const CloudRunner = () => {
 
   return (
     <div className="h-screen flex bg-background relative">
-      <div className={`transition-all duration-300 ${navMinimized ? 'w-16' : 'w-96'} border-r border-border flex flex-col`}>
-        {navMinimized ? (
-          <div className="p-4 flex flex-col items-center space-y-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setNavMinimized(false)}
-              className="w-8 h-8 p-0"
-              title="Maximize"
-            >
-              <Maximize2 className="w-4 h-4" />
-            </Button>
+      {/* Sidebar */}
+      <div className={`transition-all duration-300 ${sidebarMinimized ? 'w-16' : 'w-96'} border-r border-border flex flex-col bg-card`}>
+        <div className="p-4 border-b border-border flex items-center justify-between">
+          <h2 className={`font-semibold text-lg ${sidebarMinimized ? 'hidden' : 'block'}`}>
+            Cloud Runner
+          </h2>
+          <div className="flex items-center space-x-2">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => navigate('/dashboard')}
-              className="w-8 h-8 p-0"
-              title="Home"
+              className="p-2"
+              title="Dashboard"
             >
               <Home className="w-4 h-4" />
             </Button>
@@ -438,62 +408,41 @@ const CloudRunner = () => {
               variant="ghost"
               size="sm"
               onClick={toggleTheme}
-              className="w-8 h-8 p-0"
+              className="p-2"
               title="Toggle Theme"
             >
               {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarMinimized(!sidebarMinimized)}
+              className="p-2"
+              title={sidebarMinimized ? "Expand" : "Minimize"}
+            >
+              {sidebarMinimized ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
+            </Button>
           </div>
-        ) : (
-          <>
-            <div className="p-4 border-b flex items-center justify-between">
-              <h2 className="font-semibold">Cloud Runner</h2>
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={toggleTheme}
-                  className="w-8 h-8 p-0"
-                  title="Toggle Theme"
-                >
-                  {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setNavMinimized(true)}
-                  className="w-8 h-8 p-0"
-                  title="Minimize"
-                >
-                  <Minimize2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-            <CloudRunnerAIAssistant
-              onFilesGenerated={handleFilesGenerated}
-              onSessionFileRequest={handleSessionFileRequest}
-              sessionFile={sessionFile}
-              currentFiles={projectFiles}
-              onSessionFileUpload={handleSessionFileUpload}
-              onGeneratingStart={() => setIsGenerating(true)}
-            />
-          </>
+        </div>
+        
+        {!sidebarMinimized && (
+          <CloudRunnerAIAssistant
+            onFilesGenerated={handleFilesGenerated}
+            onSessionFileRequest={handleSessionFileRequest}
+            sessionFile={sessionFile}
+            currentFiles={projectFiles}
+            onSessionFileUpload={handleSessionFileUpload}
+            onGeneratingStart={() => setIsGenerating(true)}
+          />
         )}
       </div>
 
+      {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-h-0">
-        {/* Header */}
+        {/* Top Header */}
         <div className="bg-background border-b border-border p-4 shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/dashboard')}
-                className="text-muted-foreground hover:text-foreground hover:bg-accent p-2"
-              >
-                <Home className="w-5 h-5" />
-              </Button>
               <div className="flex items-center space-x-2">
                 <User className="w-4 h-4 text-muted-foreground" />
                 <span className="text-muted-foreground text-sm">Personal</span>
@@ -562,7 +511,7 @@ const CloudRunner = () => {
           </div>
         </div>
 
-        {/* Main Content */}
+        {/* File Tree Container */}
         <div className="flex-1 p-6 overflow-hidden min-h-0">
           <PlaygroundCanvas className="w-full h-full">
             <div className="w-full h-full">

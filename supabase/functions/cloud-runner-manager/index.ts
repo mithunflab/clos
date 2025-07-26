@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -34,7 +33,7 @@ serve(async (req) => {
       return new Response('Unauthorized', { status: 401, headers: corsHeaders })
     }
 
-    const { action, projectName, files, sessionFile, repoName, githubRepoUrl, projectId } = await req.json()
+    const { action, projectName, files, sessionFile, repoName, githubRepoUrl, projectId, updateExisting } = await req.json()
 
     if (!GIT_TOKEN) {
       console.error('GitHub token not configured')
@@ -92,9 +91,9 @@ serve(async (req) => {
           const repoNameFromUrl = urlParts[urlParts.length - 1]
           const fullRepoName = `${githubUsername}/${repoNameFromUrl}`
 
-          console.log('Syncing to repository:', fullRepoName)
+          console.log('Syncing to existing repository:', fullRepoName)
 
-          // Update project files
+          // Update project files in existing repository
           for (const file of files) {
             try {
               const fileResponse = await fetch(`https://api.github.com/repos/${fullRepoName}/contents/${file.fileName}`, {
@@ -111,7 +110,7 @@ serve(async (req) => {
                 method: 'PUT',
                 headers: githubHeaders,
                 body: JSON.stringify({
-                  message: `Update ${file.fileName}`,
+                  message: `Update ${file.fileName} - ${new Date().toISOString()}`,
                   content: encodeBase64(file.content),
                   sha: sha
                 })
@@ -120,6 +119,8 @@ serve(async (req) => {
               if (!updateResponse.ok) {
                 const errorText = await updateResponse.text()
                 console.error(`Failed to update file ${file.fileName}:`, errorText)
+              } else {
+                console.log(`Successfully updated ${file.fileName}`)
               }
             } catch (error) {
               console.error(`Error updating file ${file.fileName}:`, error)
@@ -145,7 +146,7 @@ serve(async (req) => {
                 method: 'PUT',
                 headers: githubHeaders,
                 body: JSON.stringify({
-                  message: 'Update session.session file',
+                  message: `Update session.session file - ${new Date().toISOString()}`,
                   content: encodeBase64(sessionContent),
                   sha: sessionSha
                 })
@@ -157,7 +158,7 @@ serve(async (req) => {
 
           return new Response(JSON.stringify({
             success: true,
-            message: 'Files synced successfully'
+            message: 'Files synced to existing repository successfully'
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
@@ -175,10 +176,71 @@ serve(async (req) => {
 
       case 'create-github-repo': {
         try {
+          // Check if this project already has a GitHub repository
+          if (projectId) {
+            const { data: existingProject } = await supabaseClient
+              .from('cloud_runner_projects')
+              .select('github_repo_url, github_repo_name')
+              .eq('id', projectId)
+              .eq('user_id', user.id)
+              .single()
+
+            if (existingProject?.github_repo_url) {
+              console.log('Project already has repository, updating existing:', existingProject.github_repo_url)
+              
+              // Just sync to existing repository instead of creating new one
+              const urlParts = existingProject.github_repo_url.split('/')
+              const repoNameFromUrl = urlParts[urlParts.length - 1]
+              const fullRepoName = `${githubUsername}/${repoNameFromUrl}`
+
+              // Update files in existing repository
+              for (const file of files) {
+                try {
+                  const fileResponse = await fetch(`https://api.github.com/repos/${fullRepoName}/contents/${file.fileName}`, {
+                    headers: githubHeaders
+                  })
+
+                  let sha = null
+                  if (fileResponse.ok) {
+                    const existingFile = await fileResponse.json()
+                    sha = existingFile.sha
+                  }
+
+                  const updateResponse = await fetch(`https://api.github.com/repos/${fullRepoName}/contents/${file.fileName}`, {
+                    method: 'PUT',
+                    headers: githubHeaders,
+                    body: JSON.stringify({
+                      message: `Update ${file.fileName} - ${new Date().toISOString()}`,
+                      content: encodeBase64(file.content),
+                      sha: sha
+                    })
+                  })
+
+                  if (!updateResponse.ok) {
+                    const errorText = await updateResponse.text()
+                    console.error(`Failed to update file ${file.fileName}:`, errorText)
+                  }
+                } catch (error) {
+                  console.error(`Error updating file ${file.fileName}:`, error)
+                }
+              }
+
+              return new Response(JSON.stringify({
+                success: true,
+                repoName: existingProject.github_repo_name,
+                repoUrl: existingProject.github_repo_url,
+                message: 'Updated existing repository'
+              }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+              })
+            }
+          }
+
+          // Create new repository only if none exists
           const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19)
           const uniqueRepoName = `${projectName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${timestamp}`
           
-          console.log('Creating GitHub repository:', uniqueRepoName)
+          console.log('Creating new GitHub repository:', uniqueRepoName)
           
           // Create GitHub repository
           const repoResponse = await fetch('https://api.github.com/user/repos', {

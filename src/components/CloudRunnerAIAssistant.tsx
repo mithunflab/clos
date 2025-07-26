@@ -128,9 +128,12 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
       timestamp: new Date()
     };
 
+    // Update messages first
     setMessages(prev => [...prev, newMessage]);
     setCurrentMessage('');
     setIsLoading(true);
+    
+    // Notify parent that generation is starting
     onGeneratingStart?.();
 
     try {
@@ -142,13 +145,16 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error calling cloud-runner-assistant:', error);
+        throw error;
+      }
 
       const assistantMessage: ChatMessage = {
         role: 'assistant',
-        content: data.response,
+        content: data.response || 'I encountered an error processing your request.',
         timestamp: new Date(),
-        files: data.files
+        files: data.files || []
       };
 
       setMessages(prev => [...prev, assistantMessage]);
@@ -159,7 +165,7 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
       }
 
       // Check if AI is requesting session file
-      if (data.response.toLowerCase().includes('session') && 
+      if (data.response && data.response.toLowerCase().includes('session') && 
           data.response.toLowerCase().includes('upload') && 
           !sessionFile) {
         onSessionFileRequest?.();
@@ -189,21 +195,9 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
   };
 
   return (
-    <Card className="h-full flex flex-col">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Bot className="h-5 w-5 text-primary" />
-          <span>AI Assistant</span>
-          {sessionFile && (
-            <Badge variant="secondary" className="text-xs">
-              Session Ready
-            </Badge>
-          )}
-        </CardTitle>
-      </CardHeader>
-      
-      <CardContent className="flex-1 flex flex-col p-0">
-        <ScrollArea className="flex-1 p-4">
+    <div className="h-full flex flex-col">
+      <div className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full p-4">
           <div className="space-y-4">
             {messages.map((message, index) => (
               <div
@@ -253,59 +247,67 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
             <div ref={chatEndRef} />
           </div>
         </ScrollArea>
-        
-        <div className="border-t p-4">
-          {attachedFile && (
-            <div className="mb-2 flex items-center gap-2 p-2 bg-muted rounded-md">
-              <Paperclip className="w-4 h-4" />
-              <span className="text-sm flex-1">{attachedFile.name}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleRemoveAttachment}
-                className="h-6 w-6 p-0"
-              >
-                <X className="w-3 h-3" />
-              </Button>
-            </div>
-          )}
-          
-          <div className="flex gap-2">
-            <Input
-              value={currentMessage}
-              onChange={(e) => setCurrentMessage(e.target.value)}
-              placeholder="Describe your automation project or mention a file..."
-              onKeyPress={handleKeyPress}
-              disabled={isLoading}
-              className="flex-1"
-            />
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".session,.py,.js,.ts,.json,.md,.txt,.html,.css"
-              onChange={handleFileAttachment}
-              className="hidden"
-            />
+      </div>
+      
+      <div className="border-t p-4 bg-card">
+        {sessionFile && (
+          <div className="mb-2 flex items-center gap-2 p-2 bg-muted rounded-md">
+            <Paperclip className="w-4 h-4" />
+            <span className="text-sm flex-1">Session: {sessionFile.name}</span>
+            <Badge variant="secondary" className="text-xs">Ready</Badge>
+          </div>
+        )}
+
+        {attachedFile && (
+          <div className="mb-2 flex items-center gap-2 p-2 bg-muted rounded-md">
+            <Paperclip className="w-4 h-4" />
+            <span className="text-sm flex-1">{attachedFile.name}</span>
             <Button
-              variant="outline"
-              size="icon"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isLoading}
-              title="Attach file"
+              variant="ghost"
+              size="sm"
+              onClick={handleRemoveAttachment}
+              className="h-6 w-6 p-0"
             >
-              <Paperclip className="w-4 h-4" />
-            </Button>
-            <Button 
-              onClick={handleSendMessage} 
-              disabled={isLoading || !currentMessage.trim()}
-              size="icon"
-            >
-              <Send className="w-4 h-4" />
+              <X className="w-3 h-3" />
             </Button>
           </div>
+        )}
+        
+        <div className="flex gap-2">
+          <Input
+            value={currentMessage}
+            onChange={(e) => setCurrentMessage(e.target.value)}
+            placeholder="Describe your automation project or mention a file..."
+            onKeyPress={handleKeyPress}
+            disabled={isLoading}
+            className="flex-1"
+          />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".session,.py,.js,.ts,.json,.md,.txt,.html,.css"
+            onChange={handleFileAttachment}
+            className="hidden"
+          />
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isLoading}
+            title="Attach file"
+          >
+            <Paperclip className="w-4 h-4" />
+          </Button>
+          <Button 
+            onClick={handleSendMessage} 
+            disabled={isLoading || !currentMessage.trim()}
+            size="icon"
+          >
+            <Send className="w-4 h-4" />
+          </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };
 
