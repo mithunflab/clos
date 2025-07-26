@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -78,8 +77,9 @@ serve(async (req) => {
     }
 
     const githubHeaders = {
-      'Authorization': `token ${GIT_TOKEN}`,
-      'Accept': 'application/vnd.github.v3+json',
+      'Authorization': `Bearer ${GIT_TOKEN}`,
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
       'Content-Type': 'application/json',
       'User-Agent': 'CloudRunner/1.0',
     }
@@ -89,26 +89,49 @@ serve(async (req) => {
       'Content-Type': 'application/json',
     }
 
-    // Get GitHub username with better error handling
+    // Get GitHub username with better error handling and token validation
     let githubUsername = '';
     try {
+      console.log('Authenticating with GitHub using Bearer token...')
+      
       const userResponse = await fetch('https://api.github.com/user', {
         headers: githubHeaders
       })
       
       if (!userResponse.ok) {
         const errorText = await userResponse.text()
-        console.error('GitHub authentication failed:', errorText)
-        throw new Error(`GitHub authentication failed: ${userResponse.status} ${errorText}`)
+        console.error('GitHub authentication failed:', userResponse.status, errorText)
+        
+        // Try with token prefix
+        const altHeaders = {
+          ...githubHeaders,
+          'Authorization': `token ${GIT_TOKEN}`
+        }
+        
+        const retryResponse = await fetch('https://api.github.com/user', {
+          headers: altHeaders
+        })
+        
+        if (!retryResponse.ok) {
+          const retryErrorText = await retryResponse.text()
+          console.error('GitHub retry authentication failed:', retryResponse.status, retryErrorText)
+          throw new Error(`GitHub authentication failed: ${retryResponse.status} - Please verify your GitHub token has proper permissions`)
+        }
+        
+        const retryGithubUser = await retryResponse.json()
+        githubUsername = retryGithubUser.login
+        // Update headers for subsequent requests
+        Object.assign(githubHeaders, altHeaders)
+      } else {
+        const githubUser = await userResponse.json()
+        githubUsername = githubUser.login
       }
       
-      const githubUser = await userResponse.json()
-      githubUsername = githubUser.login
       console.log(`GitHub authenticated for user: ${githubUsername}`)
     } catch (error) {
       console.error('Failed to authenticate with GitHub:', error)
       return new Response(JSON.stringify({
-        error: 'Failed to authenticate with GitHub. Please check your API token.',
+        error: `Failed to authenticate with GitHub: ${error.message}. Please verify your GitHub token is valid and has repo permissions.`,
         success: false
       }), {
         status: 500,
@@ -313,8 +336,8 @@ serve(async (req) => {
 
           if (!repoResponse.ok) {
             const error = await repoResponse.text()
-            console.error('Failed to create repository:', error)
-            throw new Error(`Failed to create repository: ${repoResponse.status} ${error}`)
+            console.error('Failed to create repository:', repoResponse.status, error)
+            throw new Error(`Failed to create repository: ${repoResponse.status} - ${error}`)
           }
 
           const repo = await repoResponse.json()
