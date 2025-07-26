@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, Clock, CheckCircle, AlertCircle, Bot, ExternalLink, Cloud } from 'lucide-react';
@@ -13,7 +12,6 @@ import { useUserPlan } from '@/hooks/useUserPlan';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
-
 interface WorkflowItem {
   id: string;
   name: string;
@@ -25,7 +23,6 @@ interface WorkflowItem {
   n8n_workflow_id?: string;
   deployment_url?: string;
 }
-
 interface CloudRunnerProject {
   id: string;
   project_name: string;
@@ -35,19 +32,30 @@ interface CloudRunnerProject {
   created_at: string;
   updated_at: string;
 }
-
 const Workflows = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const { plan } = useUserPlan();
-  const { deleteWorkflow, getUserWorkflowCount, getWorkflowLimit } = useWorkflowStorageV2();
-  const { getUserProjects, deleteProject } = useCloudRunnerProjects();
+  const {
+    user
+  } = useAuth();
+  const {
+    plan
+  } = useUserPlan();
+  const {
+    deleteWorkflow,
+    getUserWorkflowCount,
+    getWorkflowLimit
+  } = useWorkflowStorageV2();
+  const {
+    getUserProjects,
+    deleteProject
+  } = useCloudRunnerProjects();
   const [workflows, setWorkflows] = useState<WorkflowItem[]>([]);
   const [cloudProjects, setCloudProjects] = useState<CloudRunnerProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [workflowCount, setWorkflowCount] = useState(0);
-  const { toast } = useToast();
-
+  const {
+    toast
+  } = useToast();
   useEffect(() => {
     if (user) {
       loadWorkflows();
@@ -55,7 +63,6 @@ const Workflows = () => {
       loadWorkflowCount();
     }
   }, [user]);
-
   const loadWorkflowCount = async () => {
     try {
       const count = await getUserWorkflowCount();
@@ -64,23 +71,20 @@ const Workflows = () => {
       console.error('Error loading workflow count:', error);
     }
   };
-
   const loadWorkflows = async () => {
     try {
       setLoading(true);
-      
-      const { data: workflowsData, error } = await supabase
-        .from('workflow_data')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('updated_at', { ascending: false });
-      
+      const {
+        data: workflowsData,
+        error
+      } = await supabase.from('workflow_data').select('*').eq('user_id', user?.id).order('updated_at', {
+        ascending: false
+      });
       if (error) {
         console.error('❌ Error loading workflows from Supabase:', error);
         setWorkflows([]);
         return;
       }
-      
       if (workflowsData && workflowsData.length > 0) {
         const formattedWorkflows = workflowsData.map((workflow: any) => ({
           id: workflow.workflow_id,
@@ -93,7 +97,6 @@ const Workflows = () => {
           n8n_workflow_id: workflow.n8n_workflow_id,
           deployment_url: workflow.n8n_url
         }));
-        
         setWorkflows(formattedWorkflows);
         console.log('✅ Loaded workflows from Supabase:', formattedWorkflows);
       } else {
@@ -107,7 +110,6 @@ const Workflows = () => {
       setLoading(false);
     }
   };
-
   const loadCloudProjects = async () => {
     try {
       const projects = await getUserProjects();
@@ -117,7 +119,6 @@ const Workflows = () => {
       setCloudProjects([]);
     }
   };
-
   const handleDeleteWorkflow = async (workflowId: string) => {
     try {
       await deleteWorkflow(workflowId);
@@ -125,59 +126,52 @@ const Workflows = () => {
       await loadWorkflowCount(); // Refresh count
       toast({
         title: "Success",
-        description: "Workflow deleted successfully",
+        description: "Workflow deleted successfully"
       });
     } catch (error) {
       console.error('Error deleting workflow:', error);
       toast({
         title: "Error",
         description: "Failed to delete workflow",
-        variant: "destructive",
+        variant: "destructive"
       });
     }
   };
-
   const handleDeleteCloudProject = async (projectId: string) => {
     try {
       await deleteProject(projectId);
       setCloudProjects(cloudProjects.filter(p => p.id !== projectId));
       toast({
         title: "Success",
-        description: "Cloud project deleted successfully",
+        description: "Cloud project deleted successfully"
       });
     } catch (error) {
       console.error('Error deleting cloud project:', error);
       toast({
         title: "Error",
         description: "Failed to delete cloud project",
-        variant: "destructive",
+        variant: "destructive"
       });
     }
   };
-
   const handleEditWorkflow = (workflowId: string) => {
     navigate(`/playground?id=${workflowId}`);
   };
-
   const handleEditCloudProject = (projectId: string) => {
     navigate(`/cloud-runner?id=${projectId}`);
   };
-
   const handleCreateWorkflow = () => {
     const workflowLimit = getWorkflowLimit();
-    
     if (workflowLimit !== -1 && workflowCount >= workflowLimit) {
       toast({
         title: "Workflow Limit Reached",
         description: `You have reached the maximum number of workflows (${workflowLimit}) for your ${plan?.plan_type} plan. Please upgrade to create more workflows.`,
-        variant: "destructive",
+        variant: "destructive"
       });
       return;
     }
-    
     navigate('/playground');
   };
-
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'active':
@@ -190,7 +184,6 @@ const Workflows = () => {
         return <Clock className="w-4 h-4 text-yellow-500" />;
     }
   };
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active':
@@ -203,7 +196,6 @@ const Workflows = () => {
         return 'bg-yellow-500/20 text-yellow-600 border-yellow-500/30 dark:text-yellow-400';
     }
   };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -213,13 +205,11 @@ const Workflows = () => {
       minute: '2-digit'
     });
   };
-
   const getWorkflowLimitText = () => {
     const limit = getWorkflowLimit();
     if (limit === -1) return 'Unlimited';
     return `${workflowCount}/${limit}`;
   };
-
   const getWorkflowLimitColor = () => {
     const limit = getWorkflowLimit();
     if (limit === -1) return 'text-green-600 dark:text-green-400';
@@ -227,27 +217,26 @@ const Workflows = () => {
     if (workflowCount >= limit * 0.8) return 'text-yellow-600 dark:text-yellow-400';
     return 'text-green-600 dark:text-green-400';
   };
-
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background text-foreground">
+    return <div className="min-h-screen bg-background text-foreground">
         <div className="container mx-auto p-6">
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
         </div>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="min-h-screen bg-background text-foreground">
+  return <div className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto p-6 max-w-7xl">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
+        <motion.div initial={{
+        opacity: 0,
+        y: 20
+      }} animate={{
+        opacity: 1,
+        y: 0
+      }} transition={{
+        duration: 0.5
+      }}>
           {/* Header */}
           <Card glowVariant="premium" enableGlowEffect={true} className="shadow-xl mb-8">
             <CardContent className="p-8">
@@ -262,25 +251,16 @@ const Workflows = () => {
                     </h1>
                     <p className="text-muted-foreground text-lg">
                       Manage your automation workflows 
-                      <span className={`ml-2 font-medium ${getWorkflowLimitColor()}`}>
-                        ({getWorkflowLimitText()})
-                      </span>
+                      
                     </p>
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button 
-                    onClick={() => navigate('/cloud-runner')}
-                    variant="outline"
-                    className="bg-secondary text-secondary-foreground hover:bg-secondary/80 px-6 py-3 shadow-lg hover:shadow-xl transition-all duration-300"
-                  >
+                  <Button onClick={() => navigate('/cloud-runner')} variant="outline" className="bg-secondary text-secondary-foreground hover:bg-secondary/80 px-6 py-3 shadow-lg hover:shadow-xl transition-all duration-300">
                     <Cloud className="w-5 h-5 mr-2" />
                     New Cloud Runner
                   </Button>
-                  <Button 
-                    onClick={handleCreateWorkflow}
-                    className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-3 shadow-lg hover:shadow-xl transition-all duration-300"
-                  >
+                  <Button onClick={handleCreateWorkflow} className="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-3 shadow-lg hover:shadow-xl transition-all duration-300">
                     <Plus className="w-5 h-5 mr-2" />
                     Create Workflow
                   </Button>
@@ -303,14 +283,18 @@ const Workflows = () => {
             </TabsList>
 
             <TabsContent value="workflows" className="space-y-6">
-              {workflows.length === 0 ? (
-                <Card glowVariant="primary" enableGlowEffect={false} className="shadow-lg hover:shadow-xl transition-all duration-300 glow-border">
+              {workflows.length === 0 ? <Card glowVariant="primary" enableGlowEffect={false} className="shadow-lg hover:shadow-xl transition-all duration-300 glow-border">
                   <CardContent className="text-center py-16">
-                    <motion.div
-                      initial={{ scale: 0.9, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ duration: 0.5, delay: 0.2 }}
-                    >
+                    <motion.div initial={{
+                  scale: 0.9,
+                  opacity: 0
+                }} animate={{
+                  scale: 1,
+                  opacity: 1
+                }} transition={{
+                  duration: 0.5,
+                  delay: 0.2
+                }}>
                       <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6 border border-border">
                         <Bot className="w-10 h-10 text-foreground" />
                       </div>
@@ -320,30 +304,24 @@ const Workflows = () => {
                       <p className="text-muted-foreground mb-8 text-lg">
                         Create your first workflow to get started with automation
                       </p>
-                      <Button 
-                        onClick={handleCreateWorkflow}
-                        className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-3 shadow-lg hover:shadow-xl transition-all duration-300"
-                      >
+                      <Button onClick={handleCreateWorkflow} className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-3 shadow-lg hover:shadow-xl transition-all duration-300">
                         <Plus className="w-5 h-5 mr-2" />
                         Create Your First Workflow
                       </Button>
                     </motion.div>
                   </CardContent>
-                </Card>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {workflows.map((workflow, index) => (
-                    <motion.div
-                      key={workflow.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5, delay: index * 0.1 }}
-                    >
-                      <Card 
-                        glowVariant="primary" 
-                        enableGlowEffect={true} 
-                        className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 glow-border"
-                      >
+                </Card> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {workflows.map((workflow, index) => <motion.div key={workflow.id} initial={{
+                opacity: 0,
+                y: 20
+              }} animate={{
+                opacity: 1,
+                y: 0
+              }} transition={{
+                duration: 0.5,
+                delay: index * 0.1
+              }}>
+                      <Card glowVariant="primary" enableGlowEffect={true} className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 glow-border">
                         <CardHeader className="pb-3">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -369,64 +347,47 @@ const Workflows = () => {
                                   <span>Created:</span>
                                   <span className="font-medium">{formatDate(workflow.created_at)}</span>
                                 </div>
-                                {workflow.updated_at && (
-                                  <div className="flex justify-between">
+                                {workflow.updated_at && <div className="flex justify-between">
                                     <span>Updated:</span>
                                     <span className="font-medium">{formatDate(workflow.updated_at)}</span>
-                                  </div>
-                                )}
+                                  </div>}
                               </div>
                             </div>
                             
                             <div className="flex items-center space-x-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEditWorkflow(workflow.id)}
-                                className="flex-1 bg-muted/10 border-border hover:bg-muted/20 transition-all duration-300"
-                              >
+                              <Button variant="outline" size="sm" onClick={() => handleEditWorkflow(workflow.id)} className="flex-1 bg-muted/10 border-border hover:bg-muted/20 transition-all duration-300">
                                 <Edit className="w-4 h-4 mr-2" />
                                 Edit
                               </Button>
                               
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDeleteWorkflow(workflow.id)}
-                                className="bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20 hover:border-destructive/50 transition-all duration-300"
-                              >
+                              <Button variant="outline" size="sm" onClick={() => handleDeleteWorkflow(workflow.id)} className="bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20 hover:border-destructive/50 transition-all duration-300">
                                 <Trash2 className="w-4 h-4" />
                               </Button>
                               
-                              {workflow.deployment_url && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => window.open(workflow.deployment_url, '_blank')}
-                                  className="bg-muted/10 border-border hover:bg-muted/20 transition-all duration-300"
-                                >
+                              {workflow.deployment_url && <Button variant="outline" size="sm" onClick={() => window.open(workflow.deployment_url, '_blank')} className="bg-muted/10 border-border hover:bg-muted/20 transition-all duration-300">
                                   <ExternalLink className="w-4 h-4" />
-                                </Button>
-                              )}
+                                </Button>}
                             </div>
                           </div>
                         </CardContent>
                       </Card>
-                    </motion.div>
-                  ))}
-                </div>
-              )}
+                    </motion.div>)}
+                </div>}
             </TabsContent>
 
             <TabsContent value="cloud-runner" className="space-y-6">
-              {cloudProjects.length === 0 ? (
-                <Card glowVariant="primary" enableGlowEffect={false} className="shadow-lg hover:shadow-xl transition-all duration-300 glow-border">
+              {cloudProjects.length === 0 ? <Card glowVariant="primary" enableGlowEffect={false} className="shadow-lg hover:shadow-xl transition-all duration-300 glow-border">
                   <CardContent className="text-center py-16">
-                    <motion.div
-                      initial={{ scale: 0.9, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ duration: 0.5, delay: 0.2 }}
-                    >
+                    <motion.div initial={{
+                  scale: 0.9,
+                  opacity: 0
+                }} animate={{
+                  scale: 1,
+                  opacity: 1
+                }} transition={{
+                  duration: 0.5,
+                  delay: 0.2
+                }}>
                       <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6 border border-border">
                         <Cloud className="w-10 h-10 text-foreground" />
                       </div>
@@ -436,30 +397,24 @@ const Workflows = () => {
                       <p className="text-muted-foreground mb-8 text-lg">
                         Create your first Python automation project
                       </p>
-                      <Button 
-                        onClick={() => navigate('/cloud-runner')}
-                        className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-3 shadow-lg hover:shadow-xl transition-all duration-300"
-                      >
+                      <Button onClick={() => navigate('/cloud-runner')} className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-3 shadow-lg hover:shadow-xl transition-all duration-300">
                         <Cloud className="w-5 h-5 mr-2" />
                         Create Your First Project
                       </Button>
                     </motion.div>
                   </CardContent>
-                </Card>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {cloudProjects.map((project, index) => (
-                    <motion.div
-                      key={project.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5, delay: index * 0.1 }}
-                    >
-                      <Card 
-                        glowVariant="primary" 
-                        enableGlowEffect={true} 
-                        className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 glow-border"
-                      >
+                </Card> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {cloudProjects.map((project, index) => <motion.div key={project.id} initial={{
+                opacity: 0,
+                y: 20
+              }} animate={{
+                opacity: 1,
+                y: 0
+              }} transition={{
+                duration: 0.5,
+                delay: index * 0.1
+              }}>
+                      <Card glowVariant="primary" enableGlowEffect={true} className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 glow-border">
                         <CardHeader className="pb-3">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -493,60 +448,32 @@ const Workflows = () => {
                             </div>
                             
                             <div className="flex items-center space-x-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEditCloudProject(project.id)}
-                                className="flex-1 bg-muted/10 border-border hover:bg-muted/20 transition-all duration-300"
-                              >
+                              <Button variant="outline" size="sm" onClick={() => handleEditCloudProject(project.id)} className="flex-1 bg-muted/10 border-border hover:bg-muted/20 transition-all duration-300">
                                 <Edit className="w-4 h-4 mr-2" />
                                 Edit
                               </Button>
                               
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDeleteCloudProject(project.id)}
-                                className="bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20 hover:border-destructive/50 transition-all duration-300"
-                              >
+                              <Button variant="outline" size="sm" onClick={() => handleDeleteCloudProject(project.id)} className="bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20 hover:border-destructive/50 transition-all duration-300">
                                 <Trash2 className="w-4 h-4" />
                               </Button>
                               
-                              {project.github_repo_url && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => window.open(project.github_repo_url, '_blank')}
-                                  className="bg-muted/10 border-border hover:bg-muted/20 transition-all duration-300"
-                                >
+                              {project.github_repo_url && <Button variant="outline" size="sm" onClick={() => window.open(project.github_repo_url, '_blank')} className="bg-muted/10 border-border hover:bg-muted/20 transition-all duration-300">
                                   <ExternalLink className="w-4 h-4" />
-                                </Button>
-                              )}
+                                </Button>}
 
-                              {project.render_service_url && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => window.open(project.render_service_url, '_blank')}
-                                  className="bg-muted/10 border-border hover:bg-muted/20 transition-all duration-300"
-                                >
+                              {project.render_service_url && <Button variant="outline" size="sm" onClick={() => window.open(project.render_service_url, '_blank')} className="bg-muted/10 border-border hover:bg-muted/20 transition-all duration-300">
                                   <Cloud className="w-4 h-4" />
-                                </Button>
-                              )}
+                                </Button>}
                             </div>
                           </div>
                         </CardContent>
                       </Card>
-                    </motion.div>
-                  ))}
-                </div>
-              )}
+                    </motion.div>)}
+                </div>}
             </TabsContent>
           </Tabs>
         </motion.div>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Workflows;
