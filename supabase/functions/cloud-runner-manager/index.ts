@@ -35,7 +35,7 @@ serve(async (req) => {
       return new Response('Unauthorized', { status: 401, headers: corsHeaders })
     }
 
-    const { action, projectName, files, sessionFile, repoName, githubRepoUrl, projectId, updateExisting } = await req.json()
+    const { action, projectName, files, sessionFile, repoName, githubRepoUrl, projectId, updateExisting, repoOwner } = await req.json()
 
     console.log(`Processing action: ${action} for user: ${user.id}`)
 
@@ -93,6 +93,8 @@ serve(async (req) => {
 
     // Get GitHub username with proper error handling
     let githubUsername = '';
+    let renderOwnerId = '';
+    
     try {
       console.log('Authenticating with GitHub using Bearer token...')
       console.log('GIT_TOKEN exists:', !!GIT_TOKEN)
@@ -139,6 +141,25 @@ serve(async (req) => {
       const githubUser = await userResponse.json()
       githubUsername = githubUser.login
       console.log(`GitHub authenticated for user: ${githubUsername}`)
+
+      // Get Render owner ID for deployments
+      if (RENDER_API_KEY && (action === 'deploy-to-render')) {
+        try {
+          const renderUserResponse = await fetch('https://api.render.com/v1/owners', {
+            headers: renderHeaders
+          })
+          
+          if (renderUserResponse.ok) {
+            const renderOwners = await renderUserResponse.json()
+            if (renderOwners.length > 0) {
+              renderOwnerId = renderOwners[0].owner.id
+              console.log(`Render owner ID: ${renderOwnerId}`)
+            }
+          }
+        } catch (error) {
+          console.error('Failed to get Render owner ID:', error)
+        }
+      }
       
     } catch (error) {
       console.error('Failed to authenticate with GitHub:', error)
@@ -349,15 +370,144 @@ Generated on: ${new Date().toISOString()}
         }
       }
 
+      case 'sync-to-git': {
+        try {
+          console.log(`Syncing ${files?.length || 0} files to GitHub repo: ${repoName}`)
+          
+          if (!repoName || !files || files.length === 0) {
+            throw new Error('Repository name and files are required for sync')
+          }
+
+          let syncedFiles = 0
+          const syncResults = []
+
+          // Sync each file to the repository
+          for (const file of files) {
+            try {
+              console.log(`Syncing file: ${file.fileName} to ${repoName}`)
+              
+              // First, try to get the existing file to get its SHA (for updates)
+              let fileSha = null
+              try {
+                const existingFileResponse = await fetch(`https://api.github.com/repos/${githubUsername}/${repoName}/contents/${file.fileName}`, {
+                  headers: githubHeaders
+                })
+                
+                if (existingFileResponse.ok) {
+                  const existingFile = await existingFileResponse.json()
+                  fileSha = existingFile.sha
+                  console.log(`Found existing file ${file.fileName} with SHA: ${fileSha}`)
+                }
+              } catch (error) {
+                console.log(`File ${file.fileName} doesn't exist yet, will create new`)
+              }
+
+              // Update or create the file
+              const syncPayload = {
+                message: fileSha ? `Update ${file.fileName}` : `Add ${file.fileName}`,
+                content: encodeBase64(file.content),
+                committer: {
+                  name: 'Cloud Runner Bot',
+                  email: 'cloudrunner@casel.ai'
+                },
+                ...(fileSha && { sha: fileSha })
+              }
+
+              const syncResponse = await fetch(`https://api.github.com/repos/${githubUsername}/${repoName}/contents/${file.fileName}`, {
+                method: 'PUT',
+                headers: githubHeaders,
+                body: JSON.stringify(syncPayload)
+              })
+
+              if (syncResponse.ok) {
+                syncedFiles++
+                const result = await syncResponse.json()
+                syncResults.push({
+                  fileName: file.fileName,
+                  status: 'success',
+                  action: fileSha ? 'updated' : 'created',
+                  sha: result.content.sha
+                })
+                console.log(`Successfully ${fileSha ? 'updated' : 'created'} file: ${file.fileName}`)
+              } else {
+                const errorText = await syncResponse.text()
+                console.error(`Failed to sync file ${file.fileName}:`, {
+                  status: syncResponse.status,
+                  error: errorText
+                })
+                syncResults.push({
+                  fileName: file.fileName,
+                  status: 'error',
+                  error: `HTTP ${syncResponse.status}: ${errorText}`
+                })
+              }
+            } catch (error) {
+              console.error(`Error syncing file ${file.fileName}:`, error)
+              syncResults.push({
+                fileName: file.fileName,
+                status: 'error',
+                error: error.message
+              })
+            }
+          }
+
+          // Update project status in database
+          if (projectId) {
+            try {
+              await supabaseClient
+                .from('cloud_runner_projects')
+                .update({
+                  deployment_status: 'synced',
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', projectId)
+                .eq('user_id', user.id)
+              
+              console.log('Project sync status updated in database')
+            } catch (error) {
+              console.error('Failed to update project sync status:', error)
+            }
+          }
+
+          console.log(`Sync completed: ${syncedFiles}/${files.length} files synced successfully`)
+
+          return new Response(JSON.stringify({
+            success: true,
+            syncedFiles: syncedFiles,
+            totalFiles: files.length,
+            results: syncResults,
+            repoUrl: `https://github.com/${githubUsername}/${repoName}`
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+          
+        } catch (error) {
+          console.error('Error syncing to GitHub:', error)
+          return new Response(JSON.stringify({
+            error: `Failed to sync to GitHub: ${error.message}`,
+            success: false
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+      }
+
       case 'deploy-to-render': {
         try {
           console.log('Starting deployment to Render for project:', projectName)
           
+          if (!renderOwnerId) {
+            console.error('Render owner ID not found')
+            throw new Error('Failed to get Render owner ID. Please check your Render API key permissions.')
+          }
+
           const serviceName = projectName.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 32)
           
           const renderPayload = {
             type: 'web_service',
             name: serviceName,
+            ownerId: renderOwnerId,
             repo: githubRepoUrl,
             branch: 'main',
             runtime: 'python',
@@ -388,16 +538,121 @@ Generated on: ${new Date().toISOString()}
 
           const serviceUrl = service.service?.serviceDetails?.url || `https://${serviceName}.onrender.com`
 
+          // Update project with deployment info
+          if (projectId) {
+            try {
+              await supabaseClient
+                .from('cloud_runner_projects')
+                .update({
+                  render_service_id: service.service?.id,
+                  render_service_url: serviceUrl,
+                  deployment_status: 'deployed',
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', projectId)
+                .eq('user_id', user.id)
+              
+              console.log('Project deployment status updated in database')
+            } catch (error) {
+              console.error('Failed to update project deployment status:', error)
+            }
+          }
+
           return new Response(JSON.stringify({
             success: true,
             serviceId: service.service?.id,
             serviceUrl: serviceUrl,
-            deployId: service.service?.id
+            deployId: service.service?.id,
+            ownerId: renderOwnerId
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
         } catch (error) {
           console.error('Render deployment error:', error)
+          return new Response(JSON.stringify({
+            error: error.message,
+            success: false
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+      }
+
+      case 'get-deployment-logs': {
+        try {
+          console.log('Fetching deployment logs for service:', projectId)
+          
+          if (!projectId) {
+            throw new Error('Service ID is required to fetch logs')
+          }
+
+          // Get service logs from Render API
+          const logsResponse = await fetch(`https://api.render.com/v1/services/${projectId}/logs`, {
+            headers: renderHeaders
+          })
+
+          if (!logsResponse.ok) {
+            const errorText = await logsResponse.text()
+            console.error('Failed to fetch logs:', logsResponse.status, errorText)
+            throw new Error(`Failed to fetch logs: ${logsResponse.status} - ${errorText}`)
+          }
+
+          const logs = await logsResponse.text()
+          console.log('Logs fetched successfully, length:', logs.length)
+
+          return new Response(JSON.stringify({
+            success: true,
+            logs: logs,
+            timestamp: new Date().toISOString()
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        } catch (error) {
+          console.error('Error fetching deployment logs:', error)
+          return new Response(JSON.stringify({
+            error: error.message,
+            success: false
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+      }
+
+      case 'get-deployment-status': {
+        try {
+          console.log('Checking deployment status for service:', projectId)
+          
+          if (!projectId) {
+            throw new Error('Service ID is required to check status')
+          }
+
+          // Get service status from Render API
+          const statusResponse = await fetch(`https://api.render.com/v1/services/${projectId}`, {
+            headers: renderHeaders
+          })
+
+          if (!statusResponse.ok) {
+            const errorText = await statusResponse.text()
+            console.error('Failed to fetch status:', statusResponse.status, errorText)
+            throw new Error(`Failed to fetch status: ${statusResponse.status} - ${errorText}`)
+          }
+
+          const serviceData = await statusResponse.json()
+          console.log('Service status fetched:', serviceData.service?.serviceDetails?.status)
+
+          return new Response(JSON.stringify({
+            success: true,
+            status: serviceData.service?.serviceDetails?.status || 'unknown',
+            url: serviceData.service?.serviceDetails?.url,
+            createdAt: serviceData.service?.createdAt,
+            updatedAt: serviceData.service?.updatedAt
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        } catch (error) {
+          console.error('Error checking deployment status:', error)
           return new Response(JSON.stringify({
             error: error.message,
             success: false

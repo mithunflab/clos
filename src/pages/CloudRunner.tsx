@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Progress } from '@/components/ui/progress';
 import { 
   Bot, 
   FileCode, 
@@ -16,11 +17,17 @@ import {
   Play,
   Code,
   Terminal,
-  Activity
+  Activity,
+  RefreshCw,
+  Sync,
+  CheckCircle,
+  XCircle,
+  Clock
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useCloudRunnerProjects } from '@/hooks/useCloudRunnerProjects';
 import CloudRunnerAIAssistant from '@/components/CloudRunnerAIAssistant';
 import CloudRunnerFileTree from '@/components/CloudRunnerFileTree';
 import SessionFileUpload from '@/components/SessionFileUpload';
@@ -32,25 +39,66 @@ interface ProjectFile {
   language: string;
 }
 
+interface DeploymentStatus {
+  status: string;
+  progress: number;
+  logs: string[];
+  lastUpdate: string;
+}
+
 const CloudRunner: React.FC = () => {
   const { user } = useAuth();
+  const { syncToGithub, getDeploymentStatus, getDeploymentLogs } = useCloudRunnerProjects();
+  
   const [projectName, setProjectName] = useState('');
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [sessionFile, setSessionFile] = useState<File | null>(null);
   const [isCreatingRepo, setIsCreatingRepo] = useState(false);
   const [isDeploying, setIsDeploying] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [githubRepoUrl, setGithubRepoUrl] = useState('');
+  const [githubRepoName, setGithubRepoName] = useState('');
   const [deploymentUrl, setDeploymentUrl] = useState('');
+  const [renderServiceId, setRenderServiceId] = useState('');
   const [logs, setLogs] = useState<string[]>([]);
   const [liveLogs, setLiveLogs] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState('assistant');
+  const [deploymentStatus, setDeploymentStatus] = useState<DeploymentStatus>({
+    status: 'idle',
+    progress: 0,
+    logs: [],
+    lastUpdate: ''
+  });
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(true);
 
   useEffect(() => {
     if (files.length > 0 && !projectName) {
       setProjectName(`cloud-bot-${Date.now()}`);
     }
   }, [files]);
+
+  // Auto-sync files to GitHub when they change
+  useEffect(() => {
+    if (autoSyncEnabled && githubRepoName && files.length > 0 && !isGenerating) {
+      const syncTimeout = setTimeout(() => {
+        handleAutoSync();
+      }, 2000); // Debounce for 2 seconds
+      
+      return () => clearTimeout(syncTimeout);
+    }
+  }, [files, githubRepoName, autoSyncEnabled, isGenerating]);
+
+  // Monitor deployment status
+  useEffect(() => {
+    if (renderServiceId) {
+      const statusInterval = setInterval(() => {
+        checkDeploymentStatus();
+      }, 10000); // Check every 10 seconds
+      
+      return () => clearInterval(statusInterval);
+    }
+  }, [renderServiceId]);
 
   // Start live log monitoring
   useEffect(() => {
@@ -65,6 +113,83 @@ const CloudRunner: React.FC = () => {
     
     return () => clearInterval(interval);
   }, [logs, liveLogs]);
+
+  const handleAutoSync = async () => {
+    if (!githubRepoName || files.length === 0 || isSyncing) return;
+    
+    console.log('Auto-syncing files to GitHub...');
+    setIsSyncing(true);
+    
+    try {
+      const result = await syncToGithub('', githubRepoName, files);
+      if (result.success) {
+        addLiveLog(`[${new Date().toLocaleTimeString()}] ✅ Auto-synced ${result.syncedFiles} files to GitHub`);
+      } else {
+        console.error('Auto-sync failed:', result.error);
+        addLiveLog(`[${new Date().toLocaleTimeString()}] ❌ Auto-sync failed: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Auto-sync error:', error);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleManualSync = async () => {
+    if (!githubRepoName || files.length === 0) {
+      toast.error('No repository or files to sync');
+      return;
+    }
+
+    setIsSyncing(true);
+    addLiveLog(`[${new Date().toLocaleTimeString()}] 🔄 Starting manual sync to GitHub...`);
+
+    try {
+      const result = await syncToGithub('', githubRepoName, files);
+      if (result.success) {
+        addLiveLog(`[${new Date().toLocaleTimeString()}] ✅ Manually synced ${result.syncedFiles} files to GitHub`);
+        toast.success(`Synced ${result.syncedFiles} files to GitHub`);
+      } else {
+        throw new Error(result.error || 'Sync failed');
+      }
+    } catch (error) {
+      const errorMessage = error.message || 'Manual sync failed';
+      addLiveLog(`[${new Date().toLocaleTimeString()}] ❌ Manual sync failed: ${errorMessage}`);
+      toast.error(errorMessage);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const checkDeploymentStatus = async () => {
+    if (!renderServiceId) return;
+
+    try {
+      const result = await getDeploymentStatus(renderServiceId);
+      if (result.success && result.status) {
+        setDeploymentStatus(prev => ({
+          ...prev,
+          status: result.status,
+          lastUpdate: new Date().toISOString(),
+          progress: result.status === 'live' ? 100 : prev.progress
+        }));
+
+        // Get logs if deployment is running
+        if (['building', 'deploying'].includes(result.status)) {
+          const logsResult = await getDeploymentLogs(renderServiceId);
+          if (logsResult.success && logsResult.logs) {
+            const newLogs = logsResult.logs.split('\n').filter(log => log.trim());
+            setDeploymentStatus(prev => ({
+              ...prev,
+              logs: newLogs
+            }));
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check deployment status:', error);
+    }
+  };
 
   const handleFilesGenerated = (newFiles: ProjectFile[]) => {
     console.log('Files generated callback received:', newFiles);
@@ -107,7 +232,7 @@ const CloudRunner: React.FC = () => {
   };
 
   const addLiveLog = (message: string) => {
-    setLiveLogs(prev => [...prev, message]);
+    setLiveLogs(prev => [...prev, message].slice(-100)); // Keep last 100 logs
   };
 
   const handlePythonLogsUpdate = (pythonLogs: string[]) => {
@@ -146,6 +271,7 @@ const CloudRunner: React.FC = () => {
 
       if (data?.success) {
         setGithubRepoUrl(data.repoUrl);
+        setGithubRepoName(data.repoName);
         addLog(`✅ Repository created: ${data.repoName}`);
         addLog(`📁 ${data.filesUploaded || files.length} files uploaded`);
         addLiveLog(`[${new Date().toLocaleTimeString()}] ✅ Repository created: ${data.repoName}`);
@@ -171,6 +297,12 @@ const CloudRunner: React.FC = () => {
     }
 
     setIsDeploying(true);
+    setDeploymentStatus({
+      status: 'deploying',
+      progress: 25,
+      logs: ['Starting deployment to Render...'],
+      lastUpdate: new Date().toISOString()
+    });
     addLog('Deploying to Render...');
     addLiveLog(`[${new Date().toLocaleTimeString()}] Starting deployment to Render...`);
 
@@ -187,6 +319,13 @@ const CloudRunner: React.FC = () => {
 
       if (data?.success) {
         setDeploymentUrl(data.serviceUrl);
+        setRenderServiceId(data.serviceId);
+        setDeploymentStatus({
+          status: 'building',
+          progress: 75,
+          logs: ['Deployment created successfully', 'Building application...'],
+          lastUpdate: new Date().toISOString()
+        });
         addLog(`🚀 Deployed successfully: ${data.serviceUrl}`);
         addLiveLog(`[${new Date().toLocaleTimeString()}] 🚀 Deployed successfully: ${data.serviceUrl}`);
         toast.success('Deployment successful!');
@@ -196,6 +335,12 @@ const CloudRunner: React.FC = () => {
     } catch (error) {
       console.error('Deployment error:', error);
       const errorMessage = error.message || 'Deployment failed';
+      setDeploymentStatus({
+        status: 'error',
+        progress: 0,
+        logs: [errorMessage],
+        lastUpdate: new Date().toISOString()
+      });
       addLog(`❌ ${errorMessage}`);
       addLiveLog(`[${new Date().toLocaleTimeString()}] ❌ ${errorMessage}`);
       toast.error(errorMessage);
@@ -219,6 +364,21 @@ const CloudRunner: React.FC = () => {
       setIsGenerating(false);
       addLiveLog(`[${new Date().toLocaleTimeString()}] AI code generation completed`);
     }, 100);
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'live':
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case 'error':
+      case 'failed':
+        return <XCircle className="h-4 w-4 text-red-600" />;
+      case 'building':
+      case 'deploying':
+        return <RefreshCw className="h-4 w-4 text-blue-600 animate-spin" />;
+      default:
+        return <Clock className="h-4 w-4 text-yellow-600" />;
+    }
   };
 
   if (!user) {
@@ -252,15 +412,32 @@ const CloudRunner: React.FC = () => {
           
           <div className="flex items-center gap-2">
             {githubRepoUrl && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.open(githubRepoUrl, '_blank')}
-                className="flex items-center gap-2"
-              >
-                <Github className="h-4 w-4" />
-                View Repo
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(githubRepoUrl, '_blank')}
+                  className="flex items-center gap-2"
+                >
+                  <Github className="h-4 w-4" />
+                  View Repo
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleManualSync}
+                  disabled={isSyncing || files.length === 0}
+                  className="flex items-center gap-2"
+                >
+                  {isSyncing ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sync className="h-4 w-4" />
+                  )}
+                  {isSyncing ? 'Syncing...' : 'Sync Now'}
+                </Button>
+              </>
             )}
             
             {deploymentUrl && (
@@ -275,7 +452,17 @@ const CloudRunner: React.FC = () => {
               </Button>
             )}
 
-            <Badge variant="outline" className="bg-green-100 text-green-800">
+            <Badge 
+              variant="outline" 
+              className={`${
+                autoSyncEnabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+              }`}
+            >
+              <Activity className="h-3 w-3 mr-1" />
+              Auto-sync {autoSyncEnabled ? 'ON' : 'OFF'}
+            </Badge>
+
+            <Badge variant="outline" className="bg-blue-100 text-blue-800">
               <Activity className="h-3 w-3 mr-1" />
               {liveLogs.length} Live Logs
             </Badge>
@@ -311,6 +498,27 @@ const CloudRunner: React.FC = () => {
             {isDeploying ? 'Deploying...' : 'Deploy'}
           </Button>
         </div>
+
+        {/* Deployment Status Bar */}
+        {deploymentStatus.status !== 'idle' && (
+          <div className="mt-4 p-3 bg-muted rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                {getStatusIcon(deploymentStatus.status)}
+                <span className="font-medium capitalize">{deploymentStatus.status}</span>
+              </div>
+              <span className="text-sm text-muted-foreground">
+                {deploymentStatus.progress}%
+              </span>
+            </div>
+            <Progress value={deploymentStatus.progress} className="mb-2" />
+            {deploymentStatus.lastUpdate && (
+              <p className="text-xs text-muted-foreground">
+                Last updated: {new Date(deploymentStatus.lastUpdate).toLocaleTimeString()}
+              </p>
+            )}
+          </div>
+        )}
       </div>
       
       <div className="flex-1 overflow-hidden">
@@ -367,6 +575,30 @@ const CloudRunner: React.FC = () => {
             
             <TabsContent value="files" className="h-full m-0">
               <div className="h-full p-4">
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold">Project Files</h3>
+                    {isSyncing && (
+                      <Badge variant="outline" className="bg-blue-100 text-blue-800">
+                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                        Syncing...
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={autoSyncEnabled}
+                        onChange={(e) => setAutoSyncEnabled(e.target.checked)}
+                        className="rounded"
+                      />
+                      Auto-sync to GitHub
+                    </label>
+                  </div>
+                </div>
+                
                 <CloudRunnerFileTree
                   files={files}
                   logs={logs}
@@ -391,6 +623,14 @@ const CloudRunner: React.FC = () => {
                       <Badge variant="secondary" className="bg-green-100 text-green-800">
                         {liveLogs.length} entries
                       </Badge>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setLiveLogs([])}
+                        className="ml-auto"
+                      >
+                        Clear Logs
+                      </Button>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="h-full">
@@ -411,6 +651,25 @@ const CloudRunner: React.FC = () => {
                         </div>
                       )}
                     </ScrollArea>
+
+                    {/* Deployment Logs */}
+                    {deploymentStatus.logs.length > 0 && (
+                      <div className="mt-4">
+                        <h4 className="font-semibold mb-2 flex items-center gap-2">
+                          <Cloud className="h-4 w-4 text-blue-600" />
+                          Deployment Logs
+                        </h4>
+                        <ScrollArea className="h-48 border rounded-lg p-4 bg-slate-900">
+                          <div className="space-y-1">
+                            {deploymentStatus.logs.map((log, index) => (
+                              <div key={index} className="text-blue-400 font-mono text-sm">
+                                {log}
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>

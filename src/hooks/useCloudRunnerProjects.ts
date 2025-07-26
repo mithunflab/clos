@@ -138,11 +138,136 @@ export const useCloudRunnerProjects = () => {
     }
   }, [user]);
 
+  const syncToGithub = useCallback(async (
+    projectId: string,
+    repoName: string,
+    files: any[]
+  ): Promise<{ success: boolean; error?: string; syncedFiles?: number }> => {
+    if (!user) return { success: false, error: 'User not authenticated' };
+
+    try {
+      setLoading(true);
+
+      const { data, error } = await supabase.functions.invoke('cloud-runner-manager', {
+        body: {
+          action: 'sync-to-git',
+          projectId,
+          repoName,
+          files
+        }
+      });
+
+      if (error) {
+        console.error('Sync to GitHub error:', error);
+        return { success: false, error: error.message };
+      }
+
+      if (data?.success) {
+        return { 
+          success: true, 
+          syncedFiles: data.syncedFiles 
+        };
+      } else {
+        return { 
+          success: false, 
+          error: data?.error || 'Failed to sync to GitHub' 
+        };
+      }
+    } catch (error) {
+      console.error('Error syncing to GitHub:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to sync to GitHub' 
+      };
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  const getDeploymentStatus = useCallback(async (
+    serviceId: string
+  ): Promise<{ success: boolean; status?: string; error?: string }> => {
+    if (!user) return { success: false, error: 'User not authenticated' };
+
+    try {
+      const { data, error } = await supabase.functions.invoke('cloud-runner-manager', {
+        body: {
+          action: 'get-deployment-status',
+          projectId: serviceId
+        }
+      });
+
+      if (error) {
+        console.error('Get deployment status error:', error);
+        return { success: false, error: error.message };
+      }
+
+      if (data?.success) {
+        return { 
+          success: true, 
+          status: data.status 
+        };
+      } else {
+        return { 
+          success: false, 
+          error: data?.error || 'Failed to get deployment status' 
+        };
+      }
+    } catch (error) {
+      console.error('Error getting deployment status:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to get deployment status' 
+      };
+    }
+  }, [user]);
+
+  const getDeploymentLogs = useCallback(async (
+    serviceId: string
+  ): Promise<{ success: boolean; logs?: string; error?: string }> => {
+    if (!user) return { success: false, error: 'User not authenticated' };
+
+    try {
+      const { data, error } = await supabase.functions.invoke('cloud-runner-manager', {
+        body: {
+          action: 'get-deployment-logs',
+          projectId: serviceId
+        }
+      });
+
+      if (error) {
+        console.error('Get deployment logs error:', error);
+        return { success: false, error: error.message };
+      }
+
+      if (data?.success) {
+        return { 
+          success: true, 
+          logs: data.logs 
+        };
+      } else {
+        return { 
+          success: false, 
+          error: data?.error || 'Failed to get deployment logs' 
+        };
+      }
+    } catch (error) {
+      console.error('Error getting deployment logs:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to get deployment logs' 
+      };
+    }
+  }, [user]);
+
   return {
     loading,
     getUserProjects,
     createProject,
     updateProject,
-    deleteProject
+    deleteProject,
+    syncToGithub,
+    getDeploymentStatus,
+    getDeploymentLogs
   };
 };
