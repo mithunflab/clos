@@ -503,7 +503,7 @@ Generated on: ${new Date().toISOString()}
 
           const serviceName = projectName.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 32)
           
-          // Correct Render API payload structure for web service creation
+          // Updated Render API payload structure with proper serviceDetails
           const renderPayload = {
             name: serviceName,
             ownerId: renderOwnerId,
@@ -511,13 +511,15 @@ Generated on: ${new Date().toISOString()}
             repo: githubRepoUrl,
             autoDeploy: 'yes',
             branch: 'main',
-            buildCommand: 'pip install -r requirements.txt',
-            startCommand: 'python main.py',
-            envVars: [],
-            region: 'oregon',
-            plan: 'starter',
-            rootDir: '',
-            runtime: 'python3'
+            serviceDetails: {
+              buildCommand: 'pip install -r requirements.txt',
+              startCommand: 'python main.py',
+              env: 'python3',
+              region: 'oregon',
+              plan: 'starter',
+              rootDir: '',
+              envVars: []
+            }
           }
 
           console.log('Creating Render service with payload:', JSON.stringify(renderPayload, null, 2))

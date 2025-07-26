@@ -28,9 +28,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCloudRunnerProjects } from '@/hooks/useCloudRunnerProjects';
 import { useMinimizeChangeMode } from '@/hooks/useMinimizeChangeMode';
 import CloudRunnerAIAssistant from '@/components/CloudRunnerAIAssistant';
-import CloudRunnerFileTree from '@/components/CloudRunnerFileTree';
 import SessionFileUpload from '@/components/SessionFileUpload';
 import PythonRunner from '@/components/PythonRunner';
+import EnhancedCodePreview from '@/components/EnhancedCodePreview';
 
 interface ProjectFile {
   fileName: string;
@@ -640,33 +640,10 @@ const CloudRunner: React.FC = () => {
             
             <TabsContent value="files" className="h-full m-0">
               <div className="h-full p-4">
-                <div className="mb-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold">Project Files</h3>
-                    {isSyncing && (
-                      <Badge variant="outline" className="bg-blue-100 text-blue-800">
-                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                        Syncing...
-                      </Badge>
-                    )}
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <label className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={autoSyncEnabled}
-                        onChange={(e) => setAutoSyncEnabled(e.target.checked)}
-                        className="rounded"
-                      />
-                      Auto-sync to GitHub
-                    </label>
-                  </div>
-                </div>
-                
-                <CloudRunnerFileTree
+                <EnhancedCodePreview
                   files={files}
                   logs={logs}
+                  liveLogs={liveLogs}
                   isGenerating={isGenerating}
                 />
               </div>
