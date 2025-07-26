@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   FileText, 
   Download, 
@@ -12,7 +13,10 @@ import {
   FileCode, 
   Terminal,
   RefreshCw,
-  AlertTriangle 
+  AlertTriangle,
+  Edit3,
+  Save,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -41,6 +45,8 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
 }) => {
   const [activeFile, setActiveFile] = useState<string>(files[0]?.fileName || '');
   const [activeTab, setActiveTab] = useState<'files' | 'logs'>('files');
+  const [editingFile, setEditingFile] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState<string>('');
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -65,6 +71,25 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
     } catch (error) {
       toast.error('Failed to download file');
     }
+  };
+
+  const handleEditStart = (fileName: string, content: string) => {
+    setEditingFile(fileName);
+    setEditContent(content);
+  };
+
+  const handleEditSave = () => {
+    if (editingFile && onFileUpdate) {
+      onFileUpdate(editingFile, editContent);
+      toast.success('File updated successfully');
+    }
+    setEditingFile(null);
+    setEditContent('');
+  };
+
+  const handleEditCancel = () => {
+    setEditingFile(null);
+    setEditContent('');
   };
 
   const formatCode = (content: string): { number: number; content: string; }[] => {
@@ -148,41 +173,84 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
                             </span>
                           </div>
                           <div className="flex gap-2">
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => copyToClipboard(file.content)}
-                              className="text-xs"
-                            >
-                              <Copy className="h-3 w-3 mr-1" />
-                              Copy
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => downloadFile(file.fileName, file.content)}
-                              className="text-xs"
-                            >
-                              <Download className="h-3 w-3 mr-1" />
-                              Download
-                            </Button>
+                            {editingFile === file.fileName ? (
+                              <>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={handleEditSave}
+                                  className="text-xs text-green-600"
+                                >
+                                  <Save className="h-3 w-3 mr-1" />
+                                  Save
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={handleEditCancel}
+                                  className="text-xs text-red-600"
+                                >
+                                  <X className="h-3 w-3 mr-1" />
+                                  Cancel
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => handleEditStart(file.fileName, file.content)}
+                                  className="text-xs"
+                                >
+                                  <Edit3 className="h-3 w-3 mr-1" />
+                                  Edit
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => copyToClipboard(file.content)}
+                                  className="text-xs"
+                                >
+                                  <Copy className="h-3 w-3 mr-1" />
+                                  Copy
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => downloadFile(file.fileName, file.content)}
+                                  className="text-xs"
+                                >
+                                  <Download className="h-3 w-3 mr-1" />
+                                  Download
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </div>
                         
                         <ScrollArea className="flex-1 bg-muted/10">
                           <div className="p-4">
-                            <div className="space-y-1">
-                              {formatCode(file.content).map((line, lineIndex) => (
-                                <div key={lineIndex} className="flex">
-                                  <span className="text-muted-foreground text-xs w-12 flex-shrink-0 text-right mr-4 select-none">
-                                    {line.number}
-                                  </span>
-                                  <span className="text-sm font-mono text-foreground flex-1">
-                                    {line.content}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
+                            {editingFile === file.fileName ? (
+                              <Textarea
+                                value={editContent}
+                                onChange={(e) => setEditContent(e.target.value)}
+                                className="w-full h-96 font-mono text-sm resize-none"
+                                placeholder="Edit your code here..."
+                              />
+                            ) : (
+                              <div className="space-y-1">
+                                {formatCode(file.content).map((line, lineIndex) => (
+                                  <div key={lineIndex} className="flex">
+                                    <span className="text-muted-foreground text-xs w-12 flex-shrink-0 text-right mr-4 select-none">
+                                      {line.number}
+                                    </span>
+                                    <span className="text-sm font-mono text-foreground flex-1">
+                                      {line.content}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </ScrollArea>
                       </div>

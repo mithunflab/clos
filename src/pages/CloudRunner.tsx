@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
@@ -18,17 +19,21 @@ import {
   Home,
   Rocket,
   Loader2,
-  Zap
+  Zap,
+  Moon,
+  Sun,
+  Menu,
+  X
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
-import SessionFileUpload from '@/components/SessionFileUpload';
 import CloudRunnerAIAssistant from '@/components/CloudRunnerAIAssistant';
 import CloudRunnerFileTree from '@/components/CloudRunnerFileTree';
 import PlaygroundCanvas from '@/components/PlaygroundCanvas';
 import { useCloudRunnerProjects } from '@/hooks/useCloudRunnerProjects';
+import { useTheme } from '@/hooks/useTheme';
 
 interface ProjectFile {
   fileName: string;
@@ -43,6 +48,7 @@ const CloudRunner = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { createProject, updateProject } = useCloudRunnerProjects();
+  const { theme, toggleTheme } = useTheme();
   
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
   const [projectName, setProjectName] = useState('');
@@ -54,6 +60,7 @@ const CloudRunner = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCreatingRepo, setIsCreatingRepo] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [navMinimized, setNavMinimized] = useState(false);
 
   useEffect(() => {
     if (projectId) {
@@ -154,60 +161,55 @@ const CloudRunner = () => {
     }
   };
 
-  const handleRemoveSessionFile = () => {
-    setSessionFile(null);
-    setRenderLogs(prev => [...prev, 'Session file removed']);
-    toast({
-      title: "Success",
-      description: "Session file removed",
-    });
+  const handleFileUpdate = (fileName: string, content: string) => {
+    setProjectFiles(prev => 
+      prev.map(file => 
+        file.fileName === fileName ? { ...file, content } : file
+      )
+    );
+    setRenderLogs(prev => [...prev, `Updated: ${fileName}`]);
   };
 
   const handleCreateGitHubRepo = async () => {
     if (!user || projectFiles.length === 0) return;
 
     setIsCreatingRepo(true);
+    setRenderLogs(prev => [...prev, 'Creating GitHub repository...']);
+    
     try {
       const { data, error } = await supabase.functions.invoke('cloud-runner-manager', {
         body: {
           action: 'create-github-repo',
           projectName: projectName,
           files: projectFiles,
-          sessionFile: sessionFile
+          sessionFile: sessionFile,
+          projectId: projectId
         }
       });
 
-      if (error) throw error;
-
-      setGithubRepoUrl(data.repoUrl);
-      setRenderLogs(prev => [...prev, `GitHub repository created: ${data.repoUrl}`]);
-      
-      // Save project to database
-      const { error: dbError } = await supabase
-        .from('cloud_runner_projects')
-        .upsert({
-          id: projectId || undefined,
-          user_id: user.id,
-          project_name: projectName,
-          github_repo_name: data.repoName,
-          github_repo_url: data.repoUrl,
-          session_file_uploaded: !!sessionFile
-        });
-
-      if (dbError) {
-        console.error('Database error:', dbError);
+      if (error) {
+        console.error('GitHub repo creation error:', error);
+        throw error;
       }
 
-      toast({
-        title: "Success",
-        description: "GitHub repository created successfully!",
-      });
+      if (data && data.success) {
+        setGithubRepoUrl(data.repoUrl);
+        setRenderLogs(prev => [...prev, `GitHub repository created: ${data.repoUrl}`]);
+        
+        toast({
+          title: "Success",
+          description: "GitHub repository created successfully!",
+        });
+      } else {
+        throw new Error(data?.error || 'Failed to create repository');
+      }
 
     } catch (error) {
       console.error('Error creating GitHub repo:', error);
+      setRenderLogs(prev => [...prev, `Error creating repository: ${error.message}`]);
       toast({
         title: "Error",
-        description: "Failed to create GitHub repository",
+        description: `Failed to create GitHub repository: ${error.message}`,
         variant: "destructive",
       });
     } finally {
@@ -226,6 +228,8 @@ const CloudRunner = () => {
     }
 
     setIsSyncing(true);
+    setRenderLogs(prev => [...prev, 'Syncing files to GitHub...']);
+    
     try {
       const { data, error } = await supabase.functions.invoke('cloud-runner-manager', {
         body: {
@@ -239,17 +243,22 @@ const CloudRunner = () => {
 
       if (error) throw error;
 
-      setRenderLogs(prev => [...prev, 'Files synced to GitHub successfully']);
-      toast({
-        title: "Success",
-        description: "Files synced to GitHub successfully!",
-      });
+      if (data && data.success) {
+        setRenderLogs(prev => [...prev, 'Files synced to GitHub successfully']);
+        toast({
+          title: "Success",
+          description: "Files synced to GitHub successfully!",
+        });
+      } else {
+        throw new Error(data?.error || 'Sync failed');
+      }
 
     } catch (error) {
       console.error('Error syncing to Git:', error);
+      setRenderLogs(prev => [...prev, `Sync error: ${error.message}`]);
       toast({
         title: "Error",
-        description: "Failed to sync files to GitHub",
+        description: `Failed to sync files: ${error.message}`,
         variant: "destructive",
       });
     } finally {
@@ -261,7 +270,7 @@ const CloudRunner = () => {
     if (!user || !githubRepoUrl) return;
 
     setIsDeploying(true);
-    setRenderLogs(prev => [...prev, 'Starting deployment...']);
+    setRenderLogs(prev => [...prev, 'Starting deployment to Render...']);
 
     try {
       const { data, error } = await supabase.functions.invoke('cloud-runner-manager', {
@@ -275,17 +284,21 @@ const CloudRunner = () => {
 
       if (error) throw error;
 
-      setDeploymentStatus('deployed');
-      setRenderLogs(prev => [
-        ...prev, 
-        'Deployment successful!', 
-        `Service URL: ${data.serviceUrl}`
-      ]);
+      if (data && data.success) {
+        setDeploymentStatus('deployed');
+        setRenderLogs(prev => [
+          ...prev, 
+          'Deployment successful!', 
+          `Service URL: ${data.serviceUrl}`
+        ]);
 
-      toast({
-        title: "Success",
-        description: "Project deployed successfully to Render!",
-      });
+        toast({
+          title: "Success",
+          description: "Project deployed successfully to Render!",
+        });
+      } else {
+        throw new Error(data?.error || 'Deployment failed');
+      }
 
     } catch (error) {
       console.error('Error deploying to Render:', error);
@@ -293,7 +306,7 @@ const CloudRunner = () => {
       setRenderLogs(prev => [...prev, `Deployment failed: ${error.message}`]);
       toast({
         title: "Error",
-        description: "Failed to deploy to Render",
+        description: `Failed to deploy: ${error.message}`,
         variant: "destructive",
       });
     } finally {
@@ -315,22 +328,74 @@ const CloudRunner = () => {
   };
 
   const handleSessionFileRequest = () => {
-    // This could trigger a modal or focus on the session upload area
     toast({
       title: "Session File Required",
-      description: "Please upload a Telegram session file to continue",
+      description: "Please upload a Telegram session file using the attachment button in the chat",
     });
   };
 
   return (
     <div className="h-screen flex bg-background relative">
-      <div className="w-96 border-r border-border flex flex-col">
-        <CloudRunnerAIAssistant
-          onFilesGenerated={handleFilesGenerated}
-          onSessionFileRequest={handleSessionFileRequest}
-          sessionFile={sessionFile}
-          currentFiles={projectFiles}
-        />
+      <div className={`transition-all duration-300 ${navMinimized ? 'w-16' : 'w-96'} border-r border-border flex flex-col`}>
+        {navMinimized ? (
+          <div className="p-4 flex flex-col items-center space-y-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setNavMinimized(false)}
+              className="w-8 h-8 p-0"
+            >
+              <Menu className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/dashboard')}
+              className="w-8 h-8 p-0"
+            >
+              <Home className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleTheme}
+              className="w-8 h-8 p-0"
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="p-4 border-b flex items-center justify-between">
+              <h2 className="font-semibold">Cloud Runner</h2>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleTheme}
+                  className="w-8 h-8 p-0"
+                >
+                  {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setNavMinimized(true)}
+                  className="w-8 h-8 p-0"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            <CloudRunnerAIAssistant
+              onFilesGenerated={handleFilesGenerated}
+              onSessionFileRequest={handleSessionFileRequest}
+              sessionFile={sessionFile}
+              currentFiles={projectFiles}
+              onSessionFileUpload={handleSessionFileUpload}
+            />
+          </>
+        )}
       </div>
 
       <div className="flex-1 flex flex-col min-h-0">
@@ -417,33 +482,13 @@ const CloudRunner = () => {
         {/* Main Content */}
         <div className="flex-1 p-6 overflow-hidden min-h-0">
           <PlaygroundCanvas className="w-full h-full">
-            <div className="w-full h-full flex flex-col">
+            <div className="w-full h-full">
               <CloudRunnerFileTree
                 files={projectFiles}
                 logs={renderLogs}
                 isGenerating={isGenerating}
+                onFileUpdate={handleFileUpdate}
               />
-              
-              {/* Session File Upload Area */}
-              {!sessionFile && (
-                <Card className="mt-4">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-medium">Session File</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Upload your Telegram session file
-                        </p>
-                      </div>
-                      <SessionFileUpload
-                        onFileUpload={handleSessionFileUpload}
-                        currentFile={sessionFile}
-                        onRemoveFile={handleRemoveSessionFile}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
             </div>
           </PlaygroundCanvas>
         </div>

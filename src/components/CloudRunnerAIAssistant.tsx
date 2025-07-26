@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Bot, Send, Upload, AlertTriangle } from 'lucide-react';
+import { Bot, Send, Upload, AlertTriangle, Paperclip, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -20,13 +21,15 @@ interface CloudRunnerAIAssistantProps {
   onSessionFileRequest?: () => void;
   sessionFile?: File | null;
   currentFiles?: Array<{ fileName: string; content: string; language: string; }>;
+  onSessionFileUpload?: (file: File) => void;
 }
 
 const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
   onFilesGenerated,
   onSessionFileRequest,
   sessionFile,
-  currentFiles = []
+  currentFiles = [],
+  onSessionFileUpload
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -37,11 +40,33 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
   ]);
   const [currentMessage, setCurrentMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const handleFileAttachment = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.name.endsWith('.session')) {
+        setAttachedFile(file);
+        onSessionFileUpload?.(file);
+        toast.success('Session file attached successfully');
+      } else {
+        toast.error('Please attach a valid .session file');
+      }
+    }
+  };
+
+  const handleRemoveAttachment = () => {
+    setAttachedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleSendMessage = useCallback(async () => {
     if (!currentMessage.trim() || isLoading) return;
@@ -162,26 +187,6 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
               </div>
             ))}
             
-            {!sessionFile && (
-              <div className="flex justify-center">
-                <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg text-center max-w-md">
-                  <AlertTriangle className="w-4 h-4 inline text-amber-600 mr-2" />
-                  <span className="text-sm text-amber-700">
-                    Upload a session file for Telegram bots
-                  </span>
-                  <Button
-                    variant="link"
-                    size="sm"
-                    onClick={onSessionFileRequest}
-                    className="ml-2 p-0 h-auto text-amber-700"
-                  >
-                    <Upload className="w-3 h-3 mr-1" />
-                    Upload Session
-                  </Button>
-                </div>
-              </div>
-            )}
-            
             {isLoading && (
               <div className="flex justify-start">
                 <div className="bg-muted p-3 rounded-lg mr-4">
@@ -198,6 +203,21 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
         </ScrollArea>
         
         <div className="border-t p-4">
+          {attachedFile && (
+            <div className="mb-2 flex items-center gap-2 p-2 bg-muted rounded-md">
+              <Paperclip className="w-4 h-4" />
+              <span className="text-sm flex-1">{attachedFile.name}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRemoveAttachment}
+                className="h-6 w-6 p-0"
+              >
+                <X className="w-3 h-3" />
+              </Button>
+            </div>
+          )}
+          
           <div className="flex gap-2">
             <Input
               value={currentMessage}
@@ -207,6 +227,22 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
               disabled={isLoading}
               className="flex-1"
             />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".session"
+              onChange={handleFileAttachment}
+              className="hidden"
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isLoading}
+              title="Attach session file"
+            >
+              <Paperclip className="w-4 h-4" />
+            </Button>
             <Button 
               onClick={handleSendMessage} 
               disabled={isLoading || !currentMessage.trim()}
