@@ -48,6 +48,13 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
   const [editingFile, setEditingFile] = useState<string | null>(null);
   const [editContent, setEditContent] = useState<string>('');
 
+  // Update active file when files change
+  React.useEffect(() => {
+    if (files.length > 0 && (!activeFile || !files.find(f => f.fileName === activeFile))) {
+      setActiveFile(files[0].fileName);
+    }
+  }, [files, activeFile]);
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text).then(() => {
       toast.success('Copied to clipboard');
@@ -92,20 +99,38 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
     setEditContent('');
   };
 
-  const formatCode = (content: string): { number: number; content: string; }[] => {
+  const formatCodeLines = (content: string): { number: number; content: string; isEmpty: boolean }[] => {
     if (!content) return [];
     const lines = content.split('\n');
     return lines.map((line, index) => ({
       number: index + 1,
-      content: line
+      content: line,
+      isEmpty: line.trim().length === 0
     }));
+  };
+
+  const getLanguageColor = (language: string): string => {
+    switch (language.toLowerCase()) {
+      case 'python': return 'bg-blue-500/10 text-blue-600 border-blue-500/30';
+      case 'javascript': return 'bg-yellow-500/10 text-yellow-600 border-yellow-500/30';
+      case 'typescript': return 'bg-blue-500/10 text-blue-600 border-blue-500/30';
+      case 'json': return 'bg-green-500/10 text-green-600 border-green-500/30';
+      case 'markdown': return 'bg-purple-500/10 text-purple-600 border-purple-500/30';
+      case 'html': return 'bg-red-500/10 text-red-600 border-red-500/30';
+      case 'css': return 'bg-pink-500/10 text-pink-600 border-pink-500/30';
+      default: return 'bg-gray-500/10 text-gray-600 border-gray-500/30';
+    }
   };
 
   const getFileIcon = (fileName: string) => {
     if (fileName.endsWith('.py')) return '🐍';
-    if (fileName.endsWith('.txt')) return '📄';
+    if (fileName.endsWith('.js')) return '📜';
+    if (fileName.endsWith('.ts')) return '📘';
     if (fileName.endsWith('.json')) return '📋';
     if (fileName.endsWith('.md')) return '📝';
+    if (fileName.endsWith('.html')) return '🌐';
+    if (fileName.endsWith('.css')) return '🎨';
+    if (fileName.endsWith('.txt')) return '📄';
     if (fileName.endsWith('.session')) return '🔐';
     return '📄';
   };
@@ -119,6 +144,11 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
           <CardTitle className="text-lg flex items-center gap-2">
             <FileCode className="h-5 w-5" />
             <span>Project Files</span>
+            {files.length > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                {files.length} files
+              </Badge>
+            )}
           </CardTitle>
           <div className="flex gap-2">
             <Button
@@ -138,6 +168,9 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
             >
               <Terminal className="w-4 h-4" />
               Live Logs
+              <Badge variant="outline" className="text-xs ml-1">
+                {logs.length}
+              </Badge>
             </Button>
           </div>
         </div>
@@ -149,28 +182,40 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
             {files.length > 0 ? (
               <Tabs value={activeFile} onValueChange={setActiveFile} className="h-full flex flex-col">
                 <div className="border-b">
-                  <TabsList className="mx-4 mt-4 mb-2">
-                    {files.map((file, index) => (
-                      <TabsTrigger key={index} value={file.fileName} className="flex items-center gap-2">
-                        <span>{getFileIcon(file.fileName)}</span>
-                        {file.fileName}
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
+                  <ScrollArea className="w-full">
+                    <TabsList className="mx-4 mt-2 mb-2 inline-flex">
+                      {files.map((file, index) => (
+                        <TabsTrigger 
+                          key={index} 
+                          value={file.fileName} 
+                          className="flex items-center gap-2 max-w-32"
+                        >
+                          <span>{getFileIcon(file.fileName)}</span>
+                          <span className="truncate">{file.fileName}</span>
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </ScrollArea>
                 </div>
                 
                 <div className="flex-1 overflow-hidden">
                   {files.map((file, index) => (
                     <TabsContent key={index} value={file.fileName} className="h-full m-0">
                       <div className="h-full flex flex-col">
-                        <div className="flex items-center justify-between p-4 border-b">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs">
-                              {file.language}
-                            </Badge>
-                            <span className="text-sm text-muted-foreground">
-                              {file.content.split('\n').length} lines
-                            </span>
+                        <div className="flex items-center justify-between p-4 border-b bg-muted/30">
+                          <div className="flex items-center gap-3">
+                            <span className="text-lg">{getFileIcon(file.fileName)}</span>
+                            <div>
+                              <h3 className="font-medium">{file.fileName}</h3>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant="outline" className={`text-xs ${getLanguageColor(file.language)}`}>
+                                  {file.language}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {formatCodeLines(file.content).length} lines
+                                </span>
+                              </div>
+                            </div>
                           </div>
                           <div className="flex gap-2">
                             {editingFile === file.fileName ? (
@@ -179,7 +224,7 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
                                   variant="ghost" 
                                   size="sm"
                                   onClick={handleEditSave}
-                                  className="text-xs text-green-600"
+                                  className="text-xs text-green-600 hover:text-green-700"
                                 >
                                   <Save className="h-3 w-3 mr-1" />
                                   Save
@@ -188,7 +233,7 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
                                   variant="ghost" 
                                   size="sm"
                                   onClick={handleEditCancel}
-                                  className="text-xs text-red-600"
+                                  className="text-xs text-red-600 hover:text-red-700"
                                 >
                                   <X className="h-3 w-3 mr-1" />
                                   Cancel
@@ -200,7 +245,7 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
                                   variant="ghost" 
                                   size="sm"
                                   onClick={() => handleEditStart(file.fileName, file.content)}
-                                  className="text-xs"
+                                  className="text-xs hover:bg-accent"
                                 >
                                   <Edit3 className="h-3 w-3 mr-1" />
                                   Edit
@@ -209,7 +254,7 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
                                   variant="ghost" 
                                   size="sm"
                                   onClick={() => copyToClipboard(file.content)}
-                                  className="text-xs"
+                                  className="text-xs hover:bg-accent"
                                 >
                                   <Copy className="h-3 w-3 mr-1" />
                                   Copy
@@ -218,7 +263,7 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
                                   variant="ghost" 
                                   size="sm"
                                   onClick={() => downloadFile(file.fileName, file.content)}
-                                  className="text-xs"
+                                  className="text-xs hover:bg-accent"
                                 >
                                   <Download className="h-3 w-3 mr-1" />
                                   Download
@@ -228,25 +273,32 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
                           </div>
                         </div>
                         
-                        <ScrollArea className="flex-1 bg-muted/10">
-                          <div className="p-4">
+                        <ScrollArea className="flex-1">
+                          <div className="p-0">
                             {editingFile === file.fileName ? (
-                              <Textarea
-                                value={editContent}
-                                onChange={(e) => setEditContent(e.target.value)}
-                                className="w-full h-96 font-mono text-sm resize-none"
-                                placeholder="Edit your code here..."
-                              />
+                              <div className="p-4">
+                                <Textarea
+                                  value={editContent}
+                                  onChange={(e) => setEditContent(e.target.value)}
+                                  className="w-full h-96 font-mono text-sm resize-none border-0 focus:ring-0"
+                                  placeholder="Edit your code here..."
+                                />
+                              </div>
                             ) : (
-                              <div className="space-y-1">
-                                {formatCode(file.content).map((line, lineIndex) => (
-                                  <div key={lineIndex} className="flex">
-                                    <span className="text-muted-foreground text-xs w-12 flex-shrink-0 text-right mr-4 select-none">
+                              <div className="bg-slate-50 dark:bg-slate-900">
+                                {formatCodeLines(file.content).map((line, lineIndex) => (
+                                  <div 
+                                    key={lineIndex} 
+                                    className={`flex hover:bg-muted/50 transition-colors ${
+                                      line.isEmpty ? 'min-h-[1.5rem]' : ''
+                                    }`}
+                                  >
+                                    <div className="bg-muted/30 text-muted-foreground text-xs w-12 flex-shrink-0 text-right py-2 px-3 select-none border-r border-border/50">
                                       {line.number}
-                                    </span>
-                                    <span className="text-sm font-mono text-foreground flex-1">
-                                      {line.content}
-                                    </span>
+                                    </div>
+                                    <div className="text-sm font-mono text-foreground flex-1 py-2 px-4 whitespace-pre-wrap break-all">
+                                      {line.content || '\u00A0'}
+                                    </div>
                                   </div>
                                 ))}
                               </div>
@@ -272,7 +324,7 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
                       <div className="space-y-2">
                         <p className="font-medium">No files generated yet</p>
                         <p className="text-sm text-muted-foreground">
-                          Chat with AI to create Python automation scripts
+                          Chat with AI to create Python automation scripts or attach files
                         </p>
                       </div>
                     </>
@@ -283,15 +335,12 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
           </div>
         ) : (
           <div className="h-full flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b">
+            <div className="flex items-center justify-between p-4 border-b bg-black text-green-400">
               <div className="flex items-center gap-2">
                 <Terminal className="h-4 w-4" />
-                <span className="font-medium">Live Logs</span>
-                <Badge variant="outline" className="text-xs">
-                  {logs.length} entries
-                </Badge>
+                <span className="font-medium">Live Deployment Logs</span>
               </div>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" className="text-green-400 hover:text-green-300">
                 <RefreshCw className="h-3 w-3 mr-1" />
                 Refresh
               </Button>
@@ -302,20 +351,29 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
                 {logs.length > 0 ? (
                   <div className="space-y-1">
                     {logs.map((log, index) => (
-                      <div key={index} className="text-green-400 font-mono text-sm">
-                        <span className="text-gray-500 mr-2">
+                      <div key={index} className="text-green-400 font-mono text-sm flex">
+                        <span className="text-gray-500 mr-3 select-none">
                           [{new Date().toLocaleTimeString()}]
                         </span>
-                        {log}
+                        <span className="flex-1">{log}</span>
                       </div>
                     ))}
+                    {isGenerating && (
+                      <div className="text-yellow-400 font-mono text-sm flex items-center">
+                        <span className="text-gray-500 mr-3 select-none">
+                          [{new Date().toLocaleTimeString()}]
+                        </span>
+                        <RefreshCw className="h-3 w-3 mr-2 animate-spin" />
+                        <span>Generating files...</span>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="text-center text-green-400 py-8">
                     <Terminal className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No logs available yet</p>
+                    <p className="text-sm">No deployment logs available yet</p>
                     <p className="text-xs text-gray-500 mt-1">
-                      Logs will appear here during deployment
+                      Logs will appear here during deployment and file generation
                     </p>
                   </div>
                 )}

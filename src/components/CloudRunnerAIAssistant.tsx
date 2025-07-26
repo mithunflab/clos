@@ -22,6 +22,7 @@ interface CloudRunnerAIAssistantProps {
   sessionFile?: File | null;
   currentFiles?: Array<{ fileName: string; content: string; language: string; }>;
   onSessionFileUpload?: (file: File) => void;
+  onGeneratingStart?: () => void;
 }
 
 const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
@@ -29,7 +30,8 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
   onSessionFileRequest,
   sessionFile,
   currentFiles = [],
-  onSessionFileUpload
+  onSessionFileUpload,
+  onGeneratingStart
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -56,8 +58,37 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
         onSessionFileUpload?.(file);
         toast.success('Session file attached successfully');
       } else {
-        toast.error('Please attach a valid .session file');
+        // Handle other file types - read content and add to file tree
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const content = e.target?.result as string;
+          const language = getLanguageFromFileName(file.name);
+          
+          // Add file to file tree immediately
+          onFilesGenerated?.([{
+            fileName: file.name,
+            content: content,
+            language: language
+          }]);
+        };
+        reader.readAsText(file);
+        toast.success(`File ${file.name} added to file tree`);
       }
+    }
+  };
+
+  const getLanguageFromFileName = (fileName: string): string => {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    switch (ext) {
+      case 'py': return 'python';
+      case 'js': return 'javascript';
+      case 'ts': return 'typescript';
+      case 'json': return 'json';
+      case 'md': return 'markdown';
+      case 'txt': return 'text';
+      case 'html': return 'html';
+      case 'css': return 'css';
+      default: return 'text';
     }
   };
 
@@ -68,9 +99,29 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
     }
   };
 
+  const analyzeUserMessage = (message: string): string => {
+    // Check if user mentions files or asks for analysis
+    const fileNames = currentFiles.map(f => f.fileName);
+    const mentionedFiles = fileNames.filter(fileName => 
+      message.toLowerCase().includes(fileName.toLowerCase())
+    );
+    
+    if (mentionedFiles.length > 0) {
+      const fileContext = mentionedFiles.map(fileName => {
+        const file = currentFiles.find(f => f.fileName === fileName);
+        return `File: ${fileName}\nContent:\n${file?.content?.substring(0, 500)}...`;
+      }).join('\n\n');
+      
+      return `${message}\n\nCurrent files context:\n${fileContext}`;
+    }
+    
+    return message;
+  };
+
   const handleSendMessage = useCallback(async () => {
     if (!currentMessage.trim() || isLoading) return;
 
+    const analyzedMessage = analyzeUserMessage(currentMessage);
     const newMessage: ChatMessage = {
       role: 'user',
       content: currentMessage,
@@ -80,11 +131,12 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
     setMessages(prev => [...prev, newMessage]);
     setCurrentMessage('');
     setIsLoading(true);
+    onGeneratingStart?.();
 
     try {
       const { data, error } = await supabase.functions.invoke('cloud-runner-assistant', {
         body: {
-          messages: [...messages, newMessage],
+          messages: [...messages, { ...newMessage, content: analyzedMessage }],
           sessionFileUploaded: !!sessionFile,
           currentFiles: currentFiles
         }
@@ -127,7 +179,7 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [currentMessage, isLoading, messages, sessionFile, currentFiles, onFilesGenerated, onSessionFileRequest]);
+  }, [currentMessage, isLoading, messages, sessionFile, currentFiles, onFilesGenerated, onSessionFileRequest, onGeneratingStart]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -222,7 +274,7 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
             <Input
               value={currentMessage}
               onChange={(e) => setCurrentMessage(e.target.value)}
-              placeholder="Describe your automation project..."
+              placeholder="Describe your automation project or mention a file..."
               onKeyPress={handleKeyPress}
               disabled={isLoading}
               className="flex-1"
@@ -230,7 +282,7 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".session"
+              accept=".session,.py,.js,.ts,.json,.md,.txt,.html,.css"
               onChange={handleFileAttachment}
               className="hidden"
             />
@@ -239,7 +291,7 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
               size="icon"
               onClick={() => fileInputRef.current?.click()}
               disabled={isLoading}
-              title="Attach session file"
+              title="Attach file"
             >
               <Paperclip className="w-4 h-4" />
             </Button>

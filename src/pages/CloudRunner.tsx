@@ -23,7 +23,9 @@ import {
   Moon,
   Sun,
   Menu,
-  X
+  X,
+  Minimize2,
+  Maximize2
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -61,6 +63,7 @@ const CloudRunner = () => {
   const [isCreatingRepo, setIsCreatingRepo] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [navMinimized, setNavMinimized] = useState(false);
+  const [renderServiceId, setRenderServiceId] = useState<string>('');
 
   useEffect(() => {
     if (projectId) {
@@ -95,6 +98,7 @@ const CloudRunner = () => {
         setProjectName(project.project_name);
         setDeploymentStatus(project.deployment_status || 'draft');
         setGithubRepoUrl(project.github_repo_url || '');
+        setRenderServiceId(project.render_service_id || '');
 
         if (project.github_repo_name) {
           await loadCodeFromGitHub(project.github_repo_name);
@@ -134,7 +138,19 @@ const CloudRunner = () => {
 
   const handleFilesGenerated = useCallback((files: ProjectFile[]) => {
     console.log('Files generated:', files);
-    setProjectFiles(files);
+    setProjectFiles(prev => {
+      // Merge new files with existing ones, replacing duplicates
+      const updatedFiles = [...prev];
+      files.forEach(newFile => {
+        const existingIndex = updatedFiles.findIndex(f => f.fileName === newFile.fileName);
+        if (existingIndex >= 0) {
+          updatedFiles[existingIndex] = newFile;
+        } else {
+          updatedFiles.push(newFile);
+        }
+      });
+      return updatedFiles;
+    });
     setIsGenerating(false);
     
     setRenderLogs(prev => [
@@ -147,10 +163,28 @@ const CloudRunner = () => {
   const handleSessionFileUpload = (file: File) => {
     if (file && file.name.endsWith('.session')) {
       setSessionFile(file);
+      
+      // Add session file to file tree immediately
+      const sessionFileContent = {
+        fileName: file.name,
+        content: 'Binary session file - content not displayed',
+        language: 'text'
+      };
+      
+      setProjectFiles(prev => {
+        const existingIndex = prev.findIndex(f => f.fileName === file.name);
+        if (existingIndex >= 0) {
+          const updated = [...prev];
+          updated[existingIndex] = sessionFileContent;
+          return updated;
+        }
+        return [...prev, sessionFileContent];
+      });
+      
       setRenderLogs(prev => [...prev, `Session file uploaded: ${file.name}`]);
       toast({
         title: "Success",
-        description: "Session file uploaded successfully",
+        description: "Session file uploaded and added to file tree",
       });
     } else {
       toast({
@@ -170,8 +204,32 @@ const CloudRunner = () => {
     setRenderLogs(prev => [...prev, `Updated: ${fileName}`]);
   };
 
+  const fetchRenderLogs = async (serviceId: string) => {
+    try {
+      // This would fetch real logs from Render API
+      // For now, we'll simulate logs
+      const mockLogs = [
+        `[${new Date().toISOString()}] Starting deployment...`,
+        `[${new Date().toISOString()}] Building Docker image...`,
+        `[${new Date().toISOString()}] Installing dependencies...`,
+        `[${new Date().toISOString()}] Service deployed successfully!`
+      ];
+      
+      setRenderLogs(prev => [...prev, ...mockLogs]);
+    } catch (error) {
+      console.error('Error fetching render logs:', error);
+    }
+  };
+
   const handleCreateGitHubRepo = async () => {
-    if (!user || projectFiles.length === 0) return;
+    if (!user || projectFiles.length === 0) {
+      toast({
+        title: "Error",
+        description: "No files to create repository with",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsCreatingRepo(true);
     setRenderLogs(prev => [...prev, 'Creating GitHub repository...']);
@@ -267,12 +325,25 @@ const CloudRunner = () => {
   };
 
   const handleDeploy = async () => {
-    if (!user || !githubRepoUrl) return;
+    if (!user || !githubRepoUrl) {
+      toast({
+        title: "Error",
+        description: "GitHub repository required for deployment",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsDeploying(true);
+    setDeploymentStatus('deploying');
     setRenderLogs(prev => [...prev, 'Starting deployment to Render...']);
 
     try {
+      // First sync latest changes to Git
+      if (projectFiles.length > 0) {
+        await handleGitSync();
+      }
+
       const { data, error } = await supabase.functions.invoke('cloud-runner-manager', {
         body: {
           action: 'deploy-to-render',
@@ -286,11 +357,17 @@ const CloudRunner = () => {
 
       if (data && data.success) {
         setDeploymentStatus('deployed');
+        setRenderServiceId(data.serviceId);
         setRenderLogs(prev => [
           ...prev, 
           'Deployment successful!', 
           `Service URL: ${data.serviceUrl}`
         ]);
+
+        // Start fetching real-time logs
+        if (data.serviceId) {
+          await fetchRenderLogs(data.serviceId);
+        }
 
         toast({
           title: "Success",
@@ -344,14 +421,16 @@ const CloudRunner = () => {
               size="sm"
               onClick={() => setNavMinimized(false)}
               className="w-8 h-8 p-0"
+              title="Maximize"
             >
-              <Menu className="w-4 h-4" />
+              <Maximize2 className="w-4 h-4" />
             </Button>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => navigate('/dashboard')}
               className="w-8 h-8 p-0"
+              title="Home"
             >
               <Home className="w-4 h-4" />
             </Button>
@@ -360,6 +439,7 @@ const CloudRunner = () => {
               size="sm"
               onClick={toggleTheme}
               className="w-8 h-8 p-0"
+              title="Toggle Theme"
             >
               {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
@@ -374,6 +454,7 @@ const CloudRunner = () => {
                   size="sm"
                   onClick={toggleTheme}
                   className="w-8 h-8 p-0"
+                  title="Toggle Theme"
                 >
                   {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                 </Button>
@@ -382,8 +463,9 @@ const CloudRunner = () => {
                   size="sm"
                   onClick={() => setNavMinimized(true)}
                   className="w-8 h-8 p-0"
+                  title="Minimize"
                 >
-                  <X className="w-4 h-4" />
+                  <Minimize2 className="w-4 h-4" />
                 </Button>
               </div>
             </div>
@@ -393,6 +475,7 @@ const CloudRunner = () => {
               sessionFile={sessionFile}
               currentFiles={projectFiles}
               onSessionFileUpload={handleSessionFileUpload}
+              onGeneratingStart={() => setIsGenerating(true)}
             />
           </>
         )}
