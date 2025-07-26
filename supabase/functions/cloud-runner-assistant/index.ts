@@ -20,35 +20,30 @@ serve(async (req) => {
       throw new Error('Gemini API key not configured')
     }
 
-    // Create system prompt for Python automation assistant
-    const systemPrompt = `You are an expert Python developer specializing in automation scripts, particularly Telegram bots using Telethon. You help users create complete Python projects.
+    // Create system prompt for concise Python automation assistant
+    const systemPrompt = `You are an expert Python developer who creates automation scripts. Be CONCISE - give short, actionable responses.
 
 Key guidelines:
 1. Always generate complete, working Python code
-2. For Telegram bots, use Telethon library (not python-telegram-bot)
+2. For Telegram bots, use Telethon library
 3. Generate main.py and requirements.txt files
-4. Include proper error handling and logging
-5. Make code production-ready with proper structure
-6. Session file handling: ${sessionFileUploaded ? 'User has uploaded a session.session file' : 'No session file uploaded yet - remind user to upload one for Telegram bots'}
+4. Be brief - max 2-3 sentences in chat
+5. Focus on next steps
+6. Session file status: ${sessionFileUploaded ? 'Available' : 'NEEDED - remind user to upload session.session file for Telegram bots'}
 
-When user asks for automation:
-- Create main.py with complete implementation
-- Create requirements.txt with all dependencies
-- Include clear comments and documentation
-- Handle authentication properly
-- Use environment variables for sensitive data
+Current files: ${currentFiles?.length ? currentFiles.map(f => f.name).join(', ') : 'None'}
 
-Current files in project: ${currentFiles?.length ? currentFiles.map(f => f.name).join(', ') : 'None'}
-
-Be conversational but focus on generating practical, working code.`
+Response format:
+- Keep chat responses under 50 words
+- End with clear next step
+- Generate files when user describes what they want`
 
     const latestMessage = messages[messages.length - 1]
     
-    // Prepare messages for Gemini
     const geminiMessages = [
       {
         role: "user",
-        parts: [{ text: systemPrompt + "\n\nUser request: " + latestMessage.content }]
+        parts: [{ text: systemPrompt + "\n\nUser: " + latestMessage.content }]
       }
     ]
 
@@ -63,7 +58,7 @@ Be conversational but focus on generating practical, working code.`
           temperature: 0.7,
           topK: 40,
           topP: 0.95,
-          maxOutputTokens: 2048,
+          maxOutputTokens: 1024,
         },
       }),
     })
@@ -73,9 +68,9 @@ Be conversational but focus on generating practical, working code.`
     }
 
     const data = await response.json()
-    let aiResponse = data.candidates[0]?.content?.parts[0]?.text || 'Sorry, I could not generate a response.'
+    let aiResponse = data.candidates[0]?.content?.parts[0]?.text || 'I can help you create Python automation scripts. What would you like to build?'
 
-    // Parse response to extract code files if AI generated them
+    // Parse response to extract code files
     const files = []
     
     // Look for code blocks and extract files
@@ -96,9 +91,8 @@ Be conversational but focus on generating practical, working code.`
       }
     }
 
-    // If we detect specific patterns, create standard files
+    // Add requirements.txt for Python projects
     if (aiResponse.toLowerCase().includes('telegram') || aiResponse.toLowerCase().includes('telethon')) {
-      // Check if we need to add requirements.txt
       if (!files.some(f => f.name === 'requirements.txt')) {
         files.push({
           name: 'requirements.txt',
@@ -106,6 +100,13 @@ Be conversational but focus on generating practical, working code.`
           language: 'text'
         })
       }
+    }
+
+    // Make response more concise
+    aiResponse = aiResponse.replace(/```[\s\S]*?```/g, '').trim()
+    if (aiResponse.length > 150) {
+      const sentences = aiResponse.split('. ')
+      aiResponse = sentences.slice(0, 2).join('. ') + '.'
     }
 
     return new Response(JSON.stringify({
