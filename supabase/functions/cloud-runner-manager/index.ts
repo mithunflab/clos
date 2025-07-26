@@ -141,7 +141,7 @@ serve(async (req) => {
       githubUsername = githubUser.login
       console.log(`GitHub authenticated for user: ${githubUsername}`)
 
-      // Get Render owner ID for deployments
+      // Get Render owner ID for deployments - NOT NEEDED for the corrected payload structure
       if (RENDER_API_KEY && (action === 'deploy-to-render' || action === 'get-deployment-logs' || action === 'get-deployment-status')) {
         try {
           const renderUserResponse = await fetch('https://api.render.com/v1/owners', {
@@ -495,33 +495,22 @@ Generated on: ${new Date().toISOString()}
       case 'deploy-to-render': {
         try {
           console.log('Starting deployment to Render for project:', projectName)
-          
-          if (!renderOwnerId) {
-            console.error('Render owner ID not found')
-            throw new Error('Failed to get Render owner ID. Please check your Render API key permissions.')
-          }
 
           const serviceName = projectName.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 32)
           
-          // FIXED: Corrected Render API payload structure - simplified and using documented format
+          // CORRECTED: Using the exact payload structure from your working example
           const renderPayload = {
             name: serviceName,
-            ownerId: renderOwnerId,
-            type: 'web_service',
+            type: "worker",  // Changed from "web_service" to "worker" - this is the key fix!
             repo: githubRepoUrl,
-            autoDeploy: 'yes',
-            branch: 'main',
-            buildCommand: 'pip install -r requirements.txt',
-            startCommand: 'python main.py',
-            envVars: [],
-            serviceDetails: {
-              env: 'python',
-              region: 'oregon',
-              plan: 'starter'
-            }
+            branch: "main",
+            envVars: [],  // Add any environment variables your bot needs here
+            plan: "starter",
+            region: "oregon",
+            autoDeploy: true
           }
 
-          console.log('Creating Render service with corrected payload:', JSON.stringify(renderPayload, null, 2))
+          console.log('Creating Render worker service with correct payload:', JSON.stringify(renderPayload, null, 2))
           
           const renderResponse = await fetch('https://api.render.com/v1/services', {
             method: 'POST',
@@ -548,8 +537,8 @@ Generated on: ${new Date().toISOString()}
 
           console.log('Render service created:', service.service?.id)
 
-          const serviceUrl = service.service?.serviceDetails?.url || `https://${serviceName}.onrender.com`
           const serviceId = service.service?.id
+          const serviceUrl = `https://dashboard.render.com/web/${serviceId}` // Dashboard URL for worker services
 
           // Update project with deployment info
           if (projectId) {
@@ -575,8 +564,7 @@ Generated on: ${new Date().toISOString()}
             success: true,
             serviceId: serviceId,
             serviceUrl: serviceUrl,
-            deployId: serviceId,
-            ownerId: renderOwnerId
+            deployId: serviceId
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
