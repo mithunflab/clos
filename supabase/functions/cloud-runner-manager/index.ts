@@ -503,7 +503,7 @@ Generated on: ${new Date().toISOString()}
 
           const serviceName = projectName.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 32)
           
-          // Updated Render API payload structure with proper serviceDetails
+          // FIXED: Changed 'python3' to 'python' for the correct Render runtime
           const renderPayload = {
             name: serviceName,
             ownerId: renderOwnerId,
@@ -514,7 +514,7 @@ Generated on: ${new Date().toISOString()}
             serviceDetails: {
               buildCommand: 'pip install -r requirements.txt',
               startCommand: 'python main.py',
-              env: 'python3',
+              env: 'python',  // FIXED: Changed from 'python3' to 'python'
               region: 'oregon',
               plan: 'starter',
               rootDir: '',
