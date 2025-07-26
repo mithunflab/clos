@@ -18,8 +18,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import { ThemeToggle } from './ThemeToggle';
-import { N8nConfigToggle } from './N8nConfigToggle';
+import ThemeToggle from './ThemeToggle';
+import N8nConfigToggle from './N8nConfigToggle';
 import Navigation from './Navigation';
 import Dashboard from '@/pages/Dashboard';
 import Workflows from '@/pages/Workflows';
