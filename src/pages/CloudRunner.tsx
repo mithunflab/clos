@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,14 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, Send, Play, Github, ExternalLink, Bot, FileCode, GitBranch, Link, Terminal } from 'lucide-react';
+import { Upload, Send, Play, Github, ExternalLink, Bot, FileCode, GitBranch, Link } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { motion } from 'framer-motion';
 import SessionFileUpload from '@/components/SessionFileUpload';
-import CloudFileTree from '@/components/CloudFileTree';
-import PlaygroundCanvas from '@/components/PlaygroundCanvas';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -39,8 +36,6 @@ const CloudRunner = () => {
   const [currentMessage, setCurrentMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
-  const [selectedFile, setSelectedFile] = useState<string>('');
-  const [selectedFileContent, setSelectedFileContent] = useState<string>('');
   const [projectName, setProjectName] = useState('');
   const [sessionFile, setSessionFile] = useState<File | null>(null);
   const [deploymentStatus, setDeploymentStatus] = useState<string>('draft');
@@ -48,18 +43,20 @@ const CloudRunner = () => {
   const [isDeploying, setIsDeploying] = useState(false);
   const [githubRepoUrl, setGithubRepoUrl] = useState<string>('');
   const [isSyncing, setIsSyncing] = useState(false);
-  const [showLogs, setShowLogs] = useState(false);
   
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (projectId) {
       loadExistingProject();
     } else {
+      // Initialize with sample project name
       setProjectName(`cloud-bot-${Date.now()}`);
+      // Add initial system message
       setChatMessages([{
         role: 'assistant',
-        content: 'Hi! I can create Python automation scripts. Tell me what you need and I\'ll build it for you.',
+        content: 'Hello! I can help you create Python automation scripts, especially Telegram bots using Telethon. Upload a session.session file and tell me what you want to build!',
         timestamp: new Date()
       }]);
     }
@@ -95,6 +92,7 @@ const CloudRunner = () => {
         setDeploymentStatus(project.deployment_status || 'draft');
         setGithubRepoUrl(project.github_repo_url || '');
 
+        // Load code from GitHub if repo exists
         if (project.github_repo_name) {
           await loadCodeFromGitHub(project.github_repo_name);
         }
@@ -125,10 +123,6 @@ const CloudRunner = () => {
 
       if (data && data.files) {
         setProjectFiles(data.files);
-        if (data.files.length > 0) {
-          setSelectedFile(data.files[0].name);
-          setSelectedFileContent(data.files[0].content);
-        }
       }
     } catch (error) {
       console.error('Error loading code from GitHub:', error);
@@ -140,7 +134,7 @@ const CloudRunner = () => {
       setSessionFile(file);
       toast({
         title: "Success",
-        description: "Session file uploaded",
+        description: "Session file uploaded successfully",
       });
     } else {
       toast({
@@ -157,6 +151,59 @@ const CloudRunner = () => {
       title: "Success",
       description: "Session file removed",
     });
+  };
+
+  const handleGitSync = async () => {
+    if (!user || !githubRepoUrl || projectFiles.length === 0) {
+      toast({
+        title: "Error",
+        description: "No GitHub repository found or no files to sync",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('cloud-runner-manager', {
+        body: {
+          action: 'sync-to-git',
+          projectName: projectName,
+          files: projectFiles,
+          sessionFile: sessionFile,
+          githubRepoUrl: githubRepoUrl
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Success",
+        description: "Files synced to GitHub successfully!",
+      });
+
+    } catch (error) {
+      console.error('Error syncing to Git:', error);
+      toast({
+        title: "Error",
+        description: "Failed to sync files to GitHub",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const copyRepoLinkToClipboard = () => {
+    if (githubRepoUrl) {
+      navigator.clipboard.writeText(githubRepoUrl);
+      toast({
+        title: "Success",
+        description: "Repository link copied to clipboard",
+      });
+    }
   };
 
   const handleSendMessage = async () => {
@@ -193,12 +240,9 @@ const CloudRunner = () => {
 
       setChatMessages(prev => [...prev, assistantMessage]);
 
+      // Update project files if AI generated code
       if (data.files && data.files.length > 0) {
         setProjectFiles(data.files);
-        if (data.files.length > 0) {
-          setSelectedFile(data.files[0].name);
-          setSelectedFileContent(data.files[0].content);
-        }
       }
 
     } catch (error) {
@@ -211,53 +255,6 @@ const CloudRunner = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleFileSelect = (fileName: string, content: string) => {
-    setSelectedFile(fileName);
-    setSelectedFileContent(content);
-  };
-
-  const handleFileCreate = (fileName: string, content: string) => {
-    const newFile = { name: fileName, content, language: 'python' };
-    setProjectFiles(prev => [...prev, newFile]);
-    setSelectedFile(fileName);
-    setSelectedFileContent(content);
-    toast({
-      title: "Success",
-      description: `Created ${fileName}`,
-    });
-  };
-
-  const handleFileUpdate = (fileName: string, content: string) => {
-    setProjectFiles(prev => 
-      prev.map(file => 
-        file.name === fileName ? { ...file, content } : file
-      )
-    );
-    setSelectedFileContent(content);
-    toast({
-      title: "Success",
-      description: `Updated ${fileName}`,
-    });
-  };
-
-  const handleFileDelete = (fileName: string) => {
-    setProjectFiles(prev => prev.filter(file => file.name !== fileName));
-    if (selectedFile === fileName) {
-      const remaining = projectFiles.filter(file => file.name !== fileName);
-      if (remaining.length > 0) {
-        setSelectedFile(remaining[0].name);
-        setSelectedFileContent(remaining[0].content);
-      } else {
-        setSelectedFile('');
-        setSelectedFileContent('');
-      }
-    }
-    toast({
-      title: "Success",
-      description: `Deleted ${fileName}`,
-    });
   };
 
   const handleCreateGitHubRepo = async () => {
@@ -280,6 +277,7 @@ const CloudRunner = () => {
 
       setGithubRepoUrl(data.repoUrl);
       
+      // Save project to database
       const { error: dbError } = await supabase
         .from('cloud_runner_projects')
         .upsert({
@@ -297,14 +295,14 @@ const CloudRunner = () => {
 
       toast({
         title: "Success",
-        description: "GitHub repo created!",
+        description: "GitHub repository created successfully!",
       });
 
     } catch (error) {
       console.error('Error creating GitHub repo:', error);
       toast({
         title: "Error",
-        description: "Failed to create repo",
+        description: "Failed to create GitHub repository",
         variant: "destructive",
       });
     } finally {
@@ -316,7 +314,7 @@ const CloudRunner = () => {
     if (!user || !githubRepoUrl) return;
 
     setIsDeploying(true);
-    setRenderLogs(['🚀 Starting deployment...']);
+    setRenderLogs(['Starting deployment...']);
 
     try {
       const { data, error } = await supabase.functions.invoke('cloud-runner-manager', {
@@ -333,20 +331,20 @@ const CloudRunner = () => {
       }
 
       setDeploymentStatus('deployed');
-      setRenderLogs(prev => [...prev, '✅ Deployment successful!', `🌐 Service URL: ${data.serviceUrl}`]);
+      setRenderLogs(prev => [...prev, 'Deployment successful!', `Service URL: ${data.serviceUrl}`]);
 
       toast({
         title: "Success",
-        description: "Deployed to Render!",
+        description: "Project deployed successfully to Render!",
       });
 
     } catch (error) {
-      console.error('Error deploying:', error);
+      console.error('Error deploying to Render:', error);
       setDeploymentStatus('error');
-      setRenderLogs(prev => [...prev, `❌ Deployment failed: ${error.message}`]);
+      setRenderLogs(prev => [...prev, `Deployment failed: ${error.message}`]);
       toast({
         title: "Error",
-        description: "Deployment failed",
+        description: "Failed to deploy to Render",
         variant: "destructive",
       });
     } finally {
@@ -368,234 +366,280 @@ const CloudRunner = () => {
   };
 
   return (
-    <PlaygroundCanvas className="h-screen">
-      <div className="h-full flex flex-col p-6 gap-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center border border-white/20">
-              <Bot className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white mb-1">Cloud Runner</h1>
-              <div className="flex items-center gap-3">
-                <Input
-                  value={projectName}
-                  onChange={(e) => setProjectName(e.target.value)}
-                  className="bg-white/10 border-white/20 text-white placeholder:text-white/60 w-64"
-                  placeholder="Project name"
-                />
-                <Badge className={getStatusColor(deploymentStatus)}>
-                  {deploymentStatus}
-                </Badge>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {githubRepoUrl && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.open(githubRepoUrl, '_blank')}
-                className="border-white/20 text-white hover:bg-white/10"
-              >
-                <Github className="w-4 h-4 mr-2" />
-                View Repo
-              </Button>
-            )}
-            <Button
-              onClick={handleCreateGitHubRepo}
-              disabled={isLoading || projectFiles.length === 0}
-              className="bg-white/10 text-white hover:bg-white/20 border-white/20"
-            >
-              <Github className="w-4 h-4 mr-2" />
-              Create Repo
-            </Button>
-            <Button
-              onClick={handleDeploy}
-              disabled={isDeploying || !githubRepoUrl}
-              className="bg-blue-600 text-white hover:bg-blue-700"
-            >
-              {isDeploying ? (
-                <>
-                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                  Deploying...
-                </>
-              ) : (
-                <>
-                  <Play className="w-4 h-4 mr-2" />
-                  Deploy
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-0">
-          {/* Chat Section */}
-          <Card className="flex flex-col bg-white/5 border-white/20">
-            <CardHeader className="border-b border-white/20">
-              <CardTitle className="flex items-center gap-2 text-white">
-                <Bot className="w-5 h-5" />
-                AI Assistant
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col p-0 min-h-0">
-              <ScrollArea className="flex-1 p-4">
-                <div className="space-y-4">
-                  {chatMessages.map((message, index) => (
-                    <div
-                      key={index}
-                      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-[80%] p-3 rounded-lg ${
-                          message.role === 'user'
-                            ? 'bg-blue-600 text-white ml-4'
-                            : 'bg-white/10 text-white mr-4'
-                        }`}
-                      >
-                        <p className="whitespace-pre-wrap text-sm">{message.content}</p>
-                        <p className="text-xs opacity-70 mt-1">
-                          {message.timestamp.toLocaleTimeString()}
-                        </p>
-                      </div>
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="container mx-auto p-6 max-w-full">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          {/* Header */}
+          <Card className="shadow-xl mb-6">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-muted rounded-xl flex items-center justify-center border border-border">
+                    <Bot className="w-8 h-8 text-foreground" />
+                  </div>
+                  <div>
+                    <h1 className="text-3xl font-bold text-foreground mb-2">
+                      Cloud Runner
+                    </h1>
+                    <div className="flex items-center gap-4">
+                      <Input
+                        value={projectName}
+                        onChange={(e) => setProjectName(e.target.value)}
+                        className="max-w-xs"
+                        placeholder="Project name"
+                      />
+                      <Badge className={getStatusColor(deploymentStatus)}>
+                        {deploymentStatus}
+                      </Badge>
                     </div>
-                  ))}
-                  {isLoading && (
-                    <div className="flex justify-start">
-                      <div className="bg-white/10 text-white p-3 rounded-lg mr-4">
-                        <div className="flex items-center gap-2">
-                          <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
-                          <span className="text-sm">AI thinking...</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <div ref={chatEndRef} />
+                  </div>
                 </div>
-              </ScrollArea>
-              <div className="border-t border-white/20 p-4">
-                <div className="flex gap-2">
-                  <Input
-                    value={currentMessage}
-                    onChange={(e) => setCurrentMessage(e.target.value)}
-                    placeholder="Tell me what to build..."
-                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                    disabled={isLoading}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
-                  />
-                  <Button onClick={handleSendMessage} disabled={isLoading}>
-                    <Send className="w-4 h-4" />
+                <div className="flex items-center gap-2">
+                  <Button onClick={() => navigate('/workflows')} variant="outline">
+                    Back to Workflows
                   </Button>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Code Preview Section */}
-          <Card className="flex flex-col bg-white/5 border-white/20">
-            <CardHeader className="border-b border-white/20">
-              <CardTitle className="flex items-center gap-2 text-white">
-                <FileCode className="w-5 h-5" />
-                Code Preview
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 p-0 min-h-0">
-              <div className="h-full flex">
-                {/* File Tree */}
-                <div className="w-64 border-r border-white/20">
-                  <CloudFileTree
-                    files={projectFiles}
-                    onFileSelect={handleFileSelect}
-                    onFileCreate={handleFileCreate}
-                    onFileUpdate={handleFileUpdate}
-                    onFileDelete={handleFileDelete}
-                    selectedFile={selectedFile}
-                  />
+          {/* Main Content */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-250px)]">
+            {/* Chat Section */}
+            <Card className="flex flex-col">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Bot className="w-5 h-5" />
+                    AI Assistant
+                  </div>
+                  {githubRepoUrl && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={copyRepoLinkToClipboard}
+                      className="flex items-center gap-2"
+                    >
+                      <Link className="w-4 h-4" />
+                      Copy Repo Link
+                    </Button>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex-1 flex flex-col p-0">
+                <ScrollArea className="flex-1 p-4">
+                  <div className="space-y-4">
+                    {chatMessages.map((message, index) => (
+                      <div
+                        key={index}
+                        className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div
+                          className={`max-w-[80%] p-3 rounded-lg ${
+                            message.role === 'user'
+                              ? 'bg-primary text-primary-foreground ml-4'
+                              : 'bg-muted mr-4'
+                          }`}
+                        >
+                          <p className="whitespace-pre-wrap">{message.content}</p>
+                          <p className="text-xs opacity-70 mt-1">
+                            {message.timestamp.toLocaleTimeString()}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    {githubRepoUrl && (
+                      <div className="flex justify-center">
+                        <div className="bg-muted/50 p-3 rounded-lg text-center border">
+                          <Github className="w-4 h-4 inline mr-2" />
+                          <span className="text-sm text-muted-foreground">Repository: </span>
+                          <Button
+                            variant="link"
+                            size="sm"
+                            onClick={() => window.open(githubRepoUrl, '_blank')}
+                            className="p-0 h-auto text-primary"
+                          >
+                            {githubRepoUrl.split('/').slice(-1)[0]}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    {isLoading && (
+                      <div className="flex justify-start">
+                        <div className="bg-muted p-3 rounded-lg mr-4">
+                          <div className="flex items-center gap-2">
+                            <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full"></div>
+                            <span>AI is thinking...</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div ref={chatEndRef} />
+                  </div>
+                </ScrollArea>
+                <div className="border-t p-4">
+                  <div className="flex gap-2">
+                    <Input
+                      value={currentMessage}
+                      onChange={(e) => setCurrentMessage(e.target.value)}
+                      placeholder="Describe the automation you want to build..."
+                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                      disabled={isLoading}
+                    />
+                    <Button onClick={handleSendMessage} disabled={isLoading}>
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
+              </CardContent>
+            </Card>
 
-                {/* File Content & Logs */}
-                <div className="flex-1 flex flex-col">
-                  <Tabs value={showLogs ? "logs" : "code"} className="flex-1 flex flex-col">
-                    <TabsList className="mx-4 mt-4 bg-white/10">
-                      <TabsTrigger 
-                        value="code" 
-                        onClick={() => setShowLogs(false)}
-                        className="data-[state=active]:bg-white/20"
-                      >
-                        Code
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        value="logs" 
-                        onClick={() => setShowLogs(true)}
-                        className="data-[state=active]:bg-white/20"
-                      >
-                        <Terminal className="w-4 h-4 mr-2" />
-                        Live Logs
-                      </TabsTrigger>
-                      <TabsTrigger value="session">
+            {/* Code Preview Section */}
+            <Card className="flex flex-col">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <FileCode className="w-5 h-5" />
+                    Code Preview
+                  </CardTitle>
+                  <div className="flex gap-2">
+                    {githubRepoUrl && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleGitSync}
+                          disabled={isSyncing || projectFiles.length === 0}
+                        >
+                          {isSyncing ? (
+                            <>
+                              <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full mr-2"></div>
+                              Syncing...
+                            </>
+                          ) : (
+                            <>
+                              <GitBranch className="w-4 h-4 mr-2" />
+                              Git Sync
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(githubRepoUrl, '_blank')}
+                        >
+                          <Github className="w-4 h-4 mr-2" />
+                          View Repo
+                        </Button>
+                      </>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCreateGitHubRepo}
+                      disabled={isLoading || projectFiles.length === 0}
+                    >
+                      <Github className="w-4 h-4 mr-2" />
+                      Create Repo
+                    </Button>
+                    <Button
+                      onClick={handleDeploy}
+                      disabled={isDeploying || !githubRepoUrl}
+                      className="bg-primary text-primary-foreground"
+                    >
+                      {isDeploying ? (
+                        <>
+                          <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                          Deploying...
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-4 h-4 mr-2" />
+                          Deploy
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="flex-1 p-0">
+                {projectFiles.length > 0 ? (
+                  <Tabs defaultValue={projectFiles[0]?.name} className="h-full flex flex-col">
+                    <TabsList className="mx-4 mt-4">
+                      {projectFiles.map((file, index) => (
+                        <TabsTrigger key={index} value={file.name}>
+                          {file.name}
+                        </TabsTrigger>
+                      ))}
+                      <TabsTrigger value="session-upload">
                         Session File
                       </TabsTrigger>
+                      {renderLogs.length > 0 && (
+                        <TabsTrigger value="logs">
+                          Logs
+                        </TabsTrigger>
+                      )}
                     </TabsList>
-                    
                     <div className="flex-1 p-4">
-                      <TabsContent value="code" className="h-full">
-                        {selectedFile && selectedFileContent ? (
-                          <ScrollArea className="h-full bg-white/5 rounded-lg p-4 border border-white/20">
-                            <pre className="text-sm text-white">
-                              <code>{selectedFileContent}</code>
+                      {projectFiles.map((file, index) => (
+                        <TabsContent key={index} value={file.name} className="h-full">
+                          <ScrollArea className="h-full bg-muted/10 rounded-lg p-4">
+                            <pre className="text-sm">
+                              <code>{file.content}</code>
                             </pre>
                           </ScrollArea>
-                        ) : (
-                          <div className="h-full flex items-center justify-center text-white/60">
-                            <div className="text-center">
-                              <FileCode className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                              <p>Select a file to view its content</p>
-                            </div>
-                          </div>
-                        )}
-                      </TabsContent>
-
-                      <TabsContent value="logs" className="h-full">
-                        <ScrollArea className="h-full bg-black rounded-lg p-4">
-                          <div className="text-green-400 font-mono text-sm">
-                            {renderLogs.length > 0 ? (
-                              renderLogs.map((log, index) => (
-                                <div key={index} className="mb-1">
-                                  {log}
-                                </div>
-                              ))
-                            ) : (
-                              <div className="text-gray-500">No logs available</div>
-                            )}
-                          </div>
-                        </ScrollArea>
-                      </TabsContent>
-
-                      <TabsContent value="session" className="h-full">
+                        </TabsContent>
+                      ))}
+                      <TabsContent value="session-upload" className="h-full">
                         <div className="p-4">
-                          <h3 className="text-lg font-semibold mb-4 text-white">Session File</h3>
+                          <h3 className="text-lg font-semibold mb-4">Upload Session File</h3>
                           <SessionFileUpload
                             onFileUpload={handleSessionFileUpload}
                             currentFile={sessionFile}
                             onRemoveFile={handleRemoveSessionFile}
                           />
-                          <p className="text-sm text-white/60 mt-3">
-                            Upload your Telegram session file for bot authentication.
+                          <p className="text-sm text-muted-foreground mt-3">
+                            Upload your Telegram session file to include it in the GitHub repository.
+                            This file will be automatically included when creating or syncing your project.
                           </p>
                         </div>
                       </TabsContent>
+                      {renderLogs.length > 0 && (
+                        <TabsContent value="logs" className="h-full">
+                          <ScrollArea className="h-full bg-black rounded-lg p-4">
+                            <div className="text-green-400 font-mono text-sm">
+                              {renderLogs.map((log, index) => (
+                                <div key={index} className="mb-1">
+                                  {log}
+                                </div>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                        </TabsContent>
+                      )}
                     </div>
                   </Tabs>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center p-8">
+                    <div className="text-center">
+                      <FileCode className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground mb-2">No code generated yet</p>
+                      <p className="text-sm text-muted-foreground">
+                        Start chatting with the AI to generate Python automation scripts
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </motion.div>
       </div>
-    </PlaygroundCanvas>
+    </div>
   );
 };
 
