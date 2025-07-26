@@ -26,6 +26,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useCloudRunnerProjects } from '@/hooks/useCloudRunnerProjects';
+import { useMinimizeChangeMode } from '@/hooks/useMinimizeChangeMode';
 import CloudRunnerAIAssistant from '@/components/CloudRunnerAIAssistant';
 import CloudRunnerFileTree from '@/components/CloudRunnerFileTree';
 import SessionFileUpload from '@/components/SessionFileUpload';
@@ -47,6 +48,7 @@ interface DeploymentStatus {
 const CloudRunner: React.FC = () => {
   const { user } = useAuth();
   const { syncToGithub, getDeploymentStatus, getDeploymentLogs } = useCloudRunnerProjects();
+  const { minimizeChangeMode, toggleMinimizeChangeMode } = useMinimizeChangeMode();
   
   const [projectName, setProjectName] = useState('');
   const [files, setFiles] = useState<ProjectFile[]>([]);
@@ -460,6 +462,18 @@ const CloudRunner: React.FC = () => {
               Auto-sync {autoSyncEnabled ? 'ON' : 'OFF'}
             </Badge>
 
+            <Badge 
+              variant="outline" 
+              className={`${
+                minimizeChangeMode ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+              } cursor-pointer hover:opacity-80 transition-opacity`}
+              onClick={toggleMinimizeChangeMode}
+              title="Toggle minimize change mode - AI will make minimal modifications to existing code"
+            >
+              <Terminal className="h-3 w-3 mr-1" />
+              Minimal Changes {minimizeChangeMode ? 'ON' : 'OFF'}
+            </Badge>
+
             <Badge variant="outline" className="bg-blue-100 text-blue-800">
               <Activity className="h-3 w-3 mr-1" />
               {liveLogs.length} Live Logs
@@ -515,6 +529,15 @@ const CloudRunner: React.FC = () => {
                 Last updated: {new Date(deploymentStatus.lastUpdate).toLocaleTimeString()}
               </p>
             )}
+          </div>
+        )}
+
+        {minimizeChangeMode && (
+          <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800 flex items-center gap-2">
+              <Terminal className="h-4 w-4" />
+              <strong>Minimize Change Mode Active:</strong> AI will make minimal modifications to existing code and preserve current functionality
+            </p>
           </div>
         )}
       </div>

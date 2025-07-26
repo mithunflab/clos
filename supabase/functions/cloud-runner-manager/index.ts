@@ -504,19 +504,31 @@ Generated on: ${new Date().toISOString()}
 
           const serviceName = projectName.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 32)
           
+          // Updated payload structure with required serviceDetails
           const renderPayload = {
             type: 'web_service',
             name: serviceName,
             ownerId: renderOwnerId,
             repo: githubRepoUrl,
             branch: 'main',
-            runtime: 'python',
-            buildCommand: 'pip install -r requirements.txt',
-            startCommand: 'python main.py',
-            plan: 'free',
-            autoDeploy: 'yes',
-            envVars: [],
-            rootDir: '.'
+            serviceDetails: {
+              env: 'python',
+              buildCommand: 'pip install -r requirements.txt',
+              startCommand: 'python main.py',
+              plan: 'free',
+              region: 'oregon',
+              pullRequestPreviewsEnabled: false,
+              autoDeploy: true,
+              rootDir: '',
+              dockerCommand: '',
+              dockerContext: '',
+              dockerfilePath: '',
+              publishPath: '',
+              previewsEnabled: false,
+              headers: [],
+              routes: [],
+              envVars: []
+            }
           }
 
           console.log('Creating Render service with payload:', JSON.stringify(renderPayload, null, 2))
