@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -56,9 +55,10 @@ serve(async (req) => {
     if (['create-github-repo', 'sync-to-git', 'load-code'].includes(action) && !GIT_TOKEN) {
       console.error('GitHub token not configured')
       return new Response(JSON.stringify({ 
-        error: 'GitHub API token not configured. Please contact your administrator to add the GIT_TOKEN secret.',
+        error: 'GitHub API token not configured. Please contact administrator to add GIT_TOKEN secret.',
         success: false,
-        requiresConfig: true
+        requiresConfig: true,
+        errorType: 'configuration'
       }), { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -68,9 +68,10 @@ serve(async (req) => {
     if (action === 'deploy-to-render' && !RENDER_API_KEY) {
       console.error('Render API key not configured')
       return new Response(JSON.stringify({ 
-        error: 'Render API key not configured. Please contact your administrator to add the RENDER_API secret.',
+        error: 'Render API key not configured. Please contact administrator to add RENDER_API secret.',
         success: false,
-        requiresConfig: true
+        requiresConfig: true,
+        errorType: 'configuration'
       }), { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -89,27 +90,47 @@ serve(async (req) => {
       'Content-Type': 'application/json',
     }
 
-    // Get GitHub username with better error handling
+    // Get GitHub username with enhanced error handling
     let githubUsername = '';
     try {
+      console.log('Authenticating with GitHub...')
       const userResponse = await fetch('https://api.github.com/user', {
         headers: githubHeaders
       })
       
       if (!userResponse.ok) {
         const errorText = await userResponse.text()
-        console.error('GitHub authentication failed:', errorText)
-        throw new Error(`GitHub authentication failed: ${userResponse.status} ${errorText}`)
+        console.error('GitHub authentication failed:', userResponse.status, errorText)
+        
+        let errorMessage = 'GitHub authentication failed'
+        if (userResponse.status === 401) {
+          errorMessage = 'GitHub token is invalid or expired. Please update your GIT_TOKEN secret.'
+        } else if (userResponse.status === 403) {
+          errorMessage = 'GitHub token lacks required permissions. Please ensure token has repo access.'
+        } else if (userResponse.status === 404) {
+          errorMessage = 'GitHub API endpoint not found. This may indicate token format issues.'
+        }
+        
+        return new Response(JSON.stringify({
+          error: errorMessage,
+          success: false,
+          errorType: 'github_auth',
+          statusCode: userResponse.status
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
       }
       
       const githubUser = await userResponse.json()
       githubUsername = githubUser.login
-      console.log(`GitHub authenticated for user: ${githubUsername}`)
+      console.log(`GitHub authenticated successfully for user: ${githubUsername}`)
     } catch (error) {
       console.error('Failed to authenticate with GitHub:', error)
       return new Response(JSON.stringify({
-        error: 'Failed to authenticate with GitHub. Please check your API token.',
-        success: false
+        error: `GitHub authentication error: ${error.message}`,
+        success: false,
+        errorType: 'network'
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -117,6 +138,247 @@ serve(async (req) => {
     }
 
     switch (action) {
+      case 'create-github-repo': {
+        try {
+          console.log(`Creating GitHub repo for project: ${projectName} with ${files?.length || 0} files`)
+          
+          // Check if this project already has a GitHub repository
+          if (projectId) {
+            const { data: existingProject } = await supabaseClient
+              .from('cloud_runner_projects')
+              .select('github_repo_url, github_repo_name')
+              .eq('id', projectId)
+              .eq('user_id', user.id)
+              .single()
+
+            if (existingProject?.github_repo_url) {
+              console.log('Project already has repository, updating existing:', existingProject.github_repo_url)
+              
+              // Just sync to existing repository instead of creating new one
+              const urlParts = existingProject.github_repo_url.split('/')
+              const repoNameFromUrl = urlParts[urlParts.length - 1]
+              const fullRepoName = `${githubUsername}/${repoNameFromUrl}`
+
+              let filesUpdated = 0;
+
+              // Update files in existing repository
+              for (const file of files) {
+                try {
+                  const fileResponse = await fetch(`https://api.github.com/repos/${fullRepoName}/contents/${file.fileName}`, {
+                    headers: githubHeaders
+                  })
+
+                  let sha = null
+                  if (fileResponse.ok) {
+                    const existingFile = await fileResponse.json()
+                    sha = existingFile.sha
+                  }
+
+                  const updateResponse = await fetch(`https://api.github.com/repos/${fullRepoName}/contents/${file.fileName}`, {
+                    method: 'PUT',
+                    headers: githubHeaders,
+                    body: JSON.stringify({
+                      message: `Update ${file.fileName} - ${new Date().toISOString()}`,
+                      content: encodeBase64(file.content),
+                      sha: sha
+                    })
+                  })
+
+                  if (updateResponse.ok) {
+                    filesUpdated++
+                  } else {
+                    const errorText = await updateResponse.text()
+                    console.error(`Failed to update ${file.fileName}:`, updateResponse.status, errorText)
+                  }
+                } catch (error) {
+                  console.error(`Error updating file ${file.fileName}:`, error)
+                }
+              }
+
+              console.log(`Updated existing repository with ${filesUpdated} files`)
+
+              return new Response(JSON.stringify({
+                success: true,
+                repoName: existingProject.github_repo_name,
+                repoUrl: existingProject.github_repo_url,
+                message: `Updated existing repository with ${filesUpdated} files`,
+                isUpdate: true
+              }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+              })
+            }
+          }
+
+          // Create new repository only if none exists
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19)
+          const uniqueRepoName = `${projectName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${timestamp}`
+          
+          console.log('Creating new GitHub repository:', uniqueRepoName)
+          
+          // Create GitHub repository with enhanced error handling
+          const repoResponse = await fetch('https://api.github.com/user/repos', {
+            method: 'POST',
+            headers: githubHeaders,
+            body: JSON.stringify({
+              name: uniqueRepoName,
+              description: `Cloud Runner Project - ${projectName} (Generated with Groq AI)`,
+              private: false,
+              auto_init: true
+            })
+          })
+
+          if (!repoResponse.ok) {
+            const errorText = await repoResponse.text()
+            console.error('Failed to create repository:', repoResponse.status, errorText)
+            
+            let errorMessage = 'Failed to create GitHub repository'
+            if (repoResponse.status === 422) {
+              errorMessage = 'Repository name already exists or contains invalid characters'
+            } else if (repoResponse.status === 403) {
+              errorMessage = 'GitHub token lacks permission to create repositories'
+            } else if (repoResponse.status === 401) {
+              errorMessage = 'GitHub token is invalid or expired'
+            }
+            
+            return new Response(JSON.stringify({
+              error: `${errorMessage}: ${errorText}`,
+              success: false,
+              errorType: 'github_repo_creation',
+              statusCode: repoResponse.status
+            }), {
+              status: 500,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            })
+          }
+
+          const repo = await repoResponse.json()
+          console.log('Repository created successfully:', repo.full_name)
+
+          let filesUploaded = 0;
+
+          // Upload project files with better error tracking
+          for (const file of files) {
+            try {
+              console.log(`Uploading file: ${file.fileName}`)
+              const uploadResponse = await fetch(`https://api.github.com/repos/${repo.full_name}/contents/${file.fileName}`, {
+                method: 'PUT',
+                headers: githubHeaders,
+                body: JSON.stringify({
+                  message: `Add ${file.fileName} (Generated with Groq)`,
+                  content: encodeBase64(file.content)
+                })
+              })
+
+              if (uploadResponse.ok) {
+                filesUploaded++
+                console.log(`Successfully uploaded: ${file.fileName}`)
+              } else {
+                const errorText = await uploadResponse.text()
+                console.error(`Failed to upload file ${file.fileName}:`, uploadResponse.status, errorText)
+              }
+            } catch (error) {
+              console.error(`Error uploading file ${file.fileName}:`, error)
+            }
+          }
+
+          // Add enhanced README.md
+          const readmeContent = `# ${projectName}
+
+This is an automated Python project generated by Casel AI Cloud Runner using **Groq AI**.
+
+## Features
+- Uses Groq API for AI functionality (fast and efficient)
+- Built with Python automation in mind
+- Ready for deployment
+
+## Setup
+
+1. Install dependencies:
+\`\`\`bash
+pip install -r requirements.txt
+\`\`\`
+
+2. Set up environment variables:
+\`\`\`bash
+export GROQ_API_KEY="your-groq-api-key"
+export TELEGRAM_API_ID="your-telegram-api-id"
+export TELEGRAM_API_HASH="your-telegram-api-hash"
+\`\`\`
+
+3. Run the project:
+\`\`\`bash
+python main.py
+\`\`\`
+
+## Files
+
+${files.map(f => `- \`${f.fileName}\`: ${f.fileName === 'main.py' ? 'Main application file' : f.fileName === 'requirements.txt' ? 'Python dependencies (Groq-focused)' : 'Project file'}`).join('\n')}
+
+## Note
+
+This project uses Groq API instead of OpenAI for faster and more cost-effective AI responses.
+
+Generated on: ${new Date().toISOString()}
+`
+
+          try {
+            await fetch(`https://api.github.com/repos/${repo.full_name}/contents/README.md`, {
+              method: 'PUT',
+              headers: githubHeaders,
+              body: JSON.stringify({
+                message: 'Add enhanced README.md with Groq information',
+                content: encodeBase64(readmeContent)
+              })
+            })
+            console.log('README.md created successfully')
+          } catch (error) {
+            console.error('Failed to create README:', error)
+          }
+
+          // Save to database
+          try {
+            await supabaseClient
+              .from('cloud_runner_projects')
+              .upsert({
+                id: projectId || undefined,
+                user_id: user.id,
+                project_name: projectName,
+                github_repo_name: uniqueRepoName,
+                github_repo_url: repo.html_url,
+                session_file_uploaded: !!sessionFile,
+                updated_at: new Date().toISOString()
+              })
+            
+            console.log('Project saved to database successfully')
+          } catch (error) {
+            console.error('Failed to save project to database:', error)
+          }
+
+          console.log(`Repository created successfully with ${filesUploaded} files uploaded`)
+
+          return new Response(JSON.stringify({
+            success: true,
+            repoName: uniqueRepoName,
+            repoUrl: repo.html_url,
+            cloneUrl: repo.clone_url,
+            filesUploaded: filesUploaded,
+            message: `Successfully created repository with ${filesUploaded} files`
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        } catch (error) {
+          console.error('Error creating GitHub repo:', error)
+          return new Response(JSON.stringify({
+            error: `Repository creation failed: ${error.message}`,
+            success: false,
+            errorType: 'unexpected'
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+      }
+
       case 'sync-to-git': {
         try {
           console.log(`Syncing ${files?.length || 0} files to Git repository: ${githubRepoUrl}`)
@@ -216,205 +478,6 @@ serve(async (req) => {
           })
         } catch (error) {
           console.error('Git sync error:', error)
-          return new Response(JSON.stringify({
-            error: error.message,
-            success: false
-          }), {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-        }
-      }
-
-      case 'create-github-repo': {
-        try {
-          console.log(`Creating GitHub repo for project: ${projectName} with ${files?.length || 0} files`)
-          
-          // Check if this project already has a GitHub repository
-          if (projectId) {
-            const { data: existingProject } = await supabaseClient
-              .from('cloud_runner_projects')
-              .select('github_repo_url, github_repo_name')
-              .eq('id', projectId)
-              .eq('user_id', user.id)
-              .single()
-
-            if (existingProject?.github_repo_url) {
-              console.log('Project already has repository, updating existing:', existingProject.github_repo_url)
-              
-              // Just sync to existing repository instead of creating new one
-              const urlParts = existingProject.github_repo_url.split('/')
-              const repoNameFromUrl = urlParts[urlParts.length - 1]
-              const fullRepoName = `${githubUsername}/${repoNameFromUrl}`
-
-              let filesUpdated = 0;
-
-              // Update files in existing repository
-              for (const file of files) {
-                try {
-                  const fileResponse = await fetch(`https://api.github.com/repos/${fullRepoName}/contents/${file.fileName}`, {
-                    headers: githubHeaders
-                  })
-
-                  let sha = null
-                  if (fileResponse.ok) {
-                    const existingFile = await fileResponse.json()
-                    sha = existingFile.sha
-                  }
-
-                  const updateResponse = await fetch(`https://api.github.com/repos/${fullRepoName}/contents/${file.fileName}`, {
-                    method: 'PUT',
-                    headers: githubHeaders,
-                    body: JSON.stringify({
-                      message: `Update ${file.fileName} - ${new Date().toISOString()}`,
-                      content: encodeBase64(file.content),
-                      sha: sha
-                    })
-                  })
-
-                  if (updateResponse.ok) {
-                    filesUpdated++
-                  }
-                } catch (error) {
-                  console.error(`Error updating file ${file.fileName}:`, error)
-                }
-              }
-
-              console.log(`Updated existing repository with ${filesUpdated} files`)
-
-              return new Response(JSON.stringify({
-                success: true,
-                repoName: existingProject.github_repo_name,
-                repoUrl: existingProject.github_repo_url,
-                message: `Updated existing repository with ${filesUpdated} files`
-              }), {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-              })
-            }
-          }
-
-          // Create new repository only if none exists
-          const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19)
-          const uniqueRepoName = `${projectName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${timestamp}`
-          
-          console.log('Creating new GitHub repository:', uniqueRepoName)
-          
-          // Create GitHub repository
-          const repoResponse = await fetch('https://api.github.com/user/repos', {
-            method: 'POST',
-            headers: githubHeaders,
-            body: JSON.stringify({
-              name: uniqueRepoName,
-              description: `Cloud Runner Project - ${projectName}`,
-              private: false,
-              auto_init: true
-            })
-          })
-
-          if (!repoResponse.ok) {
-            const error = await repoResponse.text()
-            console.error('Failed to create repository:', error)
-            throw new Error(`Failed to create repository: ${repoResponse.status} ${error}`)
-          }
-
-          const repo = await repoResponse.json()
-          console.log('Repository created:', repo.full_name)
-
-          let filesUploaded = 0;
-
-          // Upload project files
-          for (const file of files) {
-            try {
-              const uploadResponse = await fetch(`https://api.github.com/repos/${repo.full_name}/contents/${file.fileName}`, {
-                method: 'PUT',
-                headers: githubHeaders,
-                body: JSON.stringify({
-                  message: `Add ${file.fileName}`,
-                  content: encodeBase64(file.content)
-                })
-              })
-
-              if (uploadResponse.ok) {
-                filesUploaded++
-                console.log(`Uploaded file: ${file.fileName}`)
-              } else {
-                const errorText = await uploadResponse.text()
-                console.error(`Failed to upload file ${file.fileName}:`, errorText)
-              }
-            } catch (error) {
-              console.error(`Error uploading file ${file.fileName}:`, error)
-            }
-          }
-
-          // Add README.md
-          const readmeContent = `# ${projectName}
-
-This is an automated Python project generated by Casel AI Cloud Runner.
-
-## Setup
-
-1. Install dependencies:
-\`\`\`bash
-pip install -r requirements.txt
-\`\`\`
-
-2. Run the project:
-\`\`\`bash
-python main.py
-\`\`\`
-
-## Files
-
-${files.map(f => `- \`${f.fileName}\`: ${f.fileName === 'main.py' ? 'Main application file' : f.fileName === 'requirements.txt' ? 'Python dependencies' : 'Project file'}`).join('\n')}
-
-Generated on: ${new Date().toISOString()}
-`
-
-          try {
-            await fetch(`https://api.github.com/repos/${repo.full_name}/contents/README.md`, {
-              method: 'PUT',
-              headers: githubHeaders,
-              body: JSON.stringify({
-                message: 'Add README.md',
-                content: encodeBase64(readmeContent)
-              })
-            })
-          } catch (error) {
-            console.error('Failed to create README:', error)
-          }
-
-          // Save to database
-          try {
-            await supabaseClient
-              .from('cloud_runner_projects')
-              .upsert({
-                id: projectId || undefined,
-                user_id: user.id,
-                project_name: projectName,
-                github_repo_name: uniqueRepoName,
-                github_repo_url: repo.html_url,
-                session_file_uploaded: !!sessionFile,
-                updated_at: new Date().toISOString()
-              })
-            
-            console.log('Project saved to database')
-          } catch (error) {
-            console.error('Failed to save project to database:', error)
-          }
-
-          console.log(`Repository created with ${filesUploaded} files uploaded`)
-
-          return new Response(JSON.stringify({
-            success: true,
-            repoName: uniqueRepoName,
-            repoUrl: repo.html_url,
-            cloneUrl: repo.clone_url,
-            filesUploaded: filesUploaded
-          }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-        } catch (error) {
-          console.error('Error creating GitHub repo:', error)
           return new Response(JSON.stringify({
             error: error.message,
             success: false
@@ -554,14 +617,21 @@ Generated on: ${new Date().toISOString()}
 
       default:
         console.error('Invalid action requested:', action)
-        return new Response('Invalid action', { status: 400, headers: corsHeaders })
+        return new Response(JSON.stringify({
+          error: 'Invalid action requested',
+          success: false
+        }), { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
     }
 
   } catch (error) {
     console.error('Cloud Runner Manager Error:', error)
     return new Response(JSON.stringify({ 
-      error: error.message,
-      success: false
+      error: `Server error: ${error.message}`,
+      success: false,
+      errorType: 'server'
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

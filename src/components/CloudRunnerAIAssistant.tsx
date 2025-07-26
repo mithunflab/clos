@@ -38,7 +38,7 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
-      content: '👋 Ready to build Python automation! Describe what you want to create and I\'ll generate the code.',
+      content: '👋 Ready to build Python automation with Groq! Describe what you want to create and I\'ll generate the code using Groq API only.',
       timestamp: new Date()
     }
   ]);
@@ -114,10 +114,10 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
         return `File: ${fileName}\nContent:\n${file?.content?.substring(0, 500)}...`;
       }).join('\n\n');
       
-      return `${message}\n\nCurrent files context:\n${fileContext}`;
+      return `${message}\n\nCurrent files context:\n${fileContext}\n\nIMPORTANT: Use only Groq API, never OpenAI. Use groq-python library in requirements.txt.`;
     }
     
-    return message;
+    return `${message}\n\nIMPORTANT: Use only Groq API, never OpenAI. Use groq-python library in requirements.txt.`;
   };
 
   const handleSendMessage = useCallback(async () => {
@@ -193,12 +193,12 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
       
       const errorMessage: ChatMessage = {
         role: 'assistant',
-        content: '❌ Failed to process request. Please try again.',
+        content: '❌ Failed to process request with Groq. Please ensure GROQ_API_KEY is configured and try again.',
         timestamp: new Date()
       };
       
       setMessages(prev => [...prev, errorMessage]);
-      toast.error('Failed to send message');
+      toast.error('Failed to send message - check Groq API configuration');
     } finally {
       setIsLoading(false);
       // Always signal generation end
@@ -236,7 +236,7 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
                   {message.files && message.files.length > 0 && (
                     <div className="mt-2 space-y-1">
                       <Badge variant="outline" className="text-xs">
-                        {message.files.length} files generated
+                        {message.files.length} files generated with Groq
                       </Badge>
                       {message.files.map((file, fileIndex) => (
                         <div key={fileIndex} className="text-xs text-muted-foreground">
@@ -258,7 +258,7 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
                 <div className="bg-muted p-3 rounded-lg mr-4">
                   <div className="flex items-center gap-2">
                     <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full"></div>
-                    <span className="text-sm">Creating files...</span>
+                    <span className="text-sm">Creating files with Groq...</span>
                   </div>
                 </div>
               </div>
@@ -297,7 +297,7 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
           <Input
             value={currentMessage}
             onChange={(e) => setCurrentMessage(e.target.value)}
-            placeholder="Describe your automation project or mention a file..."
+            placeholder="Describe your automation project using Groq..."
             onKeyPress={handleKeyPress}
             disabled={isLoading}
             className="flex-1"

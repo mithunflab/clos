@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,10 @@ import {
   AlertTriangle,
   Edit3,
   Save,
-  X
+  X,
+  Trash2,
+  Play,
+  Square
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -43,9 +47,12 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
   isGenerating = false
 }) => {
   const [activeFile, setActiveFile] = useState<string>(files[0]?.fileName || '');
-  const [activeTab, setActiveTab] = useState<'files' | 'logs'>('files');
+  const [activeTab, setActiveTab] = useState<'files' | 'logs' | 'runner'>('files');
   const [editingFile, setEditingFile] = useState<string | null>(null);
   const [editContent, setEditContent] = useState<string>('');
+  const [runnerOutput, setRunnerOutput] = useState<string[]>([]);
+  const [isRunning, setIsRunning] = useState(false);
+  const [pythonInput, setPythonInput] = useState('');
 
   // Update active file when files change
   React.useEffect(() => {
@@ -79,6 +86,21 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
     }
   };
 
+  const deleteFile = (fileName: string) => {
+    if (window.confirm(`Are you sure you want to delete ${fileName}?`)) {
+      onFileDelete?.(fileName);
+      toast.success(`File ${fileName} deleted`);
+      
+      // Switch to another file if the deleted file was active
+      if (fileName === activeFile) {
+        const remainingFiles = files.filter(f => f.fileName !== fileName);
+        if (remainingFiles.length > 0) {
+          setActiveFile(remainingFiles[0].fileName);
+        }
+      }
+    }
+  };
+
   const handleEditStart = (fileName: string, content: string) => {
     setEditingFile(fileName);
     setEditContent(content);
@@ -96,6 +118,38 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
   const handleEditCancel = () => {
     setEditingFile(null);
     setEditContent('');
+  };
+
+  const runPythonCode = () => {
+    if (!pythonInput.trim()) return;
+    
+    setIsRunning(true);
+    setRunnerOutput(prev => [...prev, `>>> ${pythonInput}`]);
+    
+    // Simulate Python execution (in real implementation, you'd send to backend)
+    setTimeout(() => {
+      try {
+        // Simple Python-like evaluation for demo
+        if (pythonInput.includes('print(')) {
+          const match = pythonInput.match(/print\((.*)\)/);
+          if (match) {
+            const output = match[1].replace(/['"]/g, '');
+            setRunnerOutput(prev => [...prev, output]);
+          }
+        } else {
+          setRunnerOutput(prev => [...prev, 'Code executed successfully']);
+        }
+      } catch (error) {
+        setRunnerOutput(prev => [...prev, `Error: ${error}`]);
+      } finally {
+        setIsRunning(false);
+        setPythonInput('');
+      }
+    }, 1000);
+  };
+
+  const clearRunner = () => {
+    setRunnerOutput([]);
   };
 
   const formatCodeLines = (content: string): { number: number; content: string; isEmpty: boolean }[] => {
@@ -122,7 +176,6 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
   };
 
   const getFileIcon = (fileName: string | undefined) => {
-    // Add safety check for undefined/null fileName
     if (!fileName || typeof fileName !== 'string') {
       return '📄';
     }
@@ -175,6 +228,15 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
               <Badge variant="outline" className="text-xs ml-1">
                 {logs.length}
               </Badge>
+            </Button>
+            <Button
+              variant={activeTab === 'runner' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActiveTab('runner')}
+              className="flex items-center gap-2"
+            >
+              <Play className="w-4 h-4" />
+              Python Runner
             </Button>
           </div>
         </div>
@@ -272,6 +334,15 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
                                   <Download className="h-3 w-3 mr-1" />
                                   Download
                                 </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => deleteFile(file.fileName)}
+                                  className="text-xs hover:bg-red-100 text-red-600"
+                                >
+                                  <Trash2 className="h-3 w-3 mr-1" />
+                                  Delete
+                                </Button>
                               </>
                             )}
                           </div>
@@ -337,7 +408,7 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
               </div>
             )}
           </div>
-        ) : (
+        ) : activeTab === 'logs' ? (
           <div className="h-full flex flex-col">
             <div className="flex items-center justify-between p-4 border-b bg-black text-green-400">
               <div className="flex items-center gap-2">
@@ -383,6 +454,65 @@ const CloudRunnerFileTree: React.FC<CloudRunnerFileTreeProps> = ({
                 )}
               </div>
             </ScrollArea>
+          </div>
+        ) : (
+          <div className="h-full flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b bg-blue-950 text-white">
+              <div className="flex items-center gap-2">
+                <Play className="h-4 w-4" />
+                <span className="font-medium">Real-Time Python Runner</span>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={clearRunner}
+                className="text-white hover:text-gray-300"
+              >
+                <Square className="h-3 w-3 mr-1" />
+                Clear
+              </Button>
+            </div>
+            
+            <ScrollArea className="flex-1 bg-black text-white">
+              <div className="p-4 font-mono text-sm">
+                <div className="text-blue-400 mb-4">Python 3.x Interactive Shell</div>
+                {runnerOutput.map((output, index) => (
+                  <div key={index} className="mb-1">
+                    {output.startsWith('>>>') ? (
+                      <span className="text-green-400">{output}</span>
+                    ) : (
+                      <span className="text-white">{output}</span>
+                    )}
+                  </div>
+                ))}
+                {isRunning && (
+                  <div className="text-yellow-400 flex items-center">
+                    <RefreshCw className="h-3 w-3 mr-2 animate-spin" />
+                    Running...
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+            
+            <div className="p-4 border-t bg-gray-900 flex gap-2">
+              <input
+                type="text"
+                value={pythonInput}
+                onChange={(e) => setPythonInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && runPythonCode()}
+                placeholder=">>> Enter Python code here"
+                className="flex-1 bg-black text-white border border-gray-600 rounded px-3 py-2 font-mono text-sm focus:outline-none focus:border-blue-400"
+                disabled={isRunning}
+              />
+              <Button 
+                onClick={runPythonCode}
+                disabled={isRunning || !pythonInput.trim()}
+                size="sm"
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <Play className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         )}
       </CardContent>

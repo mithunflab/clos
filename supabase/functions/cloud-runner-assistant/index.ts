@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const GEMINI_API_KEY = Deno.env.get('GEMINI_API')
+const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY')
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -16,8 +16,8 @@ serve(async (req) => {
   try {
     const { messages, sessionFileUploaded, currentFiles } = await req.json()
 
-    if (!GEMINI_API_KEY) {
-      throw new Error('Gemini API key not configured')
+    if (!GROQ_API_KEY) {
+      throw new Error('Groq API key not configured')
     }
 
     // Create system prompt for concise Python automation assistant
@@ -30,6 +30,7 @@ Key guidelines:
 4. Be brief - max 2-3 sentences in chat
 5. Focus on next steps
 6. Session file status: ${sessionFileUploaded ? 'Available' : 'NEEDED - remind user to upload session.session file for Telegram bots'}
+7. ONLY use Groq API, never OpenAI
 
 Current files: ${currentFiles?.length ? currentFiles.map(f => f.fileName).join(', ') : 'None'}
 
@@ -37,39 +38,38 @@ Response format:
 - Keep chat responses under 50 words
 - End with clear next step
 - Generate files when user describes what they want
-- NEVER create duplicate filenames`
+- NEVER create duplicate filenames
+- Always use groq-python library, never openai library`
 
     const latestMessage = messages[messages.length - 1]
     
-    const geminiMessages = [
+    const groqMessages = [
       {
         role: "user",
-        parts: [{ text: systemPrompt + "\n\nUser: " + latestMessage.content }]
+        content: systemPrompt + "\n\nUser: " + latestMessage.content
       }
     ]
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`, {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
+        'Authorization': `Bearer ${GROQ_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        contents: geminiMessages,
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 1024,
-        },
+        model: 'llama-3.1-70b-versatile',
+        messages: groqMessages,
+        temperature: 0.7,
+        max_tokens: 1024,
       }),
     })
 
     if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.status}`)
+      throw new Error(`Groq API error: ${response.status}`)
     }
 
     const data = await response.json()
-    let aiResponse = data.candidates[0]?.content?.parts[0]?.text || 'I can help you create Python automation scripts. What would you like to build?'
+    let aiResponse = data.choices[0]?.message?.content || 'I can help you create Python automation scripts. What would you like to build?'
 
     // Parse response to extract code files with improved logic
     const files = []
@@ -116,12 +116,12 @@ Response format:
       }
     }
 
-    // Add requirements.txt for Python projects if not already present
-    if (aiResponse.toLowerCase().includes('telegram') || aiResponse.toLowerCase().includes('telethon')) {
+    // Add requirements.txt for Python projects if not already present - GROQ ONLY
+    if (aiResponse.toLowerCase().includes('telegram') || aiResponse.toLowerCase().includes('telethon') || aiResponse.toLowerCase().includes('groq')) {
       if (!files.some(f => f.fileName === 'requirements.txt')) {
         files.push({
           fileName: 'requirements.txt',
-          content: 'telethon>=1.30.0\nopenai>=1.0.0\npython-dotenv>=0.19.0\naiofiles>=0.8.0',
+          content: 'telethon>=1.30.0\ngroq>=0.4.1\npython-dotenv>=0.19.0\naiofiles>=0.8.0',
           language: 'text'
         })
       }
