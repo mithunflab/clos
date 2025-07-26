@@ -15,7 +15,10 @@ import {
   CheckCircle,
   AlertCircle,
   Code,
-  Zap
+  Zap,
+  Terminal,
+  Monitor,
+  Settings
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -30,16 +33,23 @@ interface ExecutionResult {
   has_functions?: boolean;
   has_classes?: boolean;
   has_loops?: boolean;
+  files_created?: string[];
+  logs?: string[];
 }
 
-const PythonRunner: React.FC = () => {
-  const [code, setCode] = useState(`# Welcome to Real-time Python Runner
+interface PythonRunnerProps {
+  onLogsUpdate?: (logs: string[]) => void;
+}
+
+const PythonRunner: React.FC<PythonRunnerProps> = ({ onLogsUpdate }) => {
+  const [code, setCode] = useState(`# Real-time Python Runner
 # All major libraries are pre-installed!
 
 import requests
 import pandas as pd
 import numpy as np
 from datetime import datetime
+import os
 
 print("🐍 Python Runner is ready!")
 print(f"Current time: {datetime.now()}")
@@ -58,23 +68,44 @@ print(data)
 numbers = np.array([1, 2, 3, 4, 5])
 print(f"\\nSum of numbers: {np.sum(numbers)}")
 print(f"Mean: {np.mean(numbers)}")
+
+# Example: File operations
+with open('output.txt', 'w') as f:
+    f.write("Hello from Python Runner!")
+    
+print("\\nFile created: output.txt")
 `);
   
   const [isRunning, setIsRunning] = useState(false);
   const [executionHistory, setExecutionHistory] = useState<(ExecutionResult & { timestamp: Date; code: string })[]>([]);
   const [availableLibraries, setAvailableLibraries] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState('editor');
+  const [activeTab, setActiveTab] = useState('runner');
+  const [runnerMode, setRunnerMode] = useState<'interactive' | 'file' | 'terminal'>('interactive');
+  const [liveLogs, setLiveLogs] = useState<string[]>([]);
   const outputRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadAvailableLibraries();
+    // Start live log monitoring
+    const interval = setInterval(() => {
+      // This would connect to real-time logs in production
+      // For now, we'll update from execution history
+    }, 1000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
     if (outputRef.current) {
       outputRef.current.scrollTop = outputRef.current.scrollHeight;
     }
-  }, [executionHistory]);
+  }, [executionHistory, liveLogs]);
+
+  useEffect(() => {
+    if (onLogsUpdate && liveLogs.length > 0) {
+      onLogsUpdate(liveLogs);
+    }
+  }, [liveLogs, onLogsUpdate]);
 
   const loadAvailableLibraries = async () => {
     try {
@@ -98,13 +129,20 @@ print(f"Mean: {np.mean(numbers)}")
     }
 
     setIsRunning(true);
+    const startTime = Date.now();
+    
     try {
-      console.log('Running Python code...');
+      console.log('Running Python code in real-time...');
+      
+      // Add to live logs
+      const logEntry = `[${new Date().toLocaleTimeString()}] Starting execution...`;
+      setLiveLogs(prev => [...prev, logEntry]);
       
       const { data, error } = await supabase.functions.invoke('python-runner', {
         body: { 
           action: 'execute',
-          code: code 
+          code: code,
+          mode: runnerMode
         }
       });
 
@@ -113,7 +151,19 @@ print(f"Mean: {np.mean(numbers)}")
       }
 
       const result: ExecutionResult = data;
+      const endTime = Date.now();
       
+      // Update live logs with execution results
+      const executionLog = `[${new Date().toLocaleTimeString()}] Execution completed in ${result.execution_time}ms`;
+      setLiveLogs(prev => [...prev, executionLog]);
+      
+      if (result.files_created) {
+        result.files_created.forEach(file => {
+          const fileLog = `[${new Date().toLocaleTimeString()}] File created: ${file}`;
+          setLiveLogs(prev => [...prev, fileLog]);
+        });
+      }
+
       setExecutionHistory(prev => [...prev, {
         ...result,
         timestamp: new Date(),
@@ -121,7 +171,7 @@ print(f"Mean: {np.mean(numbers)}")
       }]);
 
       if (result.success) {
-        toast.success(`Code executed in ${result.execution_time}ms`);
+        toast.success(`Code executed successfully in ${result.execution_time}ms`);
       } else {
         toast.error('Code execution failed');
       }
@@ -129,11 +179,14 @@ print(f"Mean: {np.mean(numbers)}")
     } catch (error) {
       console.error('Error running Python code:', error);
       
+      const errorLog = `[${new Date().toLocaleTimeString()}] Error: ${error.message}`;
+      setLiveLogs(prev => [...prev, errorLog]);
+      
       const errorResult: ExecutionResult = {
         success: false,
         output: `Error: ${error.message}`,
         error: error.message,
-        execution_time: 0
+        execution_time: Date.now() - startTime
       };
       
       setExecutionHistory(prev => [...prev, {
@@ -150,18 +203,20 @@ print(f"Mean: {np.mean(numbers)}")
 
   const clearHistory = () => {
     setExecutionHistory([]);
-    toast.success('Execution history cleared');
+    setLiveLogs([]);
+    toast.success('History and logs cleared');
   };
 
   const insertSampleCode = (sample: string) => {
     setCode(sample);
-    setActiveTab('editor');
+    setActiveTab('runner');
     toast.success('Sample code inserted');
   };
 
   const sampleCodes = {
     'Data Analysis': `import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 
 # Create sample data
 data = pd.DataFrame({
@@ -175,67 +230,101 @@ print("=" * 20)
 print(data)
 print(f"\\nTotal Sales: ${data['sales'].sum()}")
 print(f"Average Profit: ${data['profit'].mean():.2f}")
-print(f"Best Performing Product: {data.loc[data['sales'].idxmax(), 'product']}")`,
+print(f"Best Product: {data.loc[data['sales'].idxmax(), 'product']}")
+
+# Save results to file
+data.to_csv('sales_analysis.csv', index=False)
+print("\\nResults saved to sales_analysis.csv")`,
+
+    'File Operations': `import os
+import json
+from datetime import datetime
+
+# Create directory structure
+os.makedirs('project/data', exist_ok=True)
+os.makedirs('project/logs', exist_ok=True)
+
+# Write configuration file
+config = {
+    "app_name": "Python Runner",
+    "version": "1.0.0",
+    "timestamp": datetime.now().isoformat()
+}
+
+with open('project/config.json', 'w') as f:
+    json.dump(config, f, indent=2)
+
+# Create log file
+log_entry = f"{datetime.now()}: Application started\\n"
+with open('project/logs/app.log', 'w') as f:
+    f.write(log_entry)
+
+# List created files
+for root, dirs, files in os.walk('project'):
+    for file in files:
+        filepath = os.path.join(root, file)
+        print(f"Created: {filepath}")`,
 
     'Web Scraping': `import requests
 from bs4 import BeautifulSoup
+import json
 
-# Example: Get webpage title
-url = "https://httpbin.org/html"
-try:
-    response = requests.get(url)
-    print(f"Status Code: {response.status_code}")
-    print("Web scraping simulation successful!")
-    print("Note: This is a simulation - actual requests would work in a real environment")
-except Exception as e:
-    print(f"Request simulation: {e}")`,
-
-    'Telegram Bot': `from telethon import TelegramClient
-import asyncio
-
-# Telegram bot setup (simulation)
-api_id = "your_api_id"
-api_hash = "your_api_hash"
-
-print("🤖 Telegram Bot Setup")
+print("🌐 Web Scraping Example")
 print("=" * 25)
-print("1. Get API credentials from https://my.telegram.org")
-print("2. Install: pip install telethon")
-print("3. Create session file")
-print("\\nBot initialization simulated!")
 
-# Example bot functionality
-def handle_message(message):
-    print(f"Received: {message}")
-    return f"Bot response to: {message}"
+# Example API call
+try:
+    response = requests.get("https://jsonplaceholder.typicode.com/posts/1")
+    data = response.json()
+    
+    print(f"Status Code: {response.status_code}")
+    print(f"Post Title: {data['title']}")
+    
+    # Save response to file
+    with open('api_response.json', 'w') as f:
+        json.dump(data, f, indent=2)
+    
+    print("\\nResponse saved to api_response.json")
+    
+except Exception as e:
+    print(f"Request failed: {e}")`,
 
-print(handle_message("Hello bot!"))`,
+    'Machine Learning': `import numpy as np
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
+import pickle
 
-    'AI Integration': `import openai
-from datetime import datetime
-
-# AI integration example
-print("🤖 AI Integration Example")
+print("🤖 Machine Learning Example")
 print("=" * 30)
 
-# Simulate API call
-def generate_ai_response(prompt):
-    # This simulates an AI API call
-    responses = [
-        f"AI Response to '{prompt}': This is a simulated AI response.",
-        f"Generated at: {datetime.now()}",
-        "Note: Add your actual API key for real integration"
-    ]
-    return "\\n".join(responses)
+# Generate sample data
+np.random.seed(42)
+X = np.random.rand(100, 1) * 10
+y = 2 * X.ravel() + 1 + np.random.rand(100) * 2
 
-prompt = "What is machine learning?"
-result = generate_ai_response(prompt)
-print(result)
+# Create DataFrame
+df = pd.DataFrame({'feature': X.ravel(), 'target': y})
 
-print("\\n📚 Available AI Libraries:")
-print("- openai, anthropic, groq")
-print("- transformers, datasets")
-print("- tensorflow, pytorch")`
+# Train model
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+model = LinearRegression()
+model.fit(X_train, y_train)
+
+# Make predictions
+y_pred = model.predict(X_test)
+mse = mean_squared_error(y_test, y_pred)
+
+print(f"Model R² Score: {model.score(X_test, y_test):.4f}")
+print(f"Mean Squared Error: {mse:.4f}")
+
+# Save model
+with open('model.pkl', 'wb') as f:
+    pickle.dump(model, f)
+
+print("\\nModel saved to model.pkl")`
   };
 
   const formatExecutionTime = (ms: number) => {
@@ -247,26 +336,55 @@ print("- tensorflow, pytorch")`
     <div className="h-full flex flex-col">
       <Card className="flex-1 flex flex-col">
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2">
-            <Code className="h-5 w-5 text-green-600" />
-            <span>Real-time Python Runner</span>
-            <Badge variant="secondary" className="bg-green-100 text-green-800">
-              <Zap className="h-3 w-3 mr-1" />
-              All Libraries Pre-installed
-            </Badge>
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Terminal className="h-5 w-5 text-green-600" />
+              <span>Real-time Python Runner</span>
+              <Badge variant="secondary" className="bg-green-100 text-green-800">
+                <Zap className="h-3 w-3 mr-1" />
+                Live Execution
+              </Badge>
+            </CardTitle>
+            
+            <div className="flex items-center gap-2">
+              <Button
+                variant={runnerMode === 'interactive' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setRunnerMode('interactive')}
+              >
+                <Monitor className="h-3 w-3 mr-1" />
+                Interactive
+              </Button>
+              <Button
+                variant={runnerMode === 'file' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setRunnerMode('file')}
+              >
+                <Code className="h-3 w-3 mr-1" />
+                File Mode
+              </Button>
+              <Button
+                variant={runnerMode === 'terminal' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setRunnerMode('terminal')}
+              >
+                <Terminal className="h-3 w-3 mr-1" />
+                Terminal
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         
         <CardContent className="flex-1 overflow-hidden">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
             <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="editor">Code Editor</TabsTrigger>
-              <TabsTrigger value="output">Output</TabsTrigger>
+              <TabsTrigger value="runner">Python Runner</TabsTrigger>
+              <TabsTrigger value="output">Live Output</TabsTrigger>
               <TabsTrigger value="libraries">Libraries</TabsTrigger>
-              <TabsTrigger value="samples">Samples</TabsTrigger>
+              <TabsTrigger value="samples">Code Samples</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="editor" className="flex-1 flex flex-col space-y-4">
+            <TabsContent value="runner" className="flex-1 flex flex-col space-y-4">
               <div className="flex gap-2">
                 <Button 
                   onClick={runCode} 
@@ -288,10 +406,10 @@ print("- tensorflow, pytorch")`
                 <Button 
                   variant="outline" 
                   onClick={clearHistory}
-                  disabled={executionHistory.length === 0}
+                  disabled={executionHistory.length === 0 && liveLogs.length === 0}
                 >
                   <RotateCcw className="w-4 h-4 mr-2" />
-                  Clear History
+                  Clear All
                 </Button>
               </div>
               
@@ -305,23 +423,34 @@ print("- tensorflow, pytorch")`
             </TabsContent>
             
             <TabsContent value="output" className="flex-1">
-              <div className="h-full">
+              <div className="h-full flex flex-col">
                 <div className="flex items-center gap-2 mb-4">
-                  <h3 className="font-medium">Execution History</h3>
+                  <h3 className="font-medium">Live Execution Output</h3>
                   <Badge variant="outline">
                     {executionHistory.length} runs
+                  </Badge>
+                  <Badge variant="outline" className="bg-green-100 text-green-800">
+                    {liveLogs.length} logs
                   </Badge>
                 </div>
                 
                 <ScrollArea className="h-96 border rounded-lg p-4 bg-slate-900 text-green-400" ref={outputRef}>
-                  {executionHistory.length === 0 ? (
+                  {executionHistory.length === 0 && liveLogs.length === 0 ? (
                     <div className="text-center text-slate-500 py-8">
-                      <Code className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p>No code has been executed yet</p>
-                      <p className="text-sm">Run some Python code to see output here</p>
+                      <Terminal className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No code executed yet</p>
+                      <p className="text-sm">Run Python code to see live output</p>
                     </div>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-2">
+                      {/* Live Logs */}
+                      {liveLogs.map((log, index) => (
+                        <div key={`log-${index}`} className="text-yellow-400 text-sm font-mono">
+                          {log}
+                        </div>
+                      ))}
+                      
+                      {/* Execution Results */}
                       {executionHistory.map((result, index) => (
                         <div key={index} className="border-b border-slate-700 last:border-b-0 pb-4 last:pb-0">
                           <div className="flex items-center gap-2 mb-2 text-sm text-slate-400">
@@ -346,9 +475,9 @@ print("- tensorflow, pytorch")`
                             </div>
                           )}
                           
-                          {result.variables && result.variables.length > 0 && (
+                          {result.files_created && result.files_created.length > 0 && (
                             <div className="mt-2 text-xs text-blue-400">
-                              Variables: {result.variables.join(', ')}
+                              Files created: {result.files_created.join(', ')}
                             </div>
                           )}
                         </div>
@@ -385,7 +514,7 @@ print("- tensorflow, pytorch")`
             
             <TabsContent value="samples" className="flex-1">
               <div className="space-y-4">
-                <h3 className="font-medium">Sample Code Templates</h3>
+                <h3 className="font-medium">Code Sample Templates</h3>
                 
                 <div className="grid gap-4">
                   {Object.entries(sampleCodes).map(([title, code]) => (

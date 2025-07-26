@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Bot, 
   FileCode, 
@@ -13,7 +14,9 @@ import {
   AlertTriangle,
   Cloud,
   Play,
-  Code
+  Code,
+  Terminal,
+  Activity
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -39,6 +42,7 @@ const CloudRunner: React.FC = () => {
   const [githubRepoUrl, setGithubRepoUrl] = useState('');
   const [deploymentUrl, setDeploymentUrl] = useState('');
   const [logs, setLogs] = useState<string[]>([]);
+  const [liveLogs, setLiveLogs] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState('assistant');
 
@@ -47,6 +51,20 @@ const CloudRunner: React.FC = () => {
       setProjectName(`cloud-bot-${Date.now()}`);
     }
   }, [files]);
+
+  // Start live log monitoring
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // In production, this would connect to real-time log streams
+      // For now, we combine logs from various sources
+      const combinedLogs = [...logs, ...liveLogs];
+      if (combinedLogs.length !== logs.length + liveLogs.length) {
+        // Update if there are new logs
+      }
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [logs, liveLogs]);
 
   const handleFilesGenerated = (newFiles: ProjectFile[]) => {
     console.log('Files generated callback received:', newFiles);
@@ -67,6 +85,10 @@ const CloudRunner: React.FC = () => {
       
       return updatedFiles;
     });
+
+    // Add to live logs
+    const logEntry = `[${new Date().toLocaleTimeString()}] Generated ${newFiles.length} files`;
+    addLiveLog(logEntry);
   };
 
   const handleSessionFileRequest = () => {
@@ -76,11 +98,20 @@ const CloudRunner: React.FC = () => {
   const handleSessionFileUpload = (file: File) => {
     setSessionFile(file);
     addLog(`Session file uploaded: ${file.name}`);
+    addLiveLog(`[${new Date().toLocaleTimeString()}] Session file uploaded: ${file.name}`);
     toast.success('Session file uploaded successfully');
   };
 
   const addLog = (message: string) => {
     setLogs(prev => [...prev, message]);
+  };
+
+  const addLiveLog = (message: string) => {
+    setLiveLogs(prev => [...prev, message]);
+  };
+
+  const handlePythonLogsUpdate = (pythonLogs: string[]) => {
+    setLiveLogs(prev => [...prev, ...pythonLogs]);
   };
 
   const handleCreateGitHubRepo = async () => {
@@ -96,6 +127,7 @@ const CloudRunner: React.FC = () => {
 
     setIsCreatingRepo(true);
     addLog('Creating GitHub repository...');
+    addLiveLog(`[${new Date().toLocaleTimeString()}] Starting GitHub repository creation...`);
 
     try {
       const { data, error } = await supabase.functions.invoke('cloud-runner-manager', {
@@ -116,6 +148,7 @@ const CloudRunner: React.FC = () => {
         setGithubRepoUrl(data.repoUrl);
         addLog(`✅ Repository created: ${data.repoName}`);
         addLog(`📁 ${data.filesUploaded || files.length} files uploaded`);
+        addLiveLog(`[${new Date().toLocaleTimeString()}] ✅ Repository created: ${data.repoName}`);
         toast.success(`Repository created: ${data.repoName}`);
       } else {
         throw new Error(data?.error || 'Failed to create repository');
@@ -124,6 +157,7 @@ const CloudRunner: React.FC = () => {
       console.error('Error creating GitHub repo:', error);
       const errorMessage = error.message || 'Failed to create GitHub repository';
       addLog(`❌ ${errorMessage}`);
+      addLiveLog(`[${new Date().toLocaleTimeString()}] ❌ ${errorMessage}`);
       toast.error(errorMessage);
     } finally {
       setIsCreatingRepo(false);
@@ -138,6 +172,7 @@ const CloudRunner: React.FC = () => {
 
     setIsDeploying(true);
     addLog('Deploying to Render...');
+    addLiveLog(`[${new Date().toLocaleTimeString()}] Starting deployment to Render...`);
 
     try {
       const { data, error } = await supabase.functions.invoke('cloud-runner-manager', {
@@ -153,6 +188,7 @@ const CloudRunner: React.FC = () => {
       if (data?.success) {
         setDeploymentUrl(data.serviceUrl);
         addLog(`🚀 Deployed successfully: ${data.serviceUrl}`);
+        addLiveLog(`[${new Date().toLocaleTimeString()}] 🚀 Deployed successfully: ${data.serviceUrl}`);
         toast.success('Deployment successful!');
       } else {
         throw new Error(data?.error || 'Deployment failed');
@@ -161,6 +197,7 @@ const CloudRunner: React.FC = () => {
       console.error('Deployment error:', error);
       const errorMessage = error.message || 'Deployment failed';
       addLog(`❌ ${errorMessage}`);
+      addLiveLog(`[${new Date().toLocaleTimeString()}] ❌ ${errorMessage}`);
       toast.error(errorMessage);
     } finally {
       setIsDeploying(false);
@@ -170,16 +207,17 @@ const CloudRunner: React.FC = () => {
   const handleGeneratingStart = () => {
     console.log('Generation started - setting isGenerating to true');
     setIsGenerating(true);
+    addLiveLog(`[${new Date().toLocaleTimeString()}] AI code generation started...`);
   };
 
   const handleGeneratingEnd = () => {
     console.log('Generation ended - setting isGenerating to false');
     setIsGenerating(false);
     
-    // Add a small delay to ensure UI updates properly
     setTimeout(() => {
       console.log('Setting isGenerating to false after file processing');
       setIsGenerating(false);
+      addLiveLog(`[${new Date().toLocaleTimeString()}] AI code generation completed`);
     }, 100);
   };
 
@@ -236,6 +274,11 @@ const CloudRunner: React.FC = () => {
                 Live Site
               </Button>
             )}
+
+            <Badge variant="outline" className="bg-green-100 text-green-800">
+              <Activity className="h-3 w-3 mr-1" />
+              {liveLogs.length} Live Logs
+            </Badge>
           </div>
         </div>
         
@@ -291,6 +334,15 @@ const CloudRunner: React.FC = () => {
                 <Play className="h-4 w-4" />
                 Python Runner
               </TabsTrigger>
+              <TabsTrigger value="logs" className="flex items-center gap-2">
+                <Terminal className="h-4 w-4" />
+                Live Logs
+                {liveLogs.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 bg-green-100 text-green-800">
+                    {liveLogs.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="session" className="flex items-center gap-2">
                 <Code className="h-4 w-4" />
                 Session Upload
@@ -325,7 +377,42 @@ const CloudRunner: React.FC = () => {
             
             <TabsContent value="runner" className="h-full m-0">
               <div className="h-full p-4">
-                <PythonRunner />
+                <PythonRunner onLogsUpdate={handlePythonLogsUpdate} />
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="logs" className="h-full m-0">
+              <div className="h-full p-4">
+                <Card className="h-full">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Terminal className="h-5 w-5 text-green-600" />
+                      <span>Live System Logs</span>
+                      <Badge variant="secondary" className="bg-green-100 text-green-800">
+                        {liveLogs.length} entries
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="h-full">
+                    <ScrollArea className="h-96 border rounded-lg p-4 bg-slate-900">
+                      {liveLogs.length > 0 ? (
+                        <div className="space-y-1">
+                          {liveLogs.map((log, index) => (
+                            <div key={index} className="text-green-400 font-mono text-sm">
+                              {log}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center text-slate-500 py-8">
+                          <Terminal className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p>No live logs available</p>
+                          <p className="text-sm">System logs will appear here in real-time</p>
+                        </div>
+                      )}
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
               </div>
             </TabsContent>
             
