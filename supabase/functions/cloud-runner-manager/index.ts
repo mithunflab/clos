@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -504,7 +503,7 @@ Generated on: ${new Date().toISOString()}
 
           const serviceName = projectName.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 32)
           
-          // FIXED: Corrected Render API payload structure with buildCommand at root level
+          // FIXED: Corrected Render API payload structure - simplified and using documented format
           const renderPayload = {
             name: serviceName,
             ownerId: renderOwnerId,
@@ -514,19 +513,15 @@ Generated on: ${new Date().toISOString()}
             branch: 'main',
             buildCommand: 'pip install -r requirements.txt',
             startCommand: 'python main.py',
+            envVars: [],
             serviceDetails: {
               env: 'python',
               region: 'oregon',
-              plan: 'starter',
-              rootDir: '',
-              envSpecificDetails: {
-                pythonVersion: '3.11'
-              },
-              envVars: []
+              plan: 'starter'
             }
           }
 
-          console.log('Creating Render service with payload:', JSON.stringify(renderPayload, null, 2))
+          console.log('Creating Render service with corrected payload:', JSON.stringify(renderPayload, null, 2))
           
           const renderResponse = await fetch('https://api.render.com/v1/services', {
             method: 'POST',
