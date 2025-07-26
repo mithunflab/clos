@@ -149,6 +149,8 @@ const CloudRunner = () => {
       });
       return updatedFiles;
     });
+    
+    // CRITICAL FIX: Set isGenerating to false AFTER files are processed
     setIsGenerating(false);
     
     setRenderLogs(prev => [
@@ -391,34 +393,40 @@ const CloudRunner = () => {
       {/* Sidebar */}
       <div className={`transition-all duration-300 ${sidebarMinimized ? 'w-16' : 'w-96'} border-r border-border flex flex-col bg-card`}>
         <div className="p-4 border-b border-border flex items-center justify-between">
-          <h2 className={`font-semibold text-lg ${sidebarMinimized ? 'hidden' : 'block'}`}>
-            Cloud Runner
-          </h2>
+          {!sidebarMinimized && (
+            <h2 className="font-semibold text-lg">
+              Cloud Runner
+            </h2>
+          )}
           <div className="flex items-center space-x-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/dashboard')}
-              className="p-2"
-              title="Dashboard"
-            >
-              <Home className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleTheme}
-              className="p-2"
-              title="Toggle Theme"
-            >
-              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </Button>
+            {sidebarMinimized && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/dashboard')}
+                  className="p-2"
+                  title="Dashboard"
+                >
+                  <Home className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleTheme}
+                  className="p-2"
+                  title="Toggle Theme"
+                >
+                  {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                </Button>
+              </>
+            )}
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setSidebarMinimized(!sidebarMinimized)}
               className="p-2"
-              title={sidebarMinimized ? "Expand" : "Minimize"}
+              title={sidebarMinimized ? "Expand Menu" : "Minimize Menu"}
             >
               {sidebarMinimized ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
             </Button>
@@ -426,14 +434,43 @@ const CloudRunner = () => {
         </div>
         
         {!sidebarMinimized && (
-          <CloudRunnerAIAssistant
-            onFilesGenerated={handleFilesGenerated}
-            onSessionFileRequest={handleSessionFileRequest}
-            sessionFile={sessionFile}
-            currentFiles={projectFiles}
-            onSessionFileUpload={handleSessionFileUpload}
-            onGeneratingStart={() => setIsGenerating(true)}
-          />
+          <>
+            <div className="p-4 border-b border-border">
+              <div className="flex items-center space-x-2 mb-4">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/dashboard')}
+                  className="p-2"
+                  title="Dashboard"
+                >
+                  <Home className="w-4 h-4 mr-2" />
+                  Dashboard
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleTheme}
+                  className="p-2"
+                  title="Toggle Theme"
+                >
+                  {theme === 'dark' ? <Sun className="w-4 h-4 mr-2" /> : <Moon className="w-4 h-4 mr-2" />}
+                  {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                </Button>
+              </div>
+            </div>
+            <CloudRunnerAIAssistant
+              onFilesGenerated={handleFilesGenerated}
+              onSessionFileRequest={handleSessionFileRequest}
+              sessionFile={sessionFile}
+              currentFiles={projectFiles}
+              onSessionFileUpload={handleSessionFileUpload}
+              onGeneratingStart={() => {
+                console.log('Generation started - setting isGenerating to true');
+                setIsGenerating(true);
+              }}
+            />
+          </>
         )}
       </div>
 

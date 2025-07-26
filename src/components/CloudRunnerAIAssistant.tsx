@@ -133,7 +133,8 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
     setCurrentMessage('');
     setIsLoading(true);
     
-    // Notify parent that generation is starting
+    // CRITICAL FIX: Call onGeneratingStart immediately when starting generation
+    console.log('Calling onGeneratingStart');
     onGeneratingStart?.();
 
     try {
@@ -159,9 +160,14 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
 
       setMessages(prev => [...prev, assistantMessage]);
 
-      // Handle file generation
+      // Handle file generation - this will call onFilesGenerated which sets isGenerating to false
       if (data.files && data.files.length > 0) {
+        console.log('Calling onFilesGenerated with files:', data.files);
         onFilesGenerated?.(data.files);
+      } else {
+        // If no files generated, stop generating state
+        console.log('No files generated, calling onFilesGenerated with empty array');
+        onFilesGenerated?.([]);
       }
 
       // Check if AI is requesting session file
@@ -182,6 +188,9 @@ const CloudRunnerAIAssistant: React.FC<CloudRunnerAIAssistantProps> = ({
       
       setMessages(prev => [...prev, errorMessage]);
       toast.error('Failed to send message');
+      
+      // Stop generating state on error
+      onFilesGenerated?.([]);
     } finally {
       setIsLoading(false);
     }
