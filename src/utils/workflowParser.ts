@@ -1,4 +1,5 @@
 import { Node, Edge } from '@xyflow/react';
+import { analyzeWorkflowConnections, createSmartConnections } from './connectionAnalyzer';
 
 export interface N8nNode {
   id: string;
@@ -72,148 +73,35 @@ export interface ReactFlowEdge {
   style?: any;
 }
 
-// Enhanced node connection analysis
-const analyzeNodeConnections = (workflow: N8nWorkflow) => {
-  const connectionMap = new Map<string, {
-    incoming: string[];
-    outgoing: string[];
-    level: number;
-    isRoot: boolean;
-    isLeaf: boolean;
-  }>();
-
-  // Initialize all nodes
-  workflow.nodes.forEach(node => {
-    connectionMap.set(node.name, {
-      incoming: [],
-      outgoing: [],
-      level: 0,
-      isRoot: false,
-      isLeaf: false
-    });
-  });
-
-  // Build connection relationships
-  if (workflow.connections) {
-    Object.entries(workflow.connections).forEach(([sourceName, connections]) => {
-      const sourceInfo = connectionMap.get(sourceName);
-      if (!sourceInfo) return;
-
-      // Process main connections
-      if (connections.main) {
-        connections.main.forEach(connectionGroup => {
-          connectionGroup.forEach(connection => {
-            const targetInfo = connectionMap.get(connection.node);
-            if (targetInfo) {
-              sourceInfo.outgoing.push(connection.node);
-              targetInfo.incoming.push(sourceName);
-            }
-          });
-        });
-      }
-
-      // Process error connections
-      if (connections.error) {
-        connections.error.forEach(connectionGroup => {
-          connectionGroup.forEach(connection => {
-            const targetInfo = connectionMap.get(connection.node);
-            if (targetInfo) {
-              sourceInfo.outgoing.push(connection.node);
-              targetInfo.incoming.push(sourceName);
-            }
-          });
-        });
-      }
-    });
-  }
-
-  // Identify root and leaf nodes
-  connectionMap.forEach((info, nodeName) => {
-    info.isRoot = info.incoming.length === 0;
-    info.isLeaf = info.outgoing.length === 0;
-  });
-
-  return connectionMap;
-};
-
-// Export the findNodeConnections function
-export const findNodeConnections = (workflow: N8nWorkflow, nodeName: string) => {
-  const connectionMap = analyzeNodeConnections(workflow);
-  const nodeInfo = connectionMap.get(nodeName);
-  
-  if (!nodeInfo) {
-    return { incoming: [], outgoing: [] };
-  }
-  
-  return {
-    incoming: nodeInfo.incoming,
-    outgoing: nodeInfo.outgoing
-  };
-};
-
 // Professional force-directed layout algorithm
-const calculateForceDirectedLayout = (
+const calculateN8nStyleLayout = (
   nodes: N8nNode[], 
   connectionMap: Map<string, any>
 ): Record<string, { x: number; y: number }> => {
   const positions: Record<string, { x: number; y: number }> = {};
-  const nodeSpacing = 300;
-  const layerSpacing = 200;
+  const nodeSpacing = 280;
+  const layerSpacing = 180;
 
-  // Assign levels using topological sort
+  // Group nodes by levels
   const levels: string[][] = [];
-  const visited = new Set<string>();
-  const queue: string[] = [];
+  const maxLevel = Math.max(...Array.from(connectionMap.values()).map(info => info.level));
 
-  // Find root nodes
+  for (let i = 0; i <= maxLevel; i++) {
+    levels[i] = [];
+  }
+
+  // Assign nodes to levels
   connectionMap.forEach((info, nodeName) => {
-    if (info.isRoot) {
-      queue.push(nodeName);
-      info.level = 0;
-    }
+    levels[info.level].push(nodeName);
   });
 
-  // Level assignment
-  while (queue.length > 0) {
-    const currentLayer: string[] = [];
-    const nextQueue: string[] = [];
-
-    while (queue.length > 0) {
-      const node = queue.shift()!;
-      if (visited.has(node)) continue;
-
-      visited.add(node);
-      currentLayer.push(node);
-
-      const nodeInfo = connectionMap.get(node);
-      if (nodeInfo) {
-        nodeInfo.outgoing.forEach((targetNode: string) => {
-          const targetInfo = connectionMap.get(targetNode);
-          if (targetInfo && !visited.has(targetNode)) {
-            targetInfo.level = Math.max(targetInfo.level, nodeInfo.level + 1);
-            nextQueue.push(targetNode);
-          }
-        });
-      }
-    }
-
-    if (currentLayer.length > 0) {
-      levels.push(currentLayer);
-    }
-    queue.push(...nextQueue);
-  }
-
-  // Handle orphaned nodes
-  const orphanedNodes = nodes.filter(node => !visited.has(node.name));
-  if (orphanedNodes.length > 0) {
-    levels.push(orphanedNodes.map(n => n.name));
-  }
-
-  // Position nodes in layers
+  // Position nodes in a more N8N-like layout
   levels.forEach((layer, layerIndex) => {
+    if (layer.length === 0) return;
+    
     const layerY = 100 + layerIndex * layerSpacing;
     const totalWidth = (layer.length - 1) * nodeSpacing;
-    const startX = Math.max(100, 600 - totalWidth / 2);
+    const startX = Math.max(150, 500 - totalWidth / 2);
 
     layer.forEach((nodeName, index) => {
       positions[nodeName] = {
@@ -223,152 +111,90 @@ const calculateForceDirectedLayout = (
     });
   });
 
+  // Handle nodes that might not have been positioned
+  nodes.forEach((node, index) => {
+    if (!positions[node.name]) {
+      positions[node.name] = {
+        x: 150 + (index % 4) * nodeSpacing,
+        y: 100 + Math.floor(index / 4) * layerSpacing
+      };
+    }
+  });
+
   return positions;
 };
 
-// Enhanced connection creation with zero orphan guarantee
-const createComprehensiveConnections = (
+// Enhanced connection creation with N8N-like styling
+const createN8nStyleConnections = (
   workflow: N8nWorkflow,
   nodes: ReactFlowNode[],
   connectionMap: Map<string, any>
 ): ReactFlowEdge[] => {
   const edges: ReactFlowEdge[] = [];
-  const connectedNodes = new Set<string>();
+  const smartConnections = createSmartConnections(workflow, connectionMap);
 
-  // Create explicit connections from workflow
-  if (workflow.connections) {
-    Object.entries(workflow.connections).forEach(([sourceName, connections]) => {
-      const sourceNode = nodes.find(n => n.data.name === sourceName);
-      if (!sourceNode) return;
-
-      // Main connections
-      if (connections.main) {
-        connections.main.forEach((connectionGroup, outputIndex) => {
-          connectionGroup.forEach((connection, connectionIndex) => {
-            const targetNode = nodes.find(n => n.data.name === connection.node);
-            if (!targetNode) return;
-
-            const edge: ReactFlowEdge = {
-              id: `main-${sourceNode.id}-${targetNode.id}-${outputIndex}-${connectionIndex}`,
-              source: sourceNode.id,
-              target: targetNode.id,
-              type: 'smoothstep',
-              animated: false,
-              style: { 
-                stroke: '#10b981', 
-                strokeWidth: 2,
-                strokeOpacity: 0.8
-              }
-            };
-
-            if (outputIndex > 0) {
-              edge.sourceHandle = `output-${outputIndex}`;
-            }
-
-            edges.push(edge);
-            connectedNodes.add(sourceNode.id);
-            connectedNodes.add(targetNode.id);
-          });
-        });
-      }
-
-      // Error connections
-      if (connections.error) {
-        connections.error.forEach((connectionGroup) => {
-          connectionGroup.forEach((connection) => {
-            const targetNode = nodes.find(n => n.data.name === connection.node);
-            if (!targetNode) return;
-
-            const edge: ReactFlowEdge = {
-              id: `error-${sourceNode.id}-${targetNode.id}`,
-              source: sourceNode.id,
-              target: targetNode.id,
-              type: 'smoothstep',
-              animated: true,
-              style: { 
-                stroke: '#ef4444', 
-                strokeWidth: 2, 
-                strokeDasharray: '5,5'
-              },
-              sourceHandle: 'error'
-            };
-
-            edges.push(edge);
-            connectedNodes.add(sourceNode.id);
-            connectedNodes.add(targetNode.id);
-          });
-        });
-      }
-    });
-  }
-
-  // ZERO ORPHAN GUARANTEE: Connect all remaining isolated nodes
-  const orphanedNodes = nodes.filter(node => !connectedNodes.has(node.id));
-  
-  if (orphanedNodes.length > 0) {
-    console.log(`🔗 Connecting ${orphanedNodes.length} orphaned nodes`);
+  smartConnections.forEach((connection, index) => {
+    const sourceNode = nodes.find(n => n.data.name === connection.source);
+    const targetNode = nodes.find(n => n.data.name === connection.target);
     
-    // Sort orphaned nodes by position for logical connection
-    orphanedNodes.sort((a, b) => {
-      if (Math.abs(a.position.y - b.position.y) < 50) {
-        return a.position.x - b.position.x;
-      }
-      return a.position.y - b.position.y;
-    });
+    if (!sourceNode || !targetNode) return;
 
-    // Connect orphaned nodes in sequence
-    for (let i = 0; i < orphanedNodes.length - 1; i++) {
-      const sourceNode = orphanedNodes[i];
-      const targetNode = orphanedNodes[i + 1];
+    let edgeStyle: any;
+    let animated = false;
+    let sourceHandle: string | undefined;
 
-      const autoEdge: ReactFlowEdge = {
-        id: `auto-${sourceNode.id}-${targetNode.id}`,
-        source: sourceNode.id,
-        target: targetNode.id,
-        type: 'smoothstep',
-        animated: true,
-        style: { 
-          stroke: '#3b82f6', 
-          strokeWidth: 2, 
-          strokeDasharray: '4,4',
-          strokeOpacity: 0.7
-        }
-      };
-
-      edges.push(autoEdge);
-      connectedNodes.add(sourceNode.id);
-      connectedNodes.add(targetNode.id);
-    }
-
-    // Connect first orphaned node to the main workflow if possible
-    if (orphanedNodes.length > 0 && connectedNodes.size > orphanedNodes.length) {
-      const firstOrphan = orphanedNodes[0];
-      const connectedNode = nodes.find(n => connectedNodes.has(n.id) && n.id !== firstOrphan.id);
-      
-      if (connectedNode) {
-        const bridgeEdge: ReactFlowEdge = {
-          id: `bridge-${connectedNode.id}-${firstOrphan.id}`,
-          source: connectedNode.id,
-          target: firstOrphan.id,
-          type: 'smoothstep',
-          animated: true,
-          style: { 
-            stroke: '#8b5cf6', 
-            strokeWidth: 2, 
-            strokeDasharray: '2,2'
-          }
+    switch (connection.type) {
+      case 'main':
+        edgeStyle = {
+          stroke: '#999',
+          strokeWidth: 2,
+          strokeOpacity: 0.8
         };
-
-        edges.push(bridgeEdge);
-      }
+        if (connection.outputIndex && connection.outputIndex > 0) {
+          sourceHandle = `output-${connection.outputIndex}`;
+        }
+        break;
+        
+      case 'error':
+        edgeStyle = {
+          stroke: '#ff6b6b',
+          strokeWidth: 2,
+          strokeDasharray: '5,5'
+        };
+        sourceHandle = 'error';
+        animated = true;
+        break;
+        
+      case 'logical':
+        edgeStyle = {
+          stroke: '#64748b',
+          strokeWidth: 1.5,
+          strokeDasharray: '3,3',
+          strokeOpacity: 0.6
+        };
+        animated = false;
+        break;
     }
-  }
 
+    const edge: ReactFlowEdge = {
+      id: `${connection.type}-${sourceNode.id}-${targetNode.id}-${index}`,
+      source: sourceNode.id,
+      target: targetNode.id,
+      type: 'smoothstep',
+      animated,
+      style: edgeStyle,
+      sourceHandle
+    };
+
+    edges.push(edge);
+  });
+
+  console.log(`✅ Created ${edges.length} connections with smart logic`);
   return edges;
 };
 
 // Enhanced node data preparation
-const prepareNodeData = (node: N8nNode, workflow: N8nWorkflow): ReactFlowNode['data'] => {
+const prepareN8nNodeData = (node: N8nNode, workflow: N8nWorkflow): ReactFlowNode['data'] => {
   const nodeType = node.type.replace('n8n-nodes-base.', '').toLowerCase();
   
   return {
@@ -390,18 +216,18 @@ const prepareNodeData = (node: N8nNode, workflow: N8nWorkflow): ReactFlowNode['d
 // Enhanced node type detection
 const getNodeOutputCount = (nodeType: string): number => {
   const type = nodeType.replace('n8n-nodes-base.', '').toLowerCase();
-  const multiOutputNodes = ['if', 'switch', 'merge', 'split'];
+  const multiOutputNodes = ['if', 'switch', 'merge', 'split', 'merge'];
   return multiOutputNodes.some(t => type.includes(t)) ? 2 : 1;
 };
 
 const hasErrorHandling = (nodeType: string): boolean => {
   const type = nodeType.replace('n8n-nodes-base.', '').toLowerCase();
-  const errorNodes = ['httprequest', 'webhook', 'email', 'mysql', 'postgresql', 'mongodb'];
+  const errorNodes = ['httprequest', 'webhook', 'email', 'mysql', 'postgresql', 'mongodb', 'telegram'];
   return errorNodes.some(t => type.includes(t));
 };
 
 const isStartNode = (nodeType: string): boolean => {
-  return ['webhook', 'schedule', 'trigger', 'start', 'manual'].some(t => nodeType.includes(t));
+  return ['webhook', 'schedule', 'trigger', 'start', 'manual', 'telegram'].some(t => nodeType.includes(t));
 };
 
 const isEndNode = (node: N8nNode, workflow: N8nWorkflow): boolean => {
@@ -410,49 +236,69 @@ const isEndNode = (node: N8nNode, workflow: N8nWorkflow): boolean => {
   return !nodeConnections || (!nodeConnections.main && !nodeConnections.error);
 };
 
-// Main parsing function with comprehensive improvements
+// Export the findNodeConnections function
+export const findNodeConnections = (workflow: N8nWorkflow, nodeName: string) => {
+  const connectionMap = analyzeWorkflowConnections(workflow);
+  const nodeInfo = connectionMap.get(nodeName);
+  
+  if (!nodeInfo) {
+    return { incoming: [], outgoing: [] };
+  }
+  
+  return {
+    incoming: nodeInfo.incoming,
+    outgoing: nodeInfo.outgoing
+  };
+};
+
+// Main parsing function with N8N-style improvements
 export const parseN8nWorkflowToReactFlow = (workflow: N8nWorkflow): {
   nodes: ReactFlowNode[];
   edges: ReactFlowEdge[];
 } => {
-  console.log('🚀 Enhanced parsing started for workflow:', workflow.name);
+  console.log('🚀 N8N-style parsing started for workflow:', workflow.name);
   
   if (!workflow.nodes || workflow.nodes.length === 0) {
     console.warn('⚠️ No nodes found in workflow');
     return { nodes: [], edges: [] };
   }
 
-  // Analyze connections
-  const connectionMap = analyzeNodeConnections(workflow);
-  console.log('📊 Connection analysis complete:', connectionMap.size, 'nodes analyzed');
+  // Analyze connections with smart logic
+  const connectionMap = analyzeWorkflowConnections(workflow);
+  console.log('📊 Smart connection analysis complete:', connectionMap.size, 'nodes analyzed');
 
-  // Calculate professional layout
-  const positions = calculateForceDirectedLayout(workflow.nodes, connectionMap);
-  console.log('📐 Force-directed layout calculated');
+  // Calculate N8N-style layout
+  const positions = calculateN8nStyleLayout(workflow.nodes, connectionMap);
+  console.log('📐 N8N-style layout calculated');
 
-  // Create enhanced nodes
-  const nodes: ReactFlowNode[] = workflow.nodes.map((node, index) => {
+  // Create enhanced nodes with N8N styling
+  const nodes: ReactFlowNode[] = workflow.nodes.map((node) => {
     const position = positions[node.name] || {
-      x: 100 + (index % 3) * 300,
-      y: 100 + Math.floor(index / 3) * 200
+      x: 150 + Math.random() * 200,
+      y: 100 + Math.random() * 200
     };
 
     return {
       id: node.id,
       type: 'workflowNode',
       position,
-      data: prepareNodeData(node, workflow)
+      data: prepareN8nNodeData(node, workflow)
     };
   });
 
-  // Create comprehensive connections with zero orphan guarantee
-  const edges = createComprehensiveConnections(workflow, nodes, connectionMap);
+  // Create N8N-style connections with smart logic
+  const edges = createN8nStyleConnections(workflow, nodes, connectionMap);
 
-  console.log('✅ Enhanced parsing completed:', {
-    totalNodes: nodes.length,
+  const connectedNodeIds = new Set([...edges.map(e => e.source), ...edges.map(e => e.target)]);
+  const totalConnected = connectedNodeIds.size;
+  const totalNodes = nodes.length;
+
+  console.log('✅ N8N-style parsing completed:', {
+    totalNodes,
     totalEdges: edges.length,
-    connectedNodes: new Set([...edges.map(e => e.source), ...edges.map(e => e.target)]).size,
-    orphanedNodes: nodes.length - new Set([...edges.map(e => e.source), ...edges.map(e => e.target)]).size
+    connectedNodes: totalConnected,
+    isolatedNodes: totalNodes - totalConnected,
+    connectionCoverage: `${Math.round((totalConnected / totalNodes) * 100)}%`
   });
 
   return { nodes, edges };
