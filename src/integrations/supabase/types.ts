@@ -44,6 +44,48 @@ export type Database = {
         }
         Relationships: []
       }
+      cloud_runner_projects: {
+        Row: {
+          created_at: string
+          deployment_status: string | null
+          github_repo_name: string | null
+          github_repo_url: string | null
+          id: string
+          project_name: string
+          render_service_id: string | null
+          render_service_url: string | null
+          session_file_uploaded: boolean | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deployment_status?: string | null
+          github_repo_name?: string | null
+          github_repo_url?: string | null
+          id?: string
+          project_name: string
+          render_service_id?: string | null
+          render_service_url?: string | null
+          session_file_uploaded?: boolean | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deployment_status?: string | null
+          github_repo_name?: string | null
+          github_repo_url?: string | null
+          id?: string
+          project_name?: string
+          render_service_id?: string | null
+          render_service_url?: string | null
+          session_file_uploaded?: boolean | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       n8n_configs: {
         Row: {
           created_at: string
