@@ -504,7 +504,7 @@ Generated on: ${new Date().toISOString()}
 
           const serviceName = projectName.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 32)
           
-          // FIXED: Updated Render API payload with proper envSpecificDetails structure
+          // FIXED: Corrected Render API payload structure with buildCommand at root level
           const renderPayload = {
             name: serviceName,
             ownerId: renderOwnerId,
@@ -512,10 +512,10 @@ Generated on: ${new Date().toISOString()}
             repo: githubRepoUrl,
             autoDeploy: 'yes',
             branch: 'main',
+            buildCommand: 'pip install -r requirements.txt',
+            startCommand: 'python main.py',
             serviceDetails: {
               env: 'python',
-              buildCommand: 'pip install -r requirements.txt',
-              startCommand: 'python main.py',
               region: 'oregon',
               plan: 'starter',
               rootDir: '',
