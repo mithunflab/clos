@@ -21,10 +21,6 @@ import {
 import ThemeToggle from './ThemeToggle';
 import N8nConfigToggle from './N8nConfigToggle';
 import Navigation from './Navigation';
-import Dashboard from '@/pages/Dashboard';
-import Workflows from '@/pages/Workflows';
-import WorkflowPlayground from '@/pages/WorkflowPlayground';
-import Profile from '@/pages/Profile';
 import CloudRunner from '@/pages/CloudRunner';
 
 const DashboardLayout = () => {
@@ -42,14 +38,14 @@ const DashboardLayout = () => {
         <Navigation />
         
         <div className="flex-1 flex flex-col overflow-hidden">
-          <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-            <div className="flex items-center justify-between px-6 py-4">
+          <header className="border-b border-border bg-card/50 backdrop-blur-sm">
+            <div className="flex items-center justify-between px-6 py-3">
               <div className="flex items-center space-x-4">
-                <h1 className="text-2xl font-bold text-card-foreground">
+                <h1 className="text-xl font-bold text-card-foreground">
                   Casel AI
                 </h1>
               </div>
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-3">
                 <ThemeToggle />
                 <N8nConfigToggle />
                 <DropdownMenu>
@@ -63,10 +59,6 @@ const DashboardLayout = () => {
                   <DropdownMenuContent align="end" className="bg-background border-border">
                     <DropdownMenuLabel>My Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => navigate('/profile')}>
-                      <User className="mr-2 h-4 w-4" />
-                      <span>Profile</span>
-                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleSignOut}>
                       <LogOut className="mr-2 h-4 w-4" />
                       <span>Log out</span>
@@ -77,14 +69,10 @@ const DashboardLayout = () => {
             </div>
           </header>
 
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-hidden">
             <Routes>
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/workflows" element={<Workflows />} />
-              <Route path="/playground" element={<WorkflowPlayground />} />
               <Route path="/cloud-runner" element={<CloudRunner />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              <Route path="*" element={<Navigate to="/cloud-runner" replace />} />
             </Routes>
           </main>
         </div>
