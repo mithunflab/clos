@@ -107,9 +107,34 @@ serve(async (req) => {
           console.log('Username (validated):', username)
           console.log('Password length:', password.length)
 
-          // Using exact payload format provided by user
+          // First, get the owner information from Render API
+          console.log('Fetching owner information from Render API...')
+          const ownersResponse = await fetch('https://api.render.com/v1/owners', {
+            method: 'GET',
+            headers: renderHeaders
+          })
+
+          if (!ownersResponse.ok) {
+            const errorText = await ownersResponse.text()
+            console.error('Failed to fetch owners:', errorText)
+            throw new Error(`Failed to fetch owner information: ${ownersResponse.status} - ${errorText}`)
+          }
+
+          const ownersData = await ownersResponse.json()
+          console.log('Owners data received:', JSON.stringify(ownersData, null, 2))
+
+          // Extract the first owner (or you could let user choose)
+          const owner = ownersData[0] || ownersData.owners?.[0]
+          if (!owner || !owner.id) {
+            console.error('No valid owner found:', ownersData)
+            throw new Error('No valid owner found in Render account')
+          }
+
+          console.log('Using owner:', { id: owner.id, name: owner.name, type: owner.type })
+
+          // Now create the service with the correct owner ID
           const payload = {
-            ownerId: "usr-d23312qdbo4c73fpn3l0",
+            ownerId: owner.id,
             name: serviceName,
             type: "web_service",
             env: "docker",
@@ -130,7 +155,7 @@ serve(async (req) => {
             ]
           }
 
-          console.log('Creating Render service with CORRECT payload:', JSON.stringify(payload, null, 2))
+          console.log('Creating Render service with dynamic owner ID:', JSON.stringify(payload, null, 2))
           
           const renderResponse = await fetch('https://api.render.com/v1/services', {
             method: 'POST',
