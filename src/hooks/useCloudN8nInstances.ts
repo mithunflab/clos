@@ -35,7 +35,14 @@ export const useCloudN8nInstances = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setInstances(data || []);
+      
+      // Type cast the data to ensure proper typing
+      const typedData: CloudN8nInstance[] = (data || []).map(item => ({
+        ...item,
+        status: item.status as 'creating' | 'active' | 'error' | 'inactive'
+      }));
+      
+      setInstances(typedData);
     } catch (err) {
       console.error('Error fetching N8N instances:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch instances');

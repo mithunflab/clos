@@ -16,7 +16,7 @@ import { CreditCard, User, Settings, Crown, LogOut, Sparkles, ShoppingCart, Work
 
 const Profile = () => {
   const { profile, loading: profileLoading } = useProfile();
-  const { plan, credits, loading: planLoading } = useUserPlan();
+  const { plan, credits, loading: planLoading, getWorkflowLimit } = useUserPlan();
   const { signOut } = useAuth();
   const { isOpen, openPricingPage, closePricingPage } = usePricingPage();
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
@@ -172,7 +172,7 @@ const Profile = () => {
                   <span className="font-medium text-foreground">Workflow Limit</span>
                   <Badge variant="outline" className="bg-muted border-border text-foreground px-3 py-1 text-sm font-medium">
                     <Workflow className="w-4 h-4 mr-2" />
-                    {plan?.workflow_limit === -1 ? 'Unlimited' : `${plan?.workflow_limit || 5} workflows`}
+                    {getWorkflowLimit() === -1 ? 'Unlimited' : `${getWorkflowLimit()} workflows`}
                   </Badge>
                 </div>
                 

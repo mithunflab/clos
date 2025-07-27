@@ -7,6 +7,7 @@ interface UserPlan {
   id: string;
   user_id: string;
   plan_type: 'free' | 'pro' | 'custom';
+  workflow_limit: number;
   created_at: string;
   updated_at: string;
 }
@@ -43,10 +44,11 @@ export const useUserPlan = () => {
 
       if (planError) throw planError;
       
-      // Cast plan_type to the correct type
+      // Cast plan_type to the correct type and ensure workflow_limit exists
       const typedPlan: UserPlan = {
         ...planData,
-        plan_type: planData.plan_type as 'free' | 'pro' | 'custom'
+        plan_type: planData.plan_type as 'free' | 'pro' | 'custom',
+        workflow_limit: planData.workflow_limit || getWorkflowLimit(planData.plan_type)
       };
       setPlan(typedPlan);
 
@@ -104,10 +106,11 @@ export const useUserPlan = () => {
     }
   };
 
-  const getWorkflowLimit = () => {
-    if (!plan) return 5; // Default to free plan
+  const getWorkflowLimit = (planType?: string) => {
+    if (!planType && !plan) return 5; // Default to free plan
     
-    switch (plan.plan_type) {
+    const type = planType || plan?.plan_type;
+    switch (type) {
       case 'free':
         return 5;
       case 'pro':
