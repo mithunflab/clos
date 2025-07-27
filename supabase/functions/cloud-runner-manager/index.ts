@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -429,21 +428,22 @@ Generated on: ${new Date().toISOString()}
 
           const serviceName = projectName.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 32)
           
-          // CORRECTED: Proper Render API payload for worker services
+          // CORRECTED: Use proper Render API v1 format for background workers
           const renderPayload = {
-            type: "worker",
             name: serviceName,
+            type: "background_worker",
             repo: githubRepoUrl,
             branch: "main",
             buildCommand: "pip install -r requirements.txt",
             startCommand: "python main.py",
             plan: "starter",
             region: "oregon",
-            autoDeploy: true,
-            envVars: []
+            autoDeploy: "yes",
+            envVars: [],
+            rootDir: "."
           }
 
-          console.log('Creating Render worker service:', JSON.stringify(renderPayload, null, 2))
+          console.log('Creating Render background worker service with payload:', JSON.stringify(renderPayload, null, 2))
           
           const renderResponse = await fetch('https://api.render.com/v1/services', {
             method: 'POST',
@@ -462,7 +462,7 @@ Generated on: ${new Date().toISOString()}
             let errorDetails = responseText
             try {
               const errorData = JSON.parse(responseText)
-              errorDetails = errorData.message || errorData.error || responseText
+              errorDetails = errorData.message || errorData.error || JSON.stringify(errorData)
             } catch (e) {
               // Use raw response if not JSON
             }
@@ -478,12 +478,13 @@ Generated on: ${new Date().toISOString()}
             throw new Error('Invalid response from Render API')
           }
 
-          const serviceId = service.service?.id
+          const serviceId = service.id || service.service?.id
           if (!serviceId) {
+            console.error('No service ID in response:', service)
             throw new Error('No service ID returned from Render API')
           }
 
-          console.log('Render service created:', serviceId)
+          console.log('Render service created successfully:', serviceId)
           
           const serviceUrl = `https://dashboard.render.com/web/${serviceId}`
 
