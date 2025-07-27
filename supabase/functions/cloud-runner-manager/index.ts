@@ -461,9 +461,9 @@ Generated on: ${new Date().toISOString()}
 
           const serviceName = projectName.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 32)
           
-          // CORRECTED: Use proper Render API v1 format for background workers
+          // FIXED: Use web_service for web applications that need HTTP endpoints
           const renderPayload = {
-            type: "background_worker",
+            type: "web_service",
             name: serviceName,
             ownerId: ownerId,
             repo: githubRepoUrl,
@@ -475,7 +475,8 @@ Generated on: ${new Date().toISOString()}
               buildCommand: "pip install -r requirements.txt",
               startCommand: "python main.py",
               plan: "starter",
-              region: "oregon"
+              region: "oregon",
+              pullRequestPreviewsEnabled: "no"
             }
           }
 
