@@ -44,6 +44,39 @@ export type Database = {
         }
         Relationships: []
       }
+      cloud_n8n_instances: {
+        Row: {
+          created_at: string | null
+          id: string
+          instance_name: string
+          instance_url: string | null
+          render_service_id: string | null
+          status: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          instance_name: string
+          instance_url?: string | null
+          render_service_id?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          instance_name?: string
+          instance_url?: string | null
+          render_service_id?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       cloud_runner_projects: {
         Row: {
           created_at: string | null
@@ -176,6 +209,107 @@ export type Database = {
         }
         Relationships: []
       }
+      promo_code_usage: {
+        Row: {
+          credits_received: number | null
+          id: string
+          promo_code_id: string
+          used_at: string | null
+          user_id: string
+          workflows_received: number | null
+        }
+        Insert: {
+          credits_received?: number | null
+          id?: string
+          promo_code_id: string
+          used_at?: string | null
+          user_id: string
+          workflows_received?: number | null
+        }
+        Update: {
+          credits_received?: number | null
+          id?: string
+          promo_code_id?: string
+          used_at?: string | null
+          user_id?: string
+          workflows_received?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_code_usage_promo_code_id_fkey"
+            columns: ["promo_code_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promo_codes: {
+        Row: {
+          code: string
+          created_at: string | null
+          credits_reward: number | null
+          id: string
+          is_active: boolean | null
+          updated_at: string | null
+          workflows_reward: number | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          credits_reward?: number | null
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+          workflows_reward?: number | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          credits_reward?: number | null
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+          workflows_reward?: number | null
+        }
+        Relationships: []
+      }
+      purchases: {
+        Row: {
+          amount: number
+          created_at: string | null
+          id: string
+          purchase_type: string
+          quantity: number
+          status: string
+          stripe_session_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          id?: string
+          purchase_type: string
+          quantity: number
+          status?: string
+          stripe_session_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          id?: string
+          purchase_type?: string
+          quantity?: number
+          status?: string
+          stripe_session_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_plans: {
         Row: {
           created_at: string | null
@@ -183,6 +317,7 @@ export type Database = {
           plan_type: string
           updated_at: string | null
           user_id: string
+          workflow_limit: number | null
         }
         Insert: {
           created_at?: string | null
@@ -190,6 +325,7 @@ export type Database = {
           plan_type?: string
           updated_at?: string | null
           user_id: string
+          workflow_limit?: number | null
         }
         Update: {
           created_at?: string | null
@@ -197,6 +333,7 @@ export type Database = {
           plan_type?: string
           updated_at?: string | null
           user_id?: string
+          workflow_limit?: number | null
         }
         Relationships: []
       }

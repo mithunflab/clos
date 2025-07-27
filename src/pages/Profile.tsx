@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,13 +11,15 @@ import { useUserPlan } from '@/hooks/useUserPlan';
 import { useAuth } from '@/hooks/useAuth';
 import { usePricingPage } from '@/hooks/usePricingPage';
 import PricingPage from '@/components/PricingPage';
-import { CreditCard, User, Settings, Crown, LogOut, Sparkles } from 'lucide-react';
+import PurchaseModal from '@/components/PurchaseModal';
+import { CreditCard, User, Settings, Crown, LogOut, Sparkles, ShoppingCart, Workflow } from 'lucide-react';
 
 const Profile = () => {
   const { profile, loading: profileLoading } = useProfile();
   const { plan, credits, loading: planLoading } = useUserPlan();
   const { signOut } = useAuth();
   const { isOpen, openPricingPage, closePricingPage } = usePricingPage();
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -167,6 +169,14 @@ const Profile = () => {
                 </div>
                 
                 <div className="flex items-center justify-between">
+                  <span className="font-medium text-foreground">Workflow Limit</span>
+                  <Badge variant="outline" className="bg-muted border-border text-foreground px-3 py-1 text-sm font-medium">
+                    <Workflow className="w-4 h-4 mr-2" />
+                    {plan?.workflow_limit === -1 ? 'Unlimited' : `${plan?.workflow_limit || 5} workflows`}
+                  </Badge>
+                </div>
+                
+                <div className="flex items-center justify-between">
                   <span className="font-medium text-foreground">Total Credits Used</span>
                   <span className="text-muted-foreground font-medium">
                     {credits?.total_credits_used || 0} credits
@@ -174,13 +184,24 @@ const Profile = () => {
                 </div>
               </div>
               
-              <Button 
-                onClick={openPricingPage}
-                className="w-full bg-primary text-primary-foreground hover:bg-primary/90 py-3 font-medium shadow-lg hover:shadow-xl transition-all duration-300"
-              >
-                <Crown className="w-4 h-4 mr-2" />
-                Upgrade Your Plan
-              </Button>
+              <div className="grid grid-cols-1 gap-3">
+                <Button 
+                  onClick={openPricingPage}
+                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90 py-3 font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+                >
+                  <Crown className="w-4 h-4 mr-2" />
+                  Upgrade Your Plan
+                </Button>
+                
+                <Button 
+                  onClick={() => setIsPurchaseModalOpen(true)}
+                  variant="outline"
+                  className="w-full border-primary/30 text-primary hover:bg-primary/10 py-3 font-medium shadow-lg hover:shadow-xl transition-all duration-300"
+                >
+                  <ShoppingCart className="w-4 h-4 mr-2" />
+                  Buy Credits & Features
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -224,6 +245,9 @@ const Profile = () => {
 
         {/* Pricing Page Modal */}
         <PricingPage isOpen={isOpen} onClose={closePricingPage} />
+        
+        {/* Purchase Modal */}
+        <PurchaseModal isOpen={isPurchaseModalOpen} onClose={() => setIsPurchaseModalOpen(false)} />
       </div>
     </div>
   );

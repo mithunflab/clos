@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,33 +9,20 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Cloud, Lock, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
 import { useUserPlan } from '@/hooks/useUserPlan';
 import { useAuth } from '@/hooks/useAuth';
+import { useCloudN8nInstances } from '@/hooks/useCloudN8nInstances';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-
-interface N8nService {
-  id: string;
-  name: string;
-  url: string;
-  status: 'creating' | 'active' | 'error';
-  createdAt: string;
-}
 
 const CloudN8N = () => {
   const { user } = useAuth();
   const { plan } = useUserPlan();
+  const { instances, loading: instancesLoading, createInstance, refetch } = useCloudN8nInstances();
   const [serviceName, setServiceName] = useState('');
   const [password, setPassword] = useState('');
   const [isCreating, setIsCreating] = useState(false);
-  const [services, setServices] = useState<N8nService[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const canCreateService = plan?.plan_type === 'pro' || plan?.plan_type === 'custom';
-
-  useEffect(() => {
-    // Simulate loading existing services - in real app this would fetch from database
-    const mockServices: N8nService[] = [];
-    setServices(mockServices);
-  }, []);
 
   const createN8nService = async () => {
     if (!serviceName || !password) {
@@ -83,24 +70,29 @@ const CloudN8N = () => {
       }
 
       if (data?.success) {
-        const newService: N8nService = {
-          id: data.serviceId,
-          name: serviceName,
-          url: data.serviceUrl,
-          status: 'creating',
-          createdAt: new Date().toISOString()
-        };
+        // Update the database with the new instance
+        const { error: dbError } = await supabase
+          .from('cloud_n8n_instances')
+          .insert({
+            user_id: user!.id,
+            instance_name: serviceName,
+            instance_url: data.serviceUrl,
+            render_service_id: data.serviceId,
+            status: 'creating'
+          });
 
-        setServices(prev => [...prev, newService]);
+        if (dbError) {
+          console.error('Database error:', dbError);
+        }
+
         setServiceName('');
         setPassword('');
         toast.success('N8N service is being created!');
+        refetch();
 
         // Simulate status updates
         setTimeout(() => {
-          setServices(prev => prev.map(s => 
-            s.id === data.serviceId ? { ...s, status: 'active' } : s
-          ));
+          refetch();
         }, 30000);
       } else {
         throw new Error(data?.error || 'Failed to create N8N service');
@@ -233,7 +225,12 @@ const CloudN8N = () => {
           <CardTitle>Your N8N Services</CardTitle>
         </CardHeader>
         <CardContent>
-          {services.length === 0 ? (
+          {instancesLoading ? (
+            <div className="text-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+              <p className="text-muted-foreground">Loading your N8N instances...</p>
+            </div>
+          ) : instances.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Cloud className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No N8N services created yet</p>
@@ -241,29 +238,29 @@ const CloudN8N = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {services.map((service) => (
+              {instances.map((instance) => (
                 <div
-                  key={service.id}
+                  key={instance.id}
                   className="flex items-center justify-between p-4 border rounded-lg"
                 >
                   <div className="flex items-center gap-3">
-                    {getStatusIcon(service.status)}
+                    {getStatusIcon(instance.status)}
                     <div>
-                      <h3 className="font-medium">{service.name}</h3>
+                      <h3 className="font-medium">{instance.instance_name}</h3>
                       <p className="text-sm text-muted-foreground">
-                        Created {new Date(service.createdAt).toLocaleDateString()}
+                        Created {new Date(instance.created_at).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge className={getStatusColor(service.status)}>
-                      {service.status}
+                    <Badge className={getStatusColor(instance.status)}>
+                      {instance.status}
                     </Badge>
-                    {service.status === 'active' && (
+                    {instance.status === 'active' && instance.instance_url && (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => window.open(service.url, '_blank')}
+                        onClick={() => window.open(instance.instance_url!, '_blank')}
                       >
                         <ExternalLink className="h-4 w-4 mr-2" />
                         Open N8N
