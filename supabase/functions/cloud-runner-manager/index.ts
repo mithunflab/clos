@@ -426,21 +426,45 @@ Generated on: ${new Date().toISOString()}
             throw new Error('GitHub repository URL is required for deployment')
           }
 
+          // First, get the user's ownerId from Render
+          const ownerResponse = await fetch('https://api.render.com/v1/owners', {
+            headers: renderHeaders
+          })
+
+          if (!ownerResponse.ok) {
+            const errorText = await ownerResponse.text()
+            console.error('Failed to get owner info:', errorText)
+            throw new Error(`Failed to get owner info: ${ownerResponse.status} - ${errorText}`)
+          }
+
+          const owners = await ownerResponse.json()
+          const ownerId = owners?.[0]?.id || owners?.id
+
+          if (!ownerId) {
+            console.error('No owner ID found in response:', owners)
+            throw new Error('Could not determine owner ID for Render deployment')
+          }
+
+          console.log('Found Render owner ID:', ownerId)
+
           const serviceName = projectName.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 32)
           
           // CORRECTED: Use proper Render API v1 format for background workers
           const renderPayload = {
-            name: serviceName,
             type: "background_worker",
+            name: serviceName,
+            ownerId: ownerId,
             repo: githubRepoUrl,
             branch: "main",
-            buildCommand: "pip install -r requirements.txt",
-            startCommand: "python main.py",
-            plan: "starter",
-            region: "oregon",
             autoDeploy: "yes",
+            rootDir: ".",
             envVars: [],
-            rootDir: "."
+            serviceDetails: {
+              buildCommand: "pip install -r requirements.txt",
+              startCommand: "python main.py",
+              plan: "starter",
+              region: "oregon"
+            }
           }
 
           console.log('Creating Render background worker service with payload:', JSON.stringify(renderPayload, null, 2))
