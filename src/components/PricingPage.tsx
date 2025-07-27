@@ -1,11 +1,12 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Check, Crown } from 'lucide-react';
 import { useUserPlan } from '@/hooks/useUserPlan';
+import PromoCodePopup from '@/components/PromoCodePopup';
 
 interface PricingPageProps {
   isOpen: boolean;
@@ -14,6 +15,25 @@ interface PricingPageProps {
 
 const PricingPage: React.FC<PricingPageProps> = ({ isOpen, onClose }) => {
   const { plan } = useUserPlan();
+  const [isPromoPopupOpen, setIsPromoPopupOpen] = useState(false);
+  const [currentPurchase, setCurrentPurchase] = useState<{
+    type: 'pro_membership';
+    quantity: number;
+  } | null>(null);
+
+  const handleProUpgrade = () => {
+    setCurrentPurchase({
+      type: 'pro_membership',
+      quantity: 1
+    });
+    setIsPromoPopupOpen(true);
+  };
+
+  const handlePromoSuccess = () => {
+    setIsPromoPopupOpen(false);
+    setCurrentPurchase(null);
+    onClose(); // Close the pricing page after successful upgrade
+  };
 
   const plans = [
     {
@@ -123,6 +143,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ isOpen, onClose }) => {
                   className={`w-full ${planItem.highlighted ? 'bg-primary hover:bg-primary/90' : ''}`}
                   variant={planItem.highlighted ? 'default' : 'outline'}
                   disabled={planItem.disabled}
+                  onClick={planItem.name === 'Pro' && !planItem.disabled ? handleProUpgrade : undefined}
                 >
                   {planItem.disabled ? 'Current Plan' : planItem.buttonText}
                 </Button>
@@ -166,6 +187,20 @@ const PricingPage: React.FC<PricingPageProps> = ({ isOpen, onClose }) => {
           </CardContent>
         </Card>
       </DialogContent>
+
+      {/* Promo Code Popup for Pro Membership */}
+      {currentPurchase && (
+        <PromoCodePopup
+          isOpen={isPromoPopupOpen}
+          onClose={() => {
+            setIsPromoPopupOpen(false);
+            setCurrentPurchase(null);
+          }}
+          onSuccess={handlePromoSuccess}
+          purchaseType={currentPurchase.type}
+          quantity={currentPurchase.quantity}
+        />
+      )}
     </Dialog>
   );
 };

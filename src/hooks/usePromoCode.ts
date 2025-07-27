@@ -87,6 +87,39 @@ export const usePromoCode = () => {
         if (updateError) throw updateError;
       }
 
+      // Handle pro membership upgrade for specific promo codes
+      if (code.toUpperCase() === 'CASELGRID100') {
+        const { error: proUpgradeError } = await supabase
+          .from('user_plans')
+          .update({
+            plan_type: 'pro',
+            workflow_limit: 20
+          })
+          .eq('user_id', user.id);
+
+        if (proUpgradeError) throw proUpgradeError;
+
+        // Also give pro membership benefits (50 AI credits if not already given)
+        if (promoCode.credits_reward === 0) {
+          const { data: currentCredits, error: fetchError } = await supabase
+            .from('ai_credits')
+            .select('current_credits')
+            .eq('user_id', user.id)
+            .single();
+
+          if (fetchError) throw fetchError;
+
+          const { error: updateError } = await supabase
+            .from('ai_credits')
+            .update({
+              current_credits: currentCredits.current_credits + 50
+            })
+            .eq('user_id', user.id);
+
+          if (updateError) throw updateError;
+        }
+      }
+
       // Record the usage
       const { error: usageInsertError } = await supabase
         .from('promo_code_usage')
@@ -101,10 +134,13 @@ export const usePromoCode = () => {
 
       await refetchUserPlan();
 
+      const creditsAdded = code.toUpperCase() === 'CASELGRID100' && promoCode.credits_reward === 0 ? 50 : promoCode.credits_reward;
+      
       return {
         success: true,
-        credits_added: promoCode.credits_reward,
-        workflows_added: promoCode.workflows_reward
+        credits_added: creditsAdded,
+        workflows_added: promoCode.workflows_reward,
+        plan_upgraded: code.toUpperCase() === 'CASELGRID100' ? 'pro' : null
       };
     } catch (err) {
       console.error('Error applying promo code:', err);

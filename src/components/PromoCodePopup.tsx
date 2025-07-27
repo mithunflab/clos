@@ -12,7 +12,7 @@ interface PromoCodePopupProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  purchaseType: 'credits' | 'workflows' | 'n8n_instance';
+  purchaseType: 'credits' | 'workflows' | 'n8n_instance' | 'pro_membership';
   quantity: number;
 }
 
@@ -71,6 +71,8 @@ const PromoCodePopup: React.FC<PromoCodePopupProps> = ({
         return `${quantity} Workflow Slots`;
       case 'n8n_instance':
         return 'N8N Instance';
+      case 'pro_membership':
+        return 'Pro Membership';
       default:
         return 'Item';
     }
