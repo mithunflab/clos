@@ -91,13 +91,19 @@ serve(async (req) => {
             ownerId: ownerId,
             serviceDetails: {
               env: "docker",
-              image: {
-                imagePath: "n8nio/n8n:latest"
-              },
-              port: 5678,
-              buildCommand: "",
-              startCommand: "",
+              dockerfilePath: "",
+              dockerContext: "",
               pullRequestPreviewsEnabled: false
+            },
+            image: {
+              ownerId: ownerId,
+              registryCredential: {
+                id: "",
+                name: "",
+                username: "",
+                registry: "DOCKER"
+              },
+              imagePath: "n8nio/n8n:latest"
             },
             envVars: [
               { key: "N8N_BASIC_AUTH_ACTIVE", value: "true" },

@@ -83,7 +83,13 @@ serve(async (req) => {
 
         if (!response.ok) {
           const errorText = await response.text()
-          console.error('N8N API error:', errorText)
+          console.error('N8N API error response:', {
+            status: response.status,
+            statusText: response.statusText,
+            url: endpoint,
+            errorText,
+            headers: Object.fromEntries(response.headers.entries())
+          })
           throw new Error(`N8N API error: ${response.status} - ${errorText}`)
         }
 
