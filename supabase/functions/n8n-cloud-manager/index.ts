@@ -191,7 +191,7 @@ serve(async (req) => {
           const ownerId = "tea-d23312idbo4c73fpn3ig"
           console.log('Using hardcoded owner ID:', ownerId)
 
-          // Create the service payload with correct runtime field for Render API
+          // Create the service payload with docker runtime
           const payload = {
             ownerId: ownerId,
             name: serviceName,
@@ -261,14 +261,12 @@ serve(async (req) => {
             throw new Error('No service ID returned from Render API')
           }
 
-          // Get the deploy URL from the service response
           const deployUrl = service.service?.serviceDetails?.url || serviceUrl
-
           console.log('Service created with ID:', serviceId)
           console.log('Deploy URL:', deployUrl)
 
-          // Now fetch deployment logs immediately after creation
-          console.log('=== FETCHING INITIAL DEPLOYMENT LOGS ===')
+          // Now fetch deployment logs using the service ID
+          console.log('=== FETCHING DEPLOYMENT LOGS FOR SERVICE ID:', serviceId, '===')
           try {
             const logsResponse = await fetch(`https://api.render.com/v1/services/${serviceId}/deploys?limit=20`, {
               headers: renderHeaders
@@ -277,32 +275,10 @@ serve(async (req) => {
             let deploymentLogs = []
             if (logsResponse.ok) {
               deploymentLogs = await logsResponse.json()
-              console.log('Initial deployment logs fetched:', deploymentLogs.length || 0)
+              console.log('Deployment logs fetched:', deploymentLogs.length || 0)
+              console.log('Live deployment logs:', JSON.stringify(deploymentLogs, null, 2))
             } else {
-              console.log('Could not fetch initial deployment logs')
-            }
-
-            // Update the WEBHOOK_URL environment variable after deployment
-            try {
-              console.log('Updating WEBHOOK_URL environment variable...')
-              const envUpdateResponse = await fetch(`https://api.render.com/v1/services/${serviceId}/env-vars`, {
-                method: 'PATCH',
-                headers: renderHeaders,
-                body: JSON.stringify([
-                  {
-                    key: "WEBHOOK_URL",
-                    value: deployUrl
-                  }
-                ])
-              })
-
-              if (envUpdateResponse.ok) {
-                console.log('WEBHOOK_URL updated successfully')
-              } else {
-                console.log('Warning: Could not update WEBHOOK_URL, but service created successfully')
-              }
-            } catch (envError) {
-              console.log('Warning: Could not update WEBHOOK_URL:', envError)
+              console.log('Could not fetch deployment logs:', await logsResponse.text())
             }
 
             // Update database with service details
@@ -332,7 +308,7 @@ serve(async (req) => {
                 username: String(username),
                 password: String(password)
               },
-              message: 'N8N instance deployment started successfully'
+              message: 'N8N instance deployment started with live logs'
             }), {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             })
@@ -351,7 +327,7 @@ serve(async (req) => {
                 username: String(username),
                 password: String(password)
               },
-              message: 'N8N instance deployment started successfully (logs fetch failed)'
+              message: 'N8N instance deployment started (logs fetch failed)'
             }), {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             })
@@ -448,26 +424,13 @@ serve(async (req) => {
 
       case 'delete-n8n-instance': {
         try {
-          if (!instanceId) {
-            throw new Error('Instance ID is required')
+          if (!renderServiceId) {
+            throw new Error('Service ID is required')
           }
 
-          console.log('Deleting N8N instance:', instanceId)
+          console.log('Deleting Render service:', renderServiceId)
 
-          // Get the render service ID from the database
-          const { data: instance, error } = await supabaseClient
-            .from('cloud_n8n_instances')
-            .select('render_service_id')
-            .eq('id', instanceId)
-            .single()
-
-          if (error || !instance?.render_service_id) {
-            throw new Error('Instance not found or missing render service ID')
-          }
-
-          console.log('Deleting Render service:', instance.render_service_id)
-
-          const response = await fetch(`https://api.render.com/v1/services/${instance.render_service_id}`, {
+          const response = await fetch(`https://api.render.com/v1/services/${renderServiceId}`, {
             method: 'DELETE',
             headers: renderHeaders
           })
