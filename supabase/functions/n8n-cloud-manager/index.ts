@@ -99,66 +99,68 @@ serve(async (req) => {
 
           console.log('Found Render owner ID:', ownerId)
 
-          // Correct Render API payload for web service
+          // CORRECT and MINIMAL Render API payload for Docker image deployment
           const payload = {
             type: "web_service",
             name: serviceName,
             ownerId: ownerId,
-            serviceDetails: {
-              env: "docker",
-              buildCommand: "",
-              startCommand: "",
-              plan: "starter",
-              region: "oregon",
-              branch: "main",
-              pullRequestPreviewsEnabled: false,
-              buildFilter: {
-                paths: [],
-                ignoredPaths: []
-              },
-              preDeployCommand: "",
-              parentServer: {
-                id: "",
-                name: ""
-              },
-              dockerCommand: "",
-              dockerContext: "./",
-              dockerfilePath: "./Dockerfile",
-              registryCredential: {
-                id: "",
-                name: "",
-                username: "",
-                registry: "DOCKER"
-              }
-            },
             image: {
-              ownerId: ownerId,
-              imagePath: "n8nio/n8n:latest",
-              registryCredential: {
-                id: "",
-                name: "",
-                username: "",
-                registry: "DOCKER"
-              }
+              imagePath: "n8nio/n8n:latest"
             },
             envVars: [
-              { key: "N8N_BASIC_AUTH_ACTIVE", value: "true" },
-              { key: "N8N_BASIC_AUTH_USER", value: username || "admin" },
-              { key: "N8N_BASIC_AUTH_PASSWORD", value: password || "admin123" },
-              { key: "N8N_HOST", value: `${serviceName}.onrender.com` },
-              { key: "N8N_PORT", value: "5678" },
-              { key: "PORT", value: "5678" },
-              { key: "WEBHOOK_URL", value: `https://${serviceName}.onrender.com/` },
-              { key: "N8N_EDITOR_BASE_URL", value: `https://${serviceName}.onrender.com/` },
-              { key: "N8N_PROTOCOL", value: "https" },
-              { key: "NODE_ENV", value: "production" },
-              { key: "N8N_METRICS", value: "true" },
-              { key: "N8N_LOG_LEVEL", value: "info" }
+              {
+                key: "N8N_BASIC_AUTH_ACTIVE",
+                value: "true"
+              },
+              {
+                key: "N8N_BASIC_AUTH_USER",
+                value: username || "admin"
+              },
+              {
+                key: "N8N_BASIC_AUTH_PASSWORD",
+                value: password || "admin123"
+              },
+              {
+                key: "N8N_HOST",
+                value: `${serviceName}.onrender.com`
+              },
+              {
+                key: "N8N_PORT",
+                value: "5678"
+              },
+              {
+                key: "PORT",
+                value: "5678"
+              },
+              {
+                key: "WEBHOOK_URL",
+                value: `https://${serviceName}.onrender.com/`
+              },
+              {
+                key: "N8N_EDITOR_BASE_URL",
+                value: `https://${serviceName}.onrender.com/`
+              },
+              {
+                key: "N8N_PROTOCOL",
+                value: "https"
+              },
+              {
+                key: "NODE_ENV",
+                value: "production"
+              },
+              {
+                key: "N8N_METRICS",
+                value: "true"
+              },
+              {
+                key: "N8N_LOG_LEVEL",
+                value: "info"
+              }
             ],
             autoDeploy: true
           }
 
-          console.log('Creating Render service with payload:', JSON.stringify(payload, null, 2))
+          console.log('Creating Render service with MINIMAL payload:', JSON.stringify(payload, null, 2))
           
           const renderResponse = await fetch('https://api.render.com/v1/services', {
             method: 'POST',
