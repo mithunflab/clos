@@ -545,9 +545,15 @@ Generated on: ${new Date().toISOString()}
           })
         } catch (error) {
           console.error('Render deployment error:', error)
+          console.error('Error stack:', error.stack)
+          console.error('Error details:', JSON.stringify(error, null, 2))
           return new Response(JSON.stringify({
             error: error.message,
-            success: false
+            success: false,
+            debug: {
+              errorType: error.constructor.name,
+              stack: error.stack
+            }
           }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
