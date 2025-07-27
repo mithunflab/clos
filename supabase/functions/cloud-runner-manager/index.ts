@@ -461,23 +461,20 @@ Generated on: ${new Date().toISOString()}
 
           const serviceName = projectName.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 32)
           
-          // FIXED: Use web_service for web applications that need HTTP endpoints
+          // CORRECT Render API format based on official docs
           const renderPayload = {
             type: "web_service",
             name: serviceName,
             ownerId: ownerId,
             repo: githubRepoUrl,
             branch: "main",
+            buildCommand: "pip install -r requirements.txt",
+            startCommand: "python main.py",
+            plan: "starter",
+            region: "oregon",
             autoDeploy: "yes",
             rootDir: ".",
-            envVars: [],
-            serviceDetails: {
-              buildCommand: "pip install -r requirements.txt",
-              startCommand: "python main.py",
-              plan: "starter",
-              region: "oregon",
-              pullRequestPreviewsEnabled: "no"
-            }
+            envVars: []
           }
 
           console.log('Creating Render background worker service with payload:', JSON.stringify(renderPayload, null, 2))
