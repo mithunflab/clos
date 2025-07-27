@@ -1,125 +1,102 @@
 
-import React, { useState } from 'react';
-import {
-  LayoutDashboard,
-  Zap,
-  Play,
-  Cloud,
-  CloudCog,
-  User,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react';
-import { NavLink } from 'react-router-dom';
-import { cn } from '@/lib/utils';
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import ThemeToggle from './ThemeToggle';
-
-interface NavigationLinkProps {
-  to: string;
-  icon: React.ComponentType<any>;
-  label: string;
-}
-
-const NavigationLink: React.FC<NavigationLinkProps & { isCollapsed: boolean }> = ({ to, icon: Icon, label, isCollapsed }) => {
-  return (
-    <li>
-      <NavLink
-        to={to}
-        className={({ isActive }) =>
-          cn(
-            "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-secondary hover:text-secondary-foreground",
-            isActive ? "bg-secondary text-secondary-foreground" : "text-foreground",
-            isCollapsed && "justify-center"
-          )
-        }
-        title={isCollapsed ? label : undefined}
-      >
-        <Icon className={cn("h-4 w-4", !isCollapsed && "mr-2")} />
-        {!isCollapsed && <span>{label}</span>}
-      </NavLink>
-    </li>
-  );
-};
+import { 
+  Home, 
+  Workflow, 
+  Settings, 
+  User, 
+  Cloud, 
+  PlayCircle,
+  Zap
+} from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 const Navigation = () => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const { user, signOut } = useAuth();
+  const location = useLocation();
 
-  const toggleCollapse = () => {
-    setIsCollapsed(!isCollapsed);
+  const navItems = [
+    { path: '/', icon: Home, label: 'Home' },
+    { path: '/workflows', icon: Workflow, label: 'Workflows' },
+    { path: '/playground', icon: PlayCircle, label: 'Playground' },
+    { path: '/cloud-n8n', icon: Cloud, label: 'Cloud N8N' },
+    { path: '/cloud-runner', icon: Zap, label: 'Cloud Runner' },
+    { path: '/settings', icon: Settings, label: 'Settings' },
+    { path: '/profile', icon: User, label: 'Profile' },
+  ];
+
+  const isActive = (path: string) => {
+    return location.pathname === path;
   };
 
+  if (!user) {
+    return null;
+  }
+
   return (
-    <div className={cn(
-      "flex flex-col border-r border-border bg-secondary transition-all duration-300",
-      isCollapsed ? "w-16" : "w-60"
-    )}>
-      <div className="p-4 flex-grow">
-        <div className="flex items-center justify-between mb-4">
-          {!isCollapsed && <h2 className="font-semibold text-lg">Menu</h2>}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleCollapse}
-            className="h-8 w-8 p-0"
-          >
-            {isCollapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
+    <nav className="bg-background border-b border-border">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          <div className="flex items-center space-x-8">
+            <Link to="/" className="flex items-center space-x-2">
+              <Workflow className="h-8 w-8 text-primary" />
+              <span className="text-xl font-bold">WorkflowCraft</span>
+            </Link>
+            
+            <div className="hidden md:flex items-center space-x-1">
+              {navItems.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive(item.path)
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
+                >
+                  <item.icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
 
-        <div className="space-y-1">
-          <NavigationLink
-            to="/dashboard"
-            icon={LayoutDashboard}
-            label="Dashboard"
-            isCollapsed={isCollapsed}
-          />
-          <NavigationLink
-            to="/workflows"
-            icon={Zap}
-            label="Workflows"
-            isCollapsed={isCollapsed}
-          />
-          <NavigationLink
-            to="/playground"
-            icon={Play}
-            label="Playground"
-            isCollapsed={isCollapsed}
-          />
-          <NavigationLink
-            to="/cloud-runner"
-            icon={Cloud}
-            label="Cloud Runner"
-            isCollapsed={isCollapsed}
-          />
-          <NavigationLink
-            to="/cloud-n8n"
-            icon={CloudCog}
-            label="Cloud N8N"
-            isCollapsed={isCollapsed}
-          />
-          <NavigationLink
-            to="/profile"
-            icon={User}
-            label="Profile"
-            isCollapsed={isCollapsed}
-          />
-        </div>
-      </div>
-
-      <div className="p-4">
-        <div className="pt-4 border-t border-border">
-          <div className={cn("flex items-center", isCollapsed ? "justify-center" : "justify-between")}>
-            {!isCollapsed && <span className="text-sm text-muted-foreground">Theme</span>}
+          <div className="flex items-center space-x-4">
             <ThemeToggle />
+            <Button
+              variant="outline"
+              onClick={signOut}
+              className="text-sm"
+            >
+              Sign Out
+            </Button>
+          </div>
+        </div>
+
+        {/* Mobile menu */}
+        <div className="md:hidden">
+          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                  isActive(item.path)
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                <item.icon className="h-5 w-5" />
+                <span>{item.label}</span>
+              </Link>
+            ))}
           </div>
         </div>
       </div>
-    </div>
+    </nav>
   );
 };
 

@@ -1,316 +1,265 @@
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Cloud, Lock, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
-import { useUserPlan } from '@/hooks/useUserPlan';
-import { useAuth } from '@/hooks/useAuth';
+import { Cloud, Plus, ExternalLink, Settings, Trash2, Crown, ShoppingCart } from 'lucide-react';
 import { useCloudN8nInstances } from '@/hooks/useCloudN8nInstances';
-import { supabase } from '@/integrations/supabase/client';
+import { useUserPlan } from '@/hooks/useUserPlan';
 import { toast } from 'sonner';
+import PurchaseModal from '@/components/PurchaseModal';
 
 const CloudN8N = () => {
-  const { user } = useAuth();
+  const [instanceName, setInstanceName] = useState('');
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const { instances, loading, createInstance } = useCloudN8nInstances();
   const { plan } = useUserPlan();
-  const { instances, loading: instancesLoading, createInstance, refetch } = useCloudN8nInstances();
-  const [serviceName, setServiceName] = useState('');
-  const [password, setPassword] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const canCreateService = plan?.plan_type === 'pro' || plan?.plan_type === 'custom';
-
-  const createN8nService = async () => {
-    if (!serviceName || !password) {
-      toast.error('Please fill in all fields');
+  const handleCreateInstance = async () => {
+    if (!instanceName.trim()) {
+      toast.error('Please enter an instance name');
       return;
     }
 
-    if (!canCreateService) {
-      toast.error('This feature is only available for Pro and Custom users');
-      return;
-    }
-
-    setIsCreating(true);
-    setError(null);
-
-    try {
-      const { data, error } = await supabase.functions.invoke('cloud-runner-manager', {
-        body: {
-          action: 'create-n8n-service',
-          serviceName: serviceName,
-          password: password,
-          renderPayload: {
-            service: {
-              name: serviceName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-              type: "web_service",
-              env: "docker",
-              serviceDetails: {
-                image: {
-                  imagePath: "n8nio/n8n:latest"
-                }
-              },
-              envVars: [
-                { key: "N8N_BASIC_AUTH_ACTIVE", value: "true" },
-                { key: "N8N_BASIC_AUTH_USER", value: "admin" },
-                { key: "N8N_BASIC_AUTH_PASSWORD", value: password },
-                { key: "PORT", value: "10000" }
-              ]
-            }
-          }
-        }
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      if (data?.success) {
-        // Update the database with the new instance
-        const { error: dbError } = await supabase
-          .from('cloud_n8n_instances')
-          .insert({
-            user_id: user!.id,
-            instance_name: serviceName,
-            instance_url: data.serviceUrl,
-            render_service_id: data.serviceId,
-            status: 'creating'
-          });
-
-        if (dbError) {
-          console.error('Database error:', dbError);
-        }
-
-        setServiceName('');
-        setPassword('');
-        toast.success('N8N service is being created!');
-        refetch();
-
-        // Simulate status updates
-        setTimeout(() => {
-          refetch();
-        }, 30000);
-      } else {
-        throw new Error(data?.error || 'Failed to create N8N service');
-      }
-    } catch (err) {
-      console.error('Error creating N8N service:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create N8N service');
-      toast.error('Failed to create N8N service');
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'creating':
-        return <Loader2 className="h-4 w-4 animate-spin text-yellow-500" />;
-      case 'active':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'error':
-        return <XCircle className="h-4 w-4 text-red-500" />;
-      default:
-        return null;
+    const success = await createInstance(instanceName.trim());
+    if (success) {
+      toast.success('N8N instance creation started!');
+      setInstanceName('');
+    } else {
+      toast.error('Failed to create N8N instance');
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'creating':
-        return 'bg-yellow-100 text-yellow-800';
       case 'active':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'creating':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'error':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-100 text-red-800 border-red-200';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
-  return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Cloud className="h-8 w-8" />
-            Cloud N8N
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Deploy and manage your N8N workflows in the cloud
-          </p>
-        </div>
-        <Badge variant={canCreateService ? "default" : "secondary"}>
-          {plan?.plan_type || 'free'} plan
-        </Badge>
-      </div>
+  const canCreateInstance = () => {
+    if (plan?.plan_type === 'pro' || plan?.plan_type === 'custom') {
+      return true;
+    }
+    // Free users can create instances if they have purchased any
+    return instances.length > 0;
+  };
 
-      {/* Create New Service Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Cloud className="h-5 w-5" />
-            Create New N8N Service
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {!canCreateService && (
-            <Alert>
-              <Lock className="h-4 w-4" />
-              <AlertDescription>
-                This feature is only available for Pro and Custom users. 
-                Upgrade your plan to create N8N services in the cloud.
-              </AlertDescription>
-            </Alert>
-          )}
+  const showCreateForm = () => {
+    return canCreateInstance() || instances.length > 0;
+  };
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="serviceName">Service Name</Label>
-              <Input
-                id="serviceName"
-                placeholder="my-n8n-service"
-                value={serviceName}
-                onChange={(e) => setServiceName(e.target.value)}
-                disabled={!canCreateService || isCreating}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Admin Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter admin password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={!canCreateService || isCreating}
-              />
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <div className="container mx-auto max-w-6xl">
+          <div className="animate-pulse space-y-6">
+            <div className="h-10 bg-muted rounded-lg w-1/3"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="h-48 bg-muted rounded-xl"></div>
+              <div className="h-48 bg-muted rounded-xl"></div>
             </div>
           </div>
+        </div>
+      </div>
+    );
+  }
 
-          {error && (
-            <Alert variant="destructive">
-              <XCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+  return (
+    <div className="min-h-screen bg-background p-6">
+      <div className="container mx-auto max-w-6xl space-y-8">
+        {/* Header */}
+        <div className="text-center space-y-4">
+          <div className="flex items-center justify-center gap-3">
+            <Cloud className="h-10 w-10 text-primary" />
+            <h1 className="text-4xl font-bold">Cloud N8N Instances</h1>
+          </div>
+          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+            Manage your cloud-hosted N8N workflow automation instances
+          </p>
+        </div>
 
-          <Button
-            onClick={createN8nService}
-            disabled={!canCreateService || isCreating || !serviceName || !password}
-            className="w-full"
-          >
-            {isCreating ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating N8N Service...
-              </>
-            ) : (
-              <>
-                <Cloud className="mr-2 h-4 w-4" />
-                Create N8N Service
-              </>
-            )}
-          </Button>
-        </CardContent>
-      </Card>
+        {/* Purchase N8N Button for users without access */}
+        {!canCreateInstance() && instances.length === 0 && (
+          <Card className="max-w-2xl mx-auto">
+            <CardHeader className="text-center">
+              <CardTitle className="flex items-center justify-center gap-2">
+                <ShoppingCart className="h-6 w-6" />
+                Get Your N8N Instance
+              </CardTitle>
+              <CardDescription>
+                Purchase a cloud N8N instance to start automating your workflows
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-center">
+              <Button onClick={() => setShowPurchaseModal(true)} className="w-full">
+                <Cloud className="h-4 w-4 mr-2" />
+                Purchase N8N Instance - $20/month
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
-      {/* Services List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Your N8N Services</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {instancesLoading ? (
-            <div className="text-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-              <p className="text-muted-foreground">Loading your N8N instances...</p>
-            </div>
-          ) : instances.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Cloud className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No N8N services created yet</p>
-              <p className="text-sm">Create your first N8N service to get started</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {instances.map((instance) => (
-                <div
-                  key={instance.id}
-                  className="flex items-center justify-between p-4 border rounded-lg"
+        {/* Create Instance Form */}
+        {showCreateForm() && (
+          <Card className="max-w-2xl mx-auto">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Plus className="h-5 w-5" />
+                Create New N8N Instance
+              </CardTitle>
+              <CardDescription>
+                {plan?.plan_type === 'pro' || plan?.plan_type === 'custom' 
+                  ? 'Pro users get 1 free instance. Additional instances cost $20/month.'
+                  : 'Create additional N8N instances for $20/month each.'
+                }
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="instanceName">Instance Name</Label>
+                <Input
+                  id="instanceName"
+                  placeholder="Enter instance name (e.g., my-workflows)"
+                  value={instanceName}
+                  onChange={(e) => setInstanceName(e.target.value)}
+                />
+              </div>
+              
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleCreateInstance}
+                  disabled={!instanceName.trim()}
+                  className="flex-1"
                 >
-                  <div className="flex items-center gap-3">
-                    {getStatusIcon(instance.status)}
-                    <div>
-                      <h3 className="font-medium">{instance.instance_name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Created {new Date(instance.created_at).toLocaleDateString()}
-                      </p>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Instance
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  onClick={() => setShowPurchaseModal(true)}
+                >
+                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  Buy More
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Instances List */}
+        <div className="space-y-4">
+          <h2 className="text-2xl font-semibold">Your N8N Instances</h2>
+          
+          {instances.length === 0 ? (
+            <Card className="text-center py-12">
+              <CardContent>
+                <Cloud className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">No instances yet</h3>
+                <p className="text-muted-foreground">
+                  Create your first N8N instance to get started with workflow automation
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {instances.map((instance) => (
+                <Card key={instance.id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">{instance.instance_name}</CardTitle>
+                      <Badge className={getStatusColor(instance.status)}>
+                        {instance.status}
+                      </Badge>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className={getStatusColor(instance.status)}>
-                      {instance.status}
-                    </Badge>
-                    {instance.status === 'active' && instance.instance_url && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => window.open(instance.instance_url!, '_blank')}
-                      >
-                        <ExternalLink className="h-4 w-4 mr-2" />
-                        Open N8N
-                      </Button>
+                  </CardHeader>
+                  
+                  <CardContent className="space-y-3">
+                    <div className="text-sm text-muted-foreground">
+                      Created: {new Date(instance.created_at).toLocaleDateString()}
+                    </div>
+                    
+                    {instance.instance_url && (
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          asChild
+                          className="flex-1"
+                        >
+                          <a
+                            href={instance.instance_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                            Open N8N
+                          </a>
+                        </Button>
+                        
+                        <Button variant="outline" size="sm">
+                          <Settings className="h-4 w-4" />
+                        </Button>
+                        
+                        <Button variant="outline" size="sm">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     )}
-                  </div>
-                </div>
+                    
+                    {instance.status === 'creating' && (
+                      <div className="text-sm text-muted-foreground">
+                        Your instance is being created. This may take a few minutes...
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Features Overview */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Features</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="flex items-start gap-3">
-              <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
-              <div>
-                <h4 className="font-medium">Instant Deployment</h4>
+        {/* Plan Benefits */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Crown className="h-5 w-5" />
+              N8N Instance Benefits
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <h4 className="font-medium">Free Plan</h4>
                 <p className="text-sm text-muted-foreground">
-                  Deploy N8N in minutes with Docker containers
+                  Purchase N8N instances for $20/month each
+                </p>
+              </div>
+              <div className="space-y-2">
+                <h4 className="font-medium">Pro Plan</h4>
+                <p className="text-sm text-muted-foreground">
+                  1 free N8N instance included, additional instances $20/month
                 </p>
               </div>
             </div>
-            <div className="flex items-start gap-3">
-              <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
-              <div>
-                <h4 className="font-medium">Secure Authentication</h4>
-                <p className="text-sm text-muted-foreground">
-                  Built-in basic auth with custom passwords
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
-              <div>
-                <h4 className="font-medium">Cloud Hosting</h4>
-                <p className="text-sm text-muted-foreground">
-                  Reliable cloud infrastructure with Render
-                </p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
+
+      <PurchaseModal 
+        isOpen={showPurchaseModal} 
+        onClose={() => setShowPurchaseModal(false)} 
+      />
     </div>
   );
 };
