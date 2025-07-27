@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -14,11 +13,22 @@ interface CloudN8nInstance {
   updated_at: string;
 }
 
+interface DeploymentLog {
+  id: string;
+  status: string;
+  createdAt: string;
+  finishedAt?: string;
+  commitId?: string;
+  commitMessage?: string;
+}
+
 export const useCloudN8nInstances = () => {
   const [instances, setInstances] = useState<CloudN8nInstance[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasAccess, setHasAccess] = useState(false);
+  const [deploymentLogs, setDeploymentLogs] = useState<DeploymentLog[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
   const { user } = useAuth();
 
   const checkN8nAccess = async () => {
@@ -84,6 +94,64 @@ export const useCloudN8nInstances = () => {
     }
   };
 
+  const listRenderServices = async () => {
+    if (!user) return { success: false, error: 'User not authenticated' };
+
+    try {
+      const { data, error } = await supabase.functions.invoke('n8n-cloud-manager', {
+        body: {
+          action: 'list-services'
+        }
+      });
+
+      if (error) throw error;
+
+      return {
+        success: true,
+        services: data.services
+      };
+    } catch (err) {
+      console.error('Error listing Render services:', err);
+      return { 
+        success: false, 
+        error: err instanceof Error ? err.message : 'Failed to list services' 
+      };
+    }
+  };
+
+  const getDeploymentLogs = async (renderServiceId: string) => {
+    if (!user) return { success: false, error: 'User not authenticated' };
+
+    try {
+      setLogsLoading(true);
+      
+      const { data, error } = await supabase.functions.invoke('n8n-cloud-manager', {
+        body: {
+          action: 'get-deployment-logs',
+          renderServiceId
+        }
+      });
+
+      if (error) throw error;
+
+      setDeploymentLogs(data.deployments || []);
+      
+      return {
+        success: true,
+        deployments: data.deployments,
+        logsUrl: `https://api.render.com/v1/services/${renderServiceId}/deploys?limit=20`
+      };
+    } catch (err) {
+      console.error('Error fetching deployment logs:', err);
+      return { 
+        success: false, 
+        error: err instanceof Error ? err.message : 'Failed to fetch deployment logs' 
+      };
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
   const createInstance = async (instanceName: string, username?: string, password?: string) => {
     if (!user) return { success: false, error: 'User not authenticated' };
 
@@ -140,11 +208,18 @@ export const useCloudN8nInstances = () => {
         throw new Error(data?.error || 'Failed to create instance');
       }
 
+      // Set initial deployment logs if available
+      if (data.deploymentLogs) {
+        setDeploymentLogs(data.deploymentLogs);
+      }
+
       await fetchInstances();
       return { 
         success: true, 
         serviceUrl: data.serviceUrl,
-        credentials: data.credentials 
+        credentials: data.credentials,
+        deploymentLogs: data.deploymentLogs,
+        logsUrl: data.logsUrl
       };
     } catch (err) {
       console.error('Error creating N8N instance:', err);
@@ -227,7 +302,11 @@ export const useCloudN8nInstances = () => {
     loading,
     error,
     hasAccess,
+    deploymentLogs,
+    logsLoading,
     createInstance,
+    listRenderServices,
+    getDeploymentLogs,
     checkDeploymentStatus,
     deleteInstance,
     refetch: fetchInstances

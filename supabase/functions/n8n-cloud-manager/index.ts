@@ -42,10 +42,10 @@ serve(async (req) => {
       return new Response('Unauthorized - Invalid token', { status: 401, headers: corsHeaders })
     }
 
-    const { action, instanceName, instanceId, username, password } = await req.json()
-    console.log('Request data:', { action, instanceName, instanceId, username: typeof username, password: typeof password })
+    const { action, instanceName, instanceId, username, password, renderServiceId } = await req.json()
+    console.log('Request data:', { action, instanceName, instanceId, username: typeof username, password: typeof password, renderServiceId })
 
-    // Validate that username and password are strings
+    // Validate that username and password are strings for create action
     if (action === 'create-n8n-instance') {
       if (typeof username !== 'string' || typeof password !== 'string') {
         console.error('Invalid username or password type:', { username: typeof username, password: typeof password })
@@ -92,9 +92,89 @@ serve(async (req) => {
     const renderHeaders = {
       'Authorization': `Bearer ${RENDER_API_KEY}`,
       'Content-Type': 'application/json',
+      'Accept': 'application/json'
     }
 
     switch (action) {
+      case 'list-services': {
+        try {
+          console.log('=== LISTING RENDER SERVICES ===')
+          
+          const response = await fetch('https://api.render.com/v1/services', {
+            headers: renderHeaders
+          })
+
+          if (!response.ok) {
+            const errorText = await response.text()
+            console.error('Failed to list services:', errorText)
+            throw new Error(`Failed to list services: ${response.status} - ${errorText}`)
+          }
+
+          const services = await response.json()
+          console.log('Services fetched:', services.length || 0)
+
+          return new Response(JSON.stringify({
+            success: true,
+            services: services,
+            message: 'Services listed successfully'
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+
+        } catch (error) {
+          console.error('List services error:', error)
+          return new Response(JSON.stringify({
+            error: error.message,
+            success: false
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+      }
+
+      case 'get-deployment-logs': {
+        try {
+          console.log('=== GETTING DEPLOYMENT LOGS ===')
+          console.log('Service ID:', renderServiceId)
+          
+          if (!renderServiceId) {
+            throw new Error('Service ID is required to fetch deployment logs')
+          }
+
+          const response = await fetch(`https://api.render.com/v1/services/${renderServiceId}/deploys?limit=20`, {
+            headers: renderHeaders
+          })
+
+          if (!response.ok) {
+            const errorText = await response.text()
+            console.error('Failed to fetch deployment logs:', errorText)
+            throw new Error(`Failed to fetch deployment logs: ${response.status} - ${errorText}`)
+          }
+
+          const deployments = await response.json()
+          console.log('Deployments fetched:', deployments.length || 0)
+
+          return new Response(JSON.stringify({
+            success: true,
+            deployments: deployments,
+            message: 'Deployment logs fetched successfully'
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+
+        } catch (error) {
+          console.error('Get deployment logs error:', error)
+          return new Response(JSON.stringify({
+            error: error.message,
+            success: false
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+      }
+
       case 'create-n8n-instance': {
         try {
           console.log('=== CREATING N8N INSTANCE ===')
@@ -135,7 +215,7 @@ serve(async (req) => {
             ]
           }
 
-          console.log('Creating Render service with dynamic owner ID:', JSON.stringify(payload, null, 2))
+          console.log('Creating Render service with payload:', JSON.stringify(payload, null, 2))
           
           const renderResponse = await fetch('https://api.render.com/v1/services', {
             method: 'POST',
@@ -187,58 +267,95 @@ serve(async (req) => {
           console.log('Service created with ID:', serviceId)
           console.log('Deploy URL:', deployUrl)
 
-          // Update the WEBHOOK_URL environment variable after deployment
+          // Now fetch deployment logs immediately after creation
+          console.log('=== FETCHING INITIAL DEPLOYMENT LOGS ===')
           try {
-            console.log('Updating WEBHOOK_URL environment variable...')
-            const envUpdateResponse = await fetch(`https://api.render.com/v1/services/${serviceId}/env-vars`, {
-              method: 'PATCH',
-              headers: renderHeaders,
-              body: JSON.stringify([
-                {
-                  key: "WEBHOOK_URL",
-                  value: deployUrl
-                }
-              ])
+            const logsResponse = await fetch(`https://api.render.com/v1/services/${serviceId}/deploys?limit=20`, {
+              headers: renderHeaders
             })
 
-            if (envUpdateResponse.ok) {
-              console.log('WEBHOOK_URL updated successfully')
+            let deploymentLogs = []
+            if (logsResponse.ok) {
+              deploymentLogs = await logsResponse.json()
+              console.log('Initial deployment logs fetched:', deploymentLogs.length || 0)
             } else {
-              console.log('Warning: Could not update WEBHOOK_URL, but service created successfully')
+              console.log('Could not fetch initial deployment logs')
             }
-          } catch (envError) {
-            console.log('Warning: Could not update WEBHOOK_URL:', envError)
-          }
 
-          // Update database with service details
-          const { error: updateError } = await supabaseClient
-            .from('cloud_n8n_instances')
-            .update({
-              render_service_id: serviceId,
-              instance_url: deployUrl,
-              status: 'creating'
+            // Update the WEBHOOK_URL environment variable after deployment
+            try {
+              console.log('Updating WEBHOOK_URL environment variable...')
+              const envUpdateResponse = await fetch(`https://api.render.com/v1/services/${serviceId}/env-vars`, {
+                method: 'PATCH',
+                headers: renderHeaders,
+                body: JSON.stringify([
+                  {
+                    key: "WEBHOOK_URL",
+                    value: deployUrl
+                  }
+                ])
+              })
+
+              if (envUpdateResponse.ok) {
+                console.log('WEBHOOK_URL updated successfully')
+              } else {
+                console.log('Warning: Could not update WEBHOOK_URL, but service created successfully')
+              }
+            } catch (envError) {
+              console.log('Warning: Could not update WEBHOOK_URL:', envError)
+            }
+
+            // Update database with service details
+            const { error: updateError } = await supabaseClient
+              .from('cloud_n8n_instances')
+              .update({
+                render_service_id: serviceId,
+                instance_url: deployUrl,
+                status: 'creating'
+              })
+              .eq('id', instanceId)
+
+            if (updateError) {
+              console.error('Database update error:', updateError)
+              throw new Error('Failed to update database')
+            }
+
+            console.log('Database updated successfully')
+
+            return new Response(JSON.stringify({
+              success: true,
+              serviceId,
+              serviceUrl: deployUrl,
+              deploymentLogs: deploymentLogs,
+              logsUrl: `https://api.render.com/v1/services/${serviceId}/deploys?limit=20`,
+              credentials: {
+                username: String(username),
+                password: String(password)
+              },
+              message: 'N8N instance deployment started successfully'
+            }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             })
-            .eq('id', instanceId)
 
-          if (updateError) {
-            console.error('Database update error:', updateError)
-            throw new Error('Failed to update database')
+          } catch (logsError) {
+            console.error('Error fetching deployment logs:', logsError)
+            
+            // Still return success for service creation even if logs fail
+            return new Response(JSON.stringify({
+              success: true,
+              serviceId,
+              serviceUrl: deployUrl,
+              deploymentLogs: [],
+              logsUrl: `https://api.render.com/v1/services/${serviceId}/deploys?limit=20`,
+              credentials: {
+                username: String(username),
+                password: String(password)
+              },
+              message: 'N8N instance deployment started successfully (logs fetch failed)'
+            }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            })
           }
-
-          console.log('Database updated successfully')
-
-          return new Response(JSON.stringify({
-            success: true,
-            serviceId,
-            serviceUrl: deployUrl,
-            credentials: {
-              username: String(username),
-              password: String(password)
-            },
-            message: 'N8N instance deployment started successfully'
-          }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
 
         } catch (error) {
           console.error('N8N instance creation error:', error)
