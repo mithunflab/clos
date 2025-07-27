@@ -14,13 +14,256 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      ai_credits: {
+        Row: {
+          created_at: string | null
+          current_credits: number
+          id: string
+          last_credit_reset: string | null
+          total_credits_used: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          current_credits?: number
+          id?: string
+          last_credit_reset?: string | null
+          total_credits_used?: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          current_credits?: number
+          id?: string
+          last_credit_reset?: string | null
+          total_credits_used?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      cloud_runner_projects: {
+        Row: {
+          created_at: string | null
+          deployment_status: string
+          github_repo_name: string | null
+          github_repo_url: string | null
+          id: string
+          project_name: string
+          render_service_id: string | null
+          render_service_url: string | null
+          session_file_uploaded: boolean
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          deployment_status?: string
+          github_repo_name?: string | null
+          github_repo_url?: string | null
+          id?: string
+          project_name: string
+          render_service_id?: string | null
+          render_service_url?: string | null
+          session_file_uploaded?: boolean
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          deployment_status?: string
+          github_repo_name?: string | null
+          github_repo_url?: string | null
+          id?: string
+          project_name?: string
+          render_service_id?: string | null
+          render_service_url?: string | null
+          session_file_uploaded?: boolean
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      n8n_configs: {
+        Row: {
+          created_at: string | null
+          id: string
+          n8n_api_key: string | null
+          n8n_url: string | null
+          updated_at: string | null
+          use_casel_cloud: boolean
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          n8n_api_key?: string | null
+          n8n_url?: string | null
+          updated_at?: string | null
+          use_casel_cloud?: boolean
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          n8n_api_key?: string | null
+          n8n_url?: string | null
+          updated_at?: string | null
+          use_casel_cloud?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
+      n8n_deployments: {
+        Row: {
+          created_at: string | null
+          deployment_status: string
+          deployment_url: string | null
+          id: string
+          n8n_workflow_id: string
+          updated_at: string | null
+          user_id: string
+          workflow_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          deployment_status?: string
+          deployment_url?: string | null
+          id?: string
+          n8n_workflow_id: string
+          updated_at?: string | null
+          user_id: string
+          workflow_id: string
+        }
+        Update: {
+          created_at?: string | null
+          deployment_status?: string
+          deployment_url?: string | null
+          id?: string
+          n8n_workflow_id?: string
+          updated_at?: string | null
+          user_id?: string
+          workflow_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      user_plans: {
+        Row: {
+          created_at: string | null
+          id: string
+          plan_type: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          plan_type?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          plan_type?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      workflow_data: {
+        Row: {
+          chat_storage_path: string | null
+          created_at: string | null
+          deployment_status: string | null
+          description: string | null
+          id: string
+          metadata: Json | null
+          n8n_url: string | null
+          n8n_workflow_id: string | null
+          storage_bucket_id: string | null
+          updated_at: string | null
+          user_id: string
+          workflow_id: string
+          workflow_name: string
+          workflow_storage_path: string | null
+        }
+        Insert: {
+          chat_storage_path?: string | null
+          created_at?: string | null
+          deployment_status?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          n8n_url?: string | null
+          n8n_workflow_id?: string | null
+          storage_bucket_id?: string | null
+          updated_at?: string | null
+          user_id: string
+          workflow_id: string
+          workflow_name: string
+          workflow_storage_path?: string | null
+        }
+        Update: {
+          chat_storage_path?: string | null
+          created_at?: string | null
+          deployment_status?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          n8n_url?: string | null
+          n8n_workflow_id?: string | null
+          storage_bucket_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+          workflow_id?: string
+          workflow_name?: string
+          workflow_storage_path?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_user_bucket: {
+        Args: { user_id_param: string }
+        Returns: string
+      }
+      reset_daily_credits: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
