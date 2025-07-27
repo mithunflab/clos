@@ -107,39 +107,16 @@ serve(async (req) => {
           console.log('Username (validated):', username)
           console.log('Password length:', password.length)
 
-          // First, get the owner information from Render API
-          console.log('Fetching owner information from Render API...')
-          const ownersResponse = await fetch('https://api.render.com/v1/owners', {
-            method: 'GET',
-            headers: renderHeaders
-          })
+          // Use the provided owner ID directly
+          const ownerId = "tea-d23312idbo4c73fpn3ig"
+          console.log('Using hardcoded owner ID:', ownerId)
 
-          if (!ownersResponse.ok) {
-            const errorText = await ownersResponse.text()
-            console.error('Failed to fetch owners:', errorText)
-            throw new Error(`Failed to fetch owner information: ${ownersResponse.status} - ${errorText}`)
-          }
-
-          const ownersData = await ownersResponse.json()
-          console.log('Owners data received:', JSON.stringify(ownersData, null, 2))
-
-          // Extract the owner from the first item in the response
-          const ownerData = ownersData[0]
-          if (!ownerData || !ownerData.owner || !ownerData.owner.id) {
-            console.error('No valid owner found:', ownersData)
-            throw new Error('No valid owner found in Render account')
-          }
-          
-          const owner = ownerData.owner
-
-          console.log('Using owner:', { id: owner.id, name: owner.name, type: owner.type })
-
-          // Now create the service with the correct owner ID
+          // Create the service payload with correct runtime field
           const payload = {
-            ownerId: owner.id,
+            ownerId: ownerId,
             name: serviceName,
             type: "web_service",
-            env: "docker",
+            runtime: "docker",
             region: "oregon",
             plan: "starter",
             serviceDetails: {
@@ -151,8 +128,8 @@ serve(async (req) => {
               { key: "PORT", value: "10000" },
               { key: "N8N_PORT", value: "10000" },
               { key: "N8N_BASIC_AUTH_ACTIVE", value: "true" },
-              { key: "N8N_BASIC_AUTH_USER", value: "admin" },
-              { key: "N8N_BASIC_AUTH_PASSWORD", value: "yourpassword" },
+              { key: "N8N_BASIC_AUTH_USER", value: username },
+              { key: "N8N_BASIC_AUTH_PASSWORD", value: password },
               { key: "N8N_PROTOCOL", value: "https" }
             ]
           }
