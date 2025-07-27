@@ -165,7 +165,7 @@ export const useCloudRunnerProjects = () => {
 
       if (error) {
         console.error('Sync to GitHub error:', error);
-        return { success: false, error: error.message };
+        return { success: false, error: `Edge function error: ${error.message}` };
       }
 
       if (data?.success) {
@@ -200,6 +200,8 @@ export const useCloudRunnerProjects = () => {
     try {
       setLoading(true);
 
+      console.log('Deploying to Render with:', { projectId, projectName, githubRepoUrl });
+
       const { data, error } = await supabase.functions.invoke('cloud-runner-manager', {
         body: {
           action: 'deploy-to-render',
@@ -211,8 +213,10 @@ export const useCloudRunnerProjects = () => {
 
       if (error) {
         console.error('Deploy to Render error:', error);
-        return { success: false, error: error.message };
+        return { success: false, error: `Edge function error: ${error.message} - ${error.details || ''}` };
       }
+
+      console.log('Deploy response data:', data);
 
       if (data?.success) {
         return { 

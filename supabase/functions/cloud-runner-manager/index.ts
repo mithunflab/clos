@@ -427,17 +427,20 @@ Generated on: ${new Date().toISOString()}
           }
 
           // First, get the user's ownerId from Render
+          console.log('Fetching Render owner info...')
           const ownerResponse = await fetch('https://api.render.com/v1/owners', {
             headers: renderHeaders
           })
 
           if (!ownerResponse.ok) {
             const errorText = await ownerResponse.text()
-            console.error('Failed to get owner info:', errorText)
+            console.error('Failed to get owner info:', ownerResponse.status, errorText)
             throw new Error(`Failed to get owner info: ${ownerResponse.status} - ${errorText}`)
           }
 
           const owners = await ownerResponse.json()
+          console.log('Render owners response:', owners)
+          
           const ownerId = owners?.[0]?.id || owners?.id
 
           if (!ownerId) {
