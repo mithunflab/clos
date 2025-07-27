@@ -89,7 +89,8 @@ serve(async (req) => {
           const owners = await ownerResponse.json()
           console.log('Render owners response:', owners)
           
-          const ownerId = owners?.[0]?.id || owners?.id
+          // Handle different Render API response formats
+          const ownerId = owners?.[0]?.owner?.id || owners?.[0]?.id || owners?.id
 
           if (!ownerId) {
             console.error('No owner ID found in response:', owners)
