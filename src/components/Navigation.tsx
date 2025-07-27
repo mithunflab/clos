@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -12,7 +11,7 @@ import {
   Zap
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { ThemeToggle } from '@/components/ThemeToggle';
+import ThemeToggle from '@/components/ThemeToggle';
 
 const Navigation = () => {
   const { user, signOut } = useAuth();
