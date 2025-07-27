@@ -300,7 +300,7 @@ const CloudRunner: React.FC = () => {
     }
   };
 
-  const handleDeployToRender = async () => {
+  const handleDirectRenderDeploy = async () => {
     if (!githubRepoUrl) {
       toast.error('Create a GitHub repository first');
       return;
@@ -310,39 +310,69 @@ const CloudRunner: React.FC = () => {
     setDeploymentStatus({
       status: 'deploying',
       progress: 25,
-      logs: ['Starting deployment to Render...'],
+      logs: ['Starting direct Render deployment...'],
       lastUpdate: new Date().toISOString()
     });
-    addLog('Deploying to Render...');
-    addLiveLog(`[${new Date().toLocaleTimeString()}] Starting deployment to Render...`);
+    addLog('Deploying directly to Render...');
+    addLiveLog(`[${new Date().toLocaleTimeString()}] Starting direct Render deployment...`);
 
     try {
-      const result = await deployToRender('', projectName, githubRepoUrl);
-
-      if (result.success) {
-        setDeploymentUrl(result.serviceUrl || '');
-        setRenderServiceId(result.serviceId || '');
-        setDeploymentStatus({
-          status: 'building',
-          progress: 50,
-          logs: ['Deployment created successfully', 'Building application...'],
-          lastUpdate: new Date().toISOString()
-        });
-        addLog(`🚀 Deployed successfully: ${result.serviceUrl}`);
-        addLiveLog(`[${new Date().toLocaleTimeString()}] 🚀 Deployed to Render: ${result.serviceUrl}`);
-        addLiveLog(`[${new Date().toLocaleTimeString()}] 📦 Service ID: ${result.serviceId}`);
-        toast.success('Deployment successful!');
-        
-        // Start monitoring deployment immediately
-        setTimeout(() => {
-          fetchRenderLogs();
-        }, 2000);
-      } else {
-        throw new Error(result.error || 'Deployment failed');
+      // Direct Render API call without edge function
+      const renderApiKey = await getRenderApiKey();
+      if (!renderApiKey) {
+        throw new Error('Render API key not configured');
       }
+
+      const response = await fetch('https://api.render.com/v1/services', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${renderApiKey}`
+        },
+        body: JSON.stringify({
+          type: 'web',
+          name: projectName.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase(),
+          ownerId: await getRenderOwnerId(),
+          repo: githubRepoUrl,
+          branch: 'main',
+          buildCommand: 'pip install -r requirements.txt',
+          startCommand: 'python main.py',
+          plan: 'starter',
+          region: 'oregon',
+          autoDeploy: true,
+          rootDir: '.',
+          envVars: []
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Render API error: ${response.status} - ${errorData}`);
+      }
+
+      const data = await response.json();
+      
+      setDeploymentUrl(data.service.serviceUrl || '');
+      setRenderServiceId(data.service.id || '');
+      setDeploymentStatus({
+        status: 'building',
+        progress: 50,
+        logs: ['Deployment created successfully', 'Building application...'],
+        lastUpdate: new Date().toISOString()
+      });
+      addLog(`🚀 Deployed successfully: ${data.service.serviceUrl}`);
+      addLiveLog(`[${new Date().toLocaleTimeString()}] 🚀 Direct deployment to Render: ${data.service.serviceUrl}`);
+      addLiveLog(`[${new Date().toLocaleTimeString()}] 📦 Service ID: ${data.service.id}`);
+      toast.success('Direct deployment successful!');
+      
+      // Start monitoring deployment immediately
+      setTimeout(() => {
+        fetchRenderLogs();
+      }, 2000);
+      
     } catch (error) {
-      console.error('Deployment error:', error);
-      const errorMessage = error.message || 'Deployment failed';
+      console.error('Direct deployment error:', error);
+      const errorMessage = error.message || 'Direct deployment failed';
       setDeploymentStatus({
         status: 'error',
         progress: 0,
@@ -350,12 +380,41 @@ const CloudRunner: React.FC = () => {
         lastUpdate: new Date().toISOString()
       });
       addLog(`❌ ${errorMessage}`);
-      addLiveLog(`[${new Date().toLocaleTimeString()}] ❌ Render deployment failed: ${errorMessage}`);
+      addLiveLog(`[${new Date().toLocaleTimeString()}] ❌ Direct Render deployment failed: ${errorMessage}`);
       toast.error(errorMessage);
     } finally {
       setIsDeploying(false);
     }
   };
+
+  const getRenderApiKey = async () => {
+    // For frontend deployment, use environment variable
+    // In production, this should come from secure storage
+    return 'rnd_5Dn7pSgA4Oq1e28F9vXh3oZnKcMj'; // Replace with actual Render API key
+  };
+
+  const getRenderOwnerId = async () => {
+    try {
+      const renderApiKey = await getRenderApiKey();
+      if (!renderApiKey) return null;
+
+      const response = await fetch('https://api.render.com/v1/owners', {
+        headers: {
+          'Authorization': `Bearer ${renderApiKey}`
+        }
+      });
+
+      if (response.ok) {
+        const owners = await response.json();
+        return owners[0]?.owner?.id;
+      }
+    } catch (error) {
+      console.error('Failed to get owner ID:', error);
+    }
+    return null;
+  };
+
+  const handleDeployToRender = handleDirectRenderDeploy;
 
   const handleRedeployProject = async () => {
     if (!renderServiceId) {
