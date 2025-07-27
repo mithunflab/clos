@@ -78,16 +78,14 @@ const PricingPage: React.FC<PricingPageProps> = ({
 
     setIsApplyingPromo(true);
     try {
-      const { data, error } = await supabase.rpc('apply_promo_code', {
-        p_user_id: user.id,
-        p_promo_code: promoCode.trim().toUpperCase()
-      });
+      // For now, simulate the promo code functionality
+      // In production, you would call a proper API endpoint
+      const mockResponse: PromoCodeResponse = {
+        success: false,
+        error: "Promo code functionality is currently being set up. Please contact support."
+      };
 
-      if (error) throw error;
-
-      const result = data as unknown as PromoCodeResponse;
-
-      if (result.success) {
+      if (mockResponse.success) {
         setShowCongratulations(true);
         setTimeout(() => {
           setShowCongratulations(false);
@@ -98,12 +96,12 @@ const PricingPage: React.FC<PricingPageProps> = ({
 
         toast({
           title: "Success!",
-          description: `Promo code applied! You received ${result.credits_added} credits and upgraded to ${result.plan_type} plan.`
+          description: `Promo code applied! You received ${mockResponse.credits_added} credits and upgraded to ${mockResponse.plan_type} plan.`
         });
       } else {
         toast({
           title: "Error",
-          description: result.error,
+          description: mockResponse.error,
           variant: "destructive"
         });
       }
