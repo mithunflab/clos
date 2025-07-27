@@ -4,8 +4,7 @@ import {
   Zap,
   Play,
   Cloud,
-  Settings,
-  HelpCircle,
+  User,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -95,31 +94,16 @@ const Navigation = () => {
             label="Cloud Runner"
             isCollapsed={isCollapsed}
           />
+          <NavigationLink
+            to="/profile"
+            icon={User}
+            label="Profile"
+            isCollapsed={isCollapsed}
+          />
         </div>
       </div>
 
-      <div className="p-4 space-y-4">
-        {!isCollapsed && (
-          <div className="mb-4">
-            <h2 className="mb-2 font-semibold text-sm">Settings</h2>
-          </div>
-        )}
-        
-        <div className="space-y-1">
-          <NavigationLink
-            to="/settings"
-            icon={Settings}
-            label="Preferences"
-            isCollapsed={isCollapsed}
-          />
-          <NavigationLink
-            to="/help"
-            icon={HelpCircle}
-            label="Help & Support"
-            isCollapsed={isCollapsed}
-          />
-        </div>
-
+      <div className="p-4">
         <div className="pt-4 border-t border-border">
           <div className={cn("flex items-center", isCollapsed ? "justify-center" : "justify-between")}>
             {!isCollapsed && <span className="text-sm text-muted-foreground">Theme</span>}
