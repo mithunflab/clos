@@ -8,7 +8,7 @@ const corsHeaders = {
 }
 
 const N8N_API_KEY = Deno.env.get('N8N_API_KEY')
-const DEFAULT_N8N_URL = 'https://n8n.casel.cloud'
+const N8N_URL = Deno.env.get('N8N_URL') || 'https://n8n.casel.cloud'
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -32,8 +32,8 @@ serve(async (req) => {
 
     const { action, workflow, workflowId, n8nConfig } = await req.json()
 
-    // Determine N8N endpoint
-    let n8nUrl = DEFAULT_N8N_URL
+    // Determine N8N endpoint - use environment variable first
+    let n8nUrl = N8N_URL
     let apiKey = N8N_API_KEY
 
     if (n8nConfig && !n8nConfig.use_casel_cloud) {
