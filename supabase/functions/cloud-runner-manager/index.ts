@@ -51,7 +51,7 @@ serve(async (req) => {
     const requestBody = await req.json()
     console.log('Request body:', JSON.stringify(requestBody, null, 2))
     
-    const { action, projectName, files, sessionFile, repoName, githubRepoUrl, projectId, updateExisting, repoOwner, serviceName, password, renderPayload } = requestBody
+    const { action, projectName, files, sessionFile, repoName, githubRepoUrl, projectId, updateExisting, repoOwner, serviceName, password, renderPayload, serviceId } = requestBody
 
     console.log(`Processing action: ${action} for user: ${user.id}`)
 
@@ -997,6 +997,53 @@ Generated on: ${new Date().toISOString()}
           })
         } catch (error) {
           console.error('Error redeploying project:', error)
+          return new Response(JSON.stringify({
+            error: error.message,
+            success: false
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+      }
+
+      case 'delete-render-service': {
+        try {
+          console.log('=== DELETING RENDER SERVICE ===')
+          console.log('Service ID:', serviceId)
+
+          if (!serviceId) {
+            throw new Error('Service ID is required for deletion')
+          }
+
+          if (!RENDER_API_KEY) {
+            throw new Error('Render API key not configured')
+          }
+
+          const deleteResponse = await fetch(`https://api.render.com/v1/services/${serviceId}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${RENDER_API_KEY}`,
+              'Content-Type': 'application/json',
+            }
+          })
+
+          if (!deleteResponse.ok && deleteResponse.status !== 404) {
+            const errorText = await deleteResponse.text()
+            console.error('Failed to delete Render service:', deleteResponse.status, errorText)
+            throw new Error(`Failed to delete Render service: ${deleteResponse.status} - ${errorText}`)
+          }
+
+          console.log('Render service deleted successfully')
+
+          return new Response(JSON.stringify({
+            success: true,
+            message: 'Render service deleted successfully'
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        } catch (error) {
+          console.error('Render service deletion error:', error)
           return new Response(JSON.stringify({
             error: error.message,
             success: false
