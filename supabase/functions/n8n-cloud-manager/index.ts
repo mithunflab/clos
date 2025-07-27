@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -43,7 +42,38 @@ serve(async (req) => {
     }
 
     const { action, instanceName, instanceId, username, password } = await req.json()
-    console.log('Request data:', { action, instanceName, instanceId, username: !!username, password: !!password })
+    console.log('Request data:', { action, instanceName, instanceId, username: typeof username, password: typeof password })
+
+    // Validate that username and password are strings
+    if (action === 'create-n8n-instance') {
+      if (typeof username !== 'string' || typeof password !== 'string') {
+        console.error('Invalid username or password type:', { username: typeof username, password: typeof password })
+        return new Response(JSON.stringify({
+          error: 'Username and password must be strings',
+          success: false,
+          debug: {
+            usernameType: typeof username,
+            passwordType: typeof password,
+            receivedUsername: username,
+            receivedPassword: password
+          }
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      if (!username.trim() || !password.trim()) {
+        console.error('Empty username or password')
+        return new Response(JSON.stringify({
+          error: 'Username and password cannot be empty',
+          success: false
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+    }
 
     if (!RENDER_API_KEY) {
       console.log('RENDER_API_KEY not found in environment variables')
@@ -73,6 +103,8 @@ serve(async (req) => {
           
           console.log('Service name:', serviceName)
           console.log('Service URL:', serviceUrl)
+          console.log('Username (validated):', username)
+          console.log('Password length:', password.length)
 
           // Get owner ID first
           console.log('Fetching Render owner info...')
@@ -114,11 +146,11 @@ serve(async (req) => {
               },
               {
                 key: "N8N_BASIC_AUTH_USER",
-                value: username || "admin"
+                value: String(username)
               },
               {
                 key: "N8N_BASIC_AUTH_PASSWORD",
-                value: password || "admin123"
+                value: String(password)
               },
               {
                 key: "N8N_HOST",
@@ -160,7 +192,7 @@ serve(async (req) => {
             autoDeploy: true
           }
 
-          console.log('Creating Render service with MINIMAL payload:', JSON.stringify(payload, null, 2))
+          console.log('Creating Render service with VALIDATED payload:', JSON.stringify(payload, null, 2))
           
           const renderResponse = await fetch('https://api.render.com/v1/services', {
             method: 'POST',
@@ -228,8 +260,8 @@ serve(async (req) => {
             serviceId,
             serviceUrl,
             credentials: {
-              username: username || 'admin',
-              password: password || 'admin123'
+              username: String(username),
+              password: String(password)
             },
             message: 'N8N instance deployment started successfully'
           }), {

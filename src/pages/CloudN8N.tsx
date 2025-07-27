@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -61,7 +60,18 @@ const CloudN8N = () => {
     setIsCreating(true);
     setDeploymentResult(null);
     
-    const result = await createInstance(instanceName.trim(), username.trim(), password.trim());
+    // Ensure we pass string values, not booleans
+    const instanceNameStr = String(instanceName.trim());
+    const usernameStr = String(username.trim());
+    const passwordStr = String(password.trim());
+    
+    console.log('Creating instance with:', { 
+      instanceName: instanceNameStr, 
+      username: usernameStr, 
+      password: '***' 
+    });
+    
+    const result = await createInstance(instanceNameStr, usernameStr, passwordStr);
     
     if (result.success) {
       setInstanceName('');
@@ -196,6 +206,7 @@ const CloudN8N = () => {
                   <Label htmlFor="instanceName">Instance Name</Label>
                   <Input
                     id="instanceName"
+                    type="text"
                     placeholder="Enter instance name"
                     value={instanceName}
                     onChange={(e) => setInstanceName(e.target.value)}
@@ -206,6 +217,7 @@ const CloudN8N = () => {
                   <Label htmlFor="username">Username</Label>
                   <Input
                     id="username"
+                    type="text"
                     placeholder="Enter username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
