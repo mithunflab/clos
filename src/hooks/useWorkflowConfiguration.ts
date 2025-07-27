@@ -40,12 +40,7 @@ export const useWorkflowConfiguration = (workflowId: string | null) => {
     workflowId: workflowId || '',
     workflowData,
     chatHistory,
-    delay: 2000,
-    onSave: async (id: string, data: any, chat: any[]) => {
-      if (!id) return false;
-      const result = await saveWorkflow(id, data.name || 'Untitled Workflow', { ...data, chat });
-      return !!result;
-    }
+    delay: 2000
   });
 
   const updateWorkflowData = useCallback((newData: any) => {
@@ -154,7 +149,7 @@ export const useWorkflowConfiguration = (workflowId: string | null) => {
         
         setConfiguration(configData);
         setWorkflowData(data.workflow);
-        setChatHistory(data.chat || []);
+        setChatHistory(data.workflow.chat || []);
         console.log('✅ Configuration loaded from Supabase:', configData);
       } else {
         console.log('ℹ️ No existing configuration found for workflow:', workflowId);

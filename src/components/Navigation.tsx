@@ -1,88 +1,135 @@
 
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { useAuth } from '@/hooks/useAuth';
 import { 
-  LayoutDashboard, 
+  Home, 
   Workflow, 
-  Play, 
   Cloud, 
-  Server,
-  Settings,
-  Zap,
-  ChevronLeft,
-  ChevronRight
+  Terminal, 
+  Play, 
+  User, 
+  LogOut,
+  CreditCard
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useMinimizeChangeMode } from '@/hooks/useMinimizeChangeMode';
-import ThemeToggle from './ThemeToggle';
 
 const Navigation = () => {
-  const { minimizeChangeMode, toggleMinimizeChangeMode } = useMinimizeChangeMode();
+  const location = useLocation();
+  const { user, signOut } = useAuth();
 
-  const navItems = [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/workflows', icon: Workflow, label: 'Workflows' },
-    { to: '/playground', icon: Play, label: 'Playground' },
-    { to: '/cloud-runner', icon: Cloud, label: 'Cloud Runner' },
-    { to: '/cloud-n8n', icon: Server, label: 'Cloud N8N' },
-    { to: '/settings', icon: Settings, label: 'Settings' },
-  ];
+  const isActive = (path: string) => location.pathname === path;
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   return (
-    <nav className={cn(
-      "bg-card/50 backdrop-blur-sm border-r border-border h-full transition-all duration-300",
-      minimizeChangeMode ? "w-16" : "w-64"
-    )}>
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-8">
-          <div className={cn(
-            "flex items-center gap-2 transition-all duration-300",
-            minimizeChangeMode && "opacity-0 w-0"
-          )}>
-            <Zap className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold">Casel</span>
+    <nav className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+      <div className="container mx-auto px-4">
+        <div className="flex items-center justify-between h-16">
+          <div className="flex items-center space-x-8">
+            <Link to="/" className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                <Workflow className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <span className="font-bold text-xl">Casel</span>
+            </Link>
+            
+            {user && (
+              <div className="hidden md:flex items-center space-x-6">
+                <Link to="/dashboard">
+                  <Button 
+                    variant={isActive('/dashboard') ? 'default' : 'ghost'} 
+                    size="sm"
+                    className="flex items-center space-x-2"
+                  >
+                    <Home className="w-4 h-4" />
+                    <span>Dashboard</span>
+                  </Button>
+                </Link>
+                
+                <Link to="/workflows">
+                  <Button 
+                    variant={isActive('/workflows') ? 'default' : 'ghost'} 
+                    size="sm"
+                    className="flex items-center space-x-2"
+                  >
+                    <Workflow className="w-4 h-4" />
+                    <span>Workflows</span>
+                  </Button>
+                </Link>
+                
+                <Link to="/playground">
+                  <Button 
+                    variant={isActive('/playground') ? 'default' : 'ghost'} 
+                    size="sm"
+                    className="flex items-center space-x-2"
+                  >
+                    <Play className="w-4 h-4" />
+                    <span>Playground</span>
+                  </Button>
+                </Link>
+                
+                <Link to="/cloud-n8n">
+                  <Button 
+                    variant={isActive('/cloud-n8n') ? 'default' : 'ghost'} 
+                    size="sm"
+                    className="flex items-center space-x-2"
+                  >
+                    <Cloud className="w-4 h-4" />
+                    <span>Cloud N8N</span>
+                  </Button>
+                </Link>
+                
+                <Link to="/cloud-runner">
+                  <Button 
+                    variant={isActive('/cloud-runner') ? 'default' : 'ghost'} 
+                    size="sm"
+                    className="flex items-center space-x-2"
+                  >
+                    <Terminal className="w-4 h-4" />
+                    <span>Cloud Runner</span>
+                  </Button>
+                </Link>
+              </div>
+            )}
           </div>
           
-          <button
-            onClick={toggleMinimizeChangeMode}
-            className="p-2 rounded-lg hover:bg-muted transition-colors"
-          >
-            {minimizeChangeMode ? (
-              <ChevronRight className="h-4 w-4" />
+          <div className="flex items-center space-x-4">
+            <ThemeToggle />
+            
+            {user ? (
+              <div className="flex items-center space-x-2">
+                <Link to="/profile">
+                  <Button variant="ghost" size="sm">
+                    <User className="w-4 h-4 mr-2" />
+                    Profile
+                  </Button>
+                </Link>
+                
+                <Button variant="ghost" size="sm" onClick={handleSignOut}>
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </Button>
+              </div>
             ) : (
-              <ChevronLeft className="h-4 w-4" />
+              <div className="flex items-center space-x-2">
+                <Link to="/auth">
+                  <Button variant="ghost" size="sm">
+                    Sign In
+                  </Button>
+                </Link>
+                
+                <Link to="/auth">
+                  <Button size="sm">
+                    Get Started
+                  </Button>
+                </Link>
+              </div>
             )}
-          </button>
-        </div>
-        
-        <div className="space-y-2 mb-6">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                )
-              }
-            >
-              <item.icon className="h-4 w-4 flex-shrink-0" />
-              {!minimizeChangeMode && <span>{item.label}</span>}
-            </NavLink>
-          ))}
-        </div>
-
-        <div className={cn(
-          "flex items-center gap-2 transition-all duration-300",
-          minimizeChangeMode ? "justify-center" : "justify-start"
-        )}>
-          <ThemeToggle />
-          {!minimizeChangeMode && (
-            <span className="text-sm text-muted-foreground">Theme</span>
-          )}
+          </div>
         </div>
       </div>
     </nav>
