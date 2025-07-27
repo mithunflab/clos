@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -92,12 +93,9 @@ serve(async (req) => {
 
     // Get GitHub username with proper error handling
     let githubUsername = '';
-    let renderOwnerId = '';
     
     try {
       console.log('Authenticating with GitHub using Bearer token...')
-      console.log('GIT_TOKEN exists:', !!GIT_TOKEN)
-      console.log('GIT_TOKEN length:', GIT_TOKEN?.length || 0)
       
       const userResponse = await fetch('https://api.github.com/user', {
         headers: githubHeaders
@@ -110,7 +108,6 @@ serve(async (req) => {
         console.error('GitHub authentication failed:', {
           status: userResponse.status,
           statusText: userResponse.statusText,
-          headers: Object.fromEntries(userResponse.headers.entries()),
           body: errorText
         })
         
@@ -118,7 +115,6 @@ serve(async (req) => {
         try {
           const errorData = JSON.parse(errorText)
           errorMessage = errorData.message || errorMessage
-          console.error('GitHub API error details:', errorData)
         } catch (e) {
           console.error('Could not parse GitHub error response:', errorText)
         }
@@ -140,35 +136,12 @@ serve(async (req) => {
       const githubUser = await userResponse.json()
       githubUsername = githubUser.login
       console.log(`GitHub authenticated for user: ${githubUsername}`)
-
-      // Get Render owner ID for deployments - NOT NEEDED for the corrected payload structure
-      if (RENDER_API_KEY && (action === 'deploy-to-render' || action === 'get-deployment-logs' || action === 'get-deployment-status')) {
-        try {
-          const renderUserResponse = await fetch('https://api.render.com/v1/owners', {
-            headers: renderHeaders
-          })
-          
-          if (renderUserResponse.ok) {
-            const renderOwners = await renderUserResponse.json()
-            if (renderOwners.length > 0) {
-              renderOwnerId = renderOwners[0].owner.id
-              console.log(`Render owner ID: ${renderOwnerId}`)
-            }
-          }
-        } catch (error) {
-          console.error('Failed to get Render owner ID:', error)
-        }
-      }
       
     } catch (error) {
       console.error('Failed to authenticate with GitHub:', error)
       return new Response(JSON.stringify({
         error: `Failed to authenticate with GitHub: ${error.message}. Please verify your GIT_TOKEN is a valid GitHub Personal Access Token with repo permissions.`,
-        success: false,
-        debug: {
-          tokenExists: !!GIT_TOKEN,
-          tokenLength: GIT_TOKEN?.length || 0
-        }
+        success: false
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -186,7 +159,7 @@ serve(async (req) => {
           
           console.log('Creating new GitHub repository:', uniqueRepoName)
           
-          // Create GitHub repository with improved payload
+          // Create GitHub repository
           const repoPayload = {
             name: uniqueRepoName,
             description: `Cloud Runner Project - ${projectName}`,
@@ -197,46 +170,27 @@ serve(async (req) => {
             has_wiki: false
           }
           
-          console.log('Repository payload:', JSON.stringify(repoPayload, null, 2))
-          
           const repoResponse = await fetch('https://api.github.com/user/repos', {
             method: 'POST',
             headers: githubHeaders,
             body: JSON.stringify(repoPayload)
           })
 
-          console.log('Repository creation response status:', repoResponse.status)
-
           if (!repoResponse.ok) {
             const error = await repoResponse.text()
-            console.error('Failed to create repository:', {
-              status: repoResponse.status,
-              statusText: repoResponse.statusText,
-              headers: Object.fromEntries(repoResponse.headers.entries()),
-              body: error
-            })
-            
-            let errorMessage = 'Failed to create repository'
-            try {
-              const errorData = JSON.parse(error)
-              errorMessage = errorData.message || errorMessage
-              console.error('Repository creation error details:', errorData)
-            } catch (e) {
-              console.error('Could not parse repository creation error:', error)
-            }
-            
-            throw new Error(`Repository creation failed (${repoResponse.status}): ${errorMessage}`)
+            console.error('Failed to create repository:', error)
+            throw new Error(`Repository creation failed (${repoResponse.status}): ${error}`)
           }
 
           const repo = await repoResponse.json()
           console.log('Repository created successfully:', repo.full_name)
 
-          // Wait a moment for repository to be ready
+          // Wait for repository to be ready
           await new Promise(resolve => setTimeout(resolve, 2000))
 
           let filesUploaded = 0;
 
-          // Upload project files with better error handling
+          // Upload project files
           for (const file of files) {
             try {
               console.log(`Uploading file: ${file.fileName}`)
@@ -259,10 +213,7 @@ serve(async (req) => {
                 console.log(`Successfully uploaded file: ${file.fileName}`)
               } else {
                 const errorText = await uploadResponse.text()
-                console.error(`Failed to upload file ${file.fileName}:`, {
-                  status: uploadResponse.status,
-                  error: errorText
-                })
+                console.error(`Failed to upload file ${file.fileName}:`, errorText)
               }
             } catch (error) {
               console.error(`Error uploading file ${file.fileName}:`, error)
@@ -288,13 +239,12 @@ python main.py
 
 ## Files
 
-${files.map(f => `- \`${f.fileName}\`: ${f.fileName === 'main.py' ? 'Main application file' : f.fileName === 'requirements.txt' ? 'Python dependencies' : 'Project file'}`).join('\n')}
+${files.map(f => `- \`${f.fileName}\``).join('\n')}
 
 Generated on: ${new Date().toISOString()}
 `
 
           try {
-            console.log('Creating README.md...')
             const readmeResponse = await fetch(`https://api.github.com/repos/${repo.full_name}/contents/README.md`, {
               method: 'PUT',
               headers: githubHeaders,
@@ -310,15 +260,12 @@ Generated on: ${new Date().toISOString()}
             
             if (readmeResponse.ok) {
               console.log('README.md created successfully')
-            } else {
-              const errorText = await readmeResponse.text()
-              console.error('Failed to create README:', errorText)
             }
           } catch (error) {
             console.error('Failed to create README:', error)
           }
 
-          // Save to database if projectId is provided
+          // Save to database
           if (projectId) {
             try {
               await supabaseClient
@@ -340,8 +287,6 @@ Generated on: ${new Date().toISOString()}
             }
           }
 
-          console.log(`Repository created successfully with ${filesUploaded} files uploaded`)
-
           return new Response(JSON.stringify({
             success: true,
             repoName: uniqueRepoName,
@@ -357,11 +302,7 @@ Generated on: ${new Date().toISOString()}
           console.error('Error creating GitHub repo:', error)
           return new Response(JSON.stringify({
             error: `Failed to create GitHub repository: ${error.message}`,
-            success: false,
-            debug: {
-              tokenExists: !!GIT_TOKEN,
-              username: githubUsername || 'unknown'
-            }
+            success: false
           }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -380,12 +321,11 @@ Generated on: ${new Date().toISOString()}
           let syncedFiles = 0
           const syncResults = []
 
-          // Sync each file to the repository
           for (const file of files) {
             try {
               console.log(`Syncing file: ${file.fileName} to ${repoName}`)
               
-              // First, try to get the existing file to get its SHA (for updates)
+              // Try to get existing file SHA
               let fileSha = null
               try {
                 const existingFileResponse = await fetch(`https://api.github.com/repos/${githubUsername}/${repoName}/contents/${file.fileName}`, {
@@ -395,13 +335,12 @@ Generated on: ${new Date().toISOString()}
                 if (existingFileResponse.ok) {
                   const existingFile = await existingFileResponse.json()
                   fileSha = existingFile.sha
-                  console.log(`Found existing file ${file.fileName} with SHA: ${fileSha}`)
                 }
               } catch (error) {
                 console.log(`File ${file.fileName} doesn't exist yet, will create new`)
               }
 
-              // Update or create the file
+              // Update or create file
               const syncPayload = {
                 message: fileSha ? `Update ${file.fileName}` : `Add ${file.fileName}`,
                 content: encodeBase64(file.content),
@@ -420,20 +359,13 @@ Generated on: ${new Date().toISOString()}
 
               if (syncResponse.ok) {
                 syncedFiles++
-                const result = await syncResponse.json()
                 syncResults.push({
                   fileName: file.fileName,
                   status: 'success',
-                  action: fileSha ? 'updated' : 'created',
-                  sha: result.content.sha
+                  action: fileSha ? 'updated' : 'created'
                 })
-                console.log(`Successfully ${fileSha ? 'updated' : 'created'} file: ${file.fileName}`)
               } else {
                 const errorText = await syncResponse.text()
-                console.error(`Failed to sync file ${file.fileName}:`, {
-                  status: syncResponse.status,
-                  error: errorText
-                })
                 syncResults.push({
                   fileName: file.fileName,
                   status: 'error',
@@ -441,7 +373,6 @@ Generated on: ${new Date().toISOString()}
                 })
               }
             } catch (error) {
-              console.error(`Error syncing file ${file.fileName}:`, error)
               syncResults.push({
                 fileName: file.fileName,
                 status: 'error',
@@ -450,7 +381,7 @@ Generated on: ${new Date().toISOString()}
             }
           }
 
-          // Update project status in database
+          // Update project status
           if (projectId) {
             try {
               await supabaseClient
@@ -461,14 +392,10 @@ Generated on: ${new Date().toISOString()}
                 })
                 .eq('id', projectId)
                 .eq('user_id', user.id)
-              
-              console.log('Project sync status updated in database')
             } catch (error) {
               console.error('Failed to update project sync status:', error)
             }
           }
-
-          console.log(`Sync completed: ${syncedFiles}/${files.length} files synced successfully`)
 
           return new Response(JSON.stringify({
             success: true,
@@ -496,21 +423,27 @@ Generated on: ${new Date().toISOString()}
         try {
           console.log('Starting deployment to Render for project:', projectName)
 
-          const serviceName = projectName.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 32)
-          
-          // CORRECTED: Using the exact payload structure from your working example
-          const renderPayload = {
-            name: serviceName,
-            type: "worker",  // Changed from "web_service" to "worker" - this is the key fix!
-            repo: githubRepoUrl,
-            branch: "main",
-            envVars: [],  // Add any environment variables your bot needs here
-            plan: "starter",
-            region: "oregon",
-            autoDeploy: true
+          if (!githubRepoUrl) {
+            throw new Error('GitHub repository URL is required for deployment')
           }
 
-          console.log('Creating Render worker service with correct payload:', JSON.stringify(renderPayload, null, 2))
+          const serviceName = projectName.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 32)
+          
+          // CORRECTED: Proper Render API payload for worker services
+          const renderPayload = {
+            type: "worker",
+            name: serviceName,
+            repo: githubRepoUrl,
+            branch: "main",
+            buildCommand: "pip install -r requirements.txt",
+            startCommand: "python main.py",
+            plan: "starter",
+            region: "oregon",
+            autoDeploy: true,
+            envVars: []
+          }
+
+          console.log('Creating Render worker service:', JSON.stringify(renderPayload, null, 2))
           
           const renderResponse = await fetch('https://api.render.com/v1/services', {
             method: 'POST',
@@ -524,7 +457,17 @@ Generated on: ${new Date().toISOString()}
 
           if (!renderResponse.ok) {
             console.error('Render deployment failed:', renderResponse.status, responseText)
-            throw new Error(`Render deployment failed: ${renderResponse.status} - ${responseText}`)
+            
+            // Parse error details
+            let errorDetails = responseText
+            try {
+              const errorData = JSON.parse(responseText)
+              errorDetails = errorData.message || errorData.error || responseText
+            } catch (e) {
+              // Use raw response if not JSON
+            }
+            
+            throw new Error(`Render deployment failed (${renderResponse.status}): ${errorDetails}`)
           }
 
           let service
@@ -535,10 +478,14 @@ Generated on: ${new Date().toISOString()}
             throw new Error('Invalid response from Render API')
           }
 
-          console.log('Render service created:', service.service?.id)
-
           const serviceId = service.service?.id
-          const serviceUrl = `https://dashboard.render.com/web/${serviceId}` // Dashboard URL for worker services
+          if (!serviceId) {
+            throw new Error('No service ID returned from Render API')
+          }
+
+          console.log('Render service created:', serviceId)
+          
+          const serviceUrl = `https://dashboard.render.com/web/${serviceId}`
 
           // Update project with deployment info
           if (projectId) {
@@ -588,7 +535,6 @@ Generated on: ${new Date().toISOString()}
             throw new Error('Service ID is required to fetch logs')
           }
 
-          // Get service logs from Render API
           const logsResponse = await fetch(`https://api.render.com/v1/services/${projectId}/logs?limit=100`, {
             headers: renderHeaders
           })
@@ -602,7 +548,7 @@ Generated on: ${new Date().toISOString()}
           const logs = await logsResponse.text()
           console.log('Logs fetched successfully, length:', logs.length)
 
-          // Parse logs and format them for display
+          // Parse and format logs
           const logLines = logs.split('\n').filter(line => line.trim())
           const formattedLogs = logLines.map(line => {
             try {
@@ -641,7 +587,6 @@ Generated on: ${new Date().toISOString()}
             throw new Error('Service ID is required to check status')
           }
 
-          // Get service status from Render API
           const statusResponse = await fetch(`https://api.render.com/v1/services/${projectId}`, {
             headers: renderHeaders
           })
@@ -666,6 +611,151 @@ Generated on: ${new Date().toISOString()}
           })
         } catch (error) {
           console.error('Error checking deployment status:', error)
+          return new Response(JSON.stringify({
+            error: error.message,
+            success: false
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+      }
+
+      case 'load-existing-project': {
+        try {
+          console.log('Loading existing project:', projectId)
+          
+          if (!projectId) {
+            throw new Error('Project ID is required')
+          }
+
+          // Get project from database
+          const { data: project, error } = await supabaseClient
+            .from('cloud_runner_projects')
+            .select('*')
+            .eq('id', projectId)
+            .eq('user_id', user.id)
+            .single()
+
+          if (error || !project) {
+            throw new Error('Project not found')
+          }
+
+          // Load files from GitHub if repository exists
+          let files = []
+          if (project.github_repo_name) {
+            try {
+              const repoResponse = await fetch(`https://api.github.com/repos/${githubUsername}/${project.github_repo_name}/contents`, {
+                headers: githubHeaders
+              })
+
+              if (repoResponse.ok) {
+                const contents = await repoResponse.json()
+                
+                for (const item of contents) {
+                  if (item.type === 'file' && item.name !== 'README.md') {
+                    try {
+                      const fileResponse = await fetch(item.download_url)
+                      if (fileResponse.ok) {
+                        const content = await fileResponse.text()
+                        files.push({
+                          fileName: item.name,
+                          content: content,
+                          language: item.name.endsWith('.py') ? 'python' : 'text'
+                        })
+                      }
+                    } catch (error) {
+                      console.error(`Failed to load file ${item.name}:`, error)
+                    }
+                  }
+                }
+              }
+            } catch (error) {
+              console.error('Failed to load repository files:', error)
+            }
+          }
+
+          return new Response(JSON.stringify({
+            success: true,
+            project: project,
+            files: files
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        } catch (error) {
+          console.error('Error loading project:', error)
+          return new Response(JSON.stringify({
+            error: error.message,
+            success: false
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+      }
+
+      case 'redeploy-project': {
+        try {
+          console.log('Redeploying project:', projectId)
+          
+          if (!projectId) {
+            throw new Error('Project ID is required for redeployment')
+          }
+
+          // Get project from database
+          const { data: project, error } = await supabaseClient
+            .from('cloud_runner_projects')
+            .select('*')
+            .eq('id', projectId)
+            .eq('user_id', user.id)
+            .single()
+
+          if (error || !project) {
+            throw new Error('Project not found')
+          }
+
+          if (!project.render_service_id) {
+            throw new Error('No existing deployment found for this project')
+          }
+
+          // Trigger redeploy on Render
+          const redeployResponse = await fetch(`https://api.render.com/v1/services/${project.render_service_id}/deploys`, {
+            method: 'POST',
+            headers: renderHeaders,
+            body: JSON.stringify({
+              clearCache: 'do_not_clear'
+            })
+          })
+
+          if (!redeployResponse.ok) {
+            const errorText = await redeployResponse.text()
+            console.error('Failed to redeploy:', redeployResponse.status, errorText)
+            throw new Error(`Failed to redeploy: ${redeployResponse.status} - ${errorText}`)
+          }
+
+          const deployResult = await redeployResponse.json()
+          console.log('Redeploy triggered:', deployResult.deploy?.id)
+
+          // Update project status
+          await supabaseClient
+            .from('cloud_runner_projects')
+            .update({
+              deployment_status: 'deploying',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', projectId)
+            .eq('user_id', user.id)
+
+          return new Response(JSON.stringify({
+            success: true,
+            deployId: deployResult.deploy?.id,
+            serviceId: project.render_service_id,
+            serviceUrl: project.render_service_url
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        } catch (error) {
+          console.error('Error redeploying project:', error)
           return new Response(JSON.stringify({
             error: error.message,
             success: false

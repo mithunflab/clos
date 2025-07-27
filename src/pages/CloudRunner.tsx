@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,7 +21,8 @@ import {
   RefreshCw,
   CheckCircle,
   XCircle,
-  Clock
+  Clock,
+  RotateCcw
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -47,7 +49,7 @@ interface DeploymentStatus {
 
 const CloudRunner: React.FC = () => {
   const { user } = useAuth();
-  const { syncToGithub, getDeploymentStatus, getDeploymentLogs } = useCloudRunnerProjects();
+  const { syncToGithub, deployToRender, redeployProject, getDeploymentStatus, getDeploymentLogs } = useCloudRunnerProjects();
   const { minimizeChangeMode, toggleMinimizeChangeMode } = useMinimizeChangeMode();
   
   const [projectName, setProjectName] = useState('');
@@ -56,6 +58,7 @@ const CloudRunner: React.FC = () => {
   const [isCreatingRepo, setIsCreatingRepo] = useState(false);
   const [isDeploying, setIsDeploying] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isRedeploying, setIsRedeploying] = useState(false);
   const [githubRepoUrl, setGithubRepoUrl] = useState('');
   const [githubRepoName, setGithubRepoName] = useState('');
   const [deploymentUrl, setDeploymentUrl] = useState('');
@@ -100,20 +103,6 @@ const CloudRunner: React.FC = () => {
       return () => clearInterval(statusInterval);
     }
   }, [renderServiceId]);
-
-  // Start live log monitoring
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // In production, this would connect to real-time log streams
-      // For now, we combine logs from various sources
-      const combinedLogs = [...logs, ...liveLogs];
-      if (combinedLogs.length !== logs.length + liveLogs.length) {
-        // Update if there are new logs
-      }
-    }, 1000);
-    
-    return () => clearInterval(interval);
-  }, [logs, liveLogs]);
 
   const fetchRenderLogs = async () => {
     if (!renderServiceId) return;
@@ -328,28 +317,20 @@ const CloudRunner: React.FC = () => {
     addLiveLog(`[${new Date().toLocaleTimeString()}] Starting deployment to Render...`);
 
     try {
-      const { data, error } = await supabase.functions.invoke('cloud-runner-manager', {
-        body: {
-          action: 'deploy-to-render',
-          projectName: projectName,
-          githubRepoUrl: githubRepoUrl
-        }
-      });
+      const result = await deployToRender('', projectName, githubRepoUrl);
 
-      if (error) throw error;
-
-      if (data?.success) {
-        setDeploymentUrl(data.serviceUrl);
-        setRenderServiceId(data.serviceId);
+      if (result.success) {
+        setDeploymentUrl(result.serviceUrl || '');
+        setRenderServiceId(result.serviceId || '');
         setDeploymentStatus({
           status: 'building',
           progress: 50,
           logs: ['Deployment created successfully', 'Building application...'],
           lastUpdate: new Date().toISOString()
         });
-        addLog(`🚀 Deployed successfully: ${data.serviceUrl}`);
-        addLiveLog(`[${new Date().toLocaleTimeString()}] 🚀 Deployed to Render: ${data.serviceUrl}`);
-        addLiveLog(`[${new Date().toLocaleTimeString()}] 📦 Service ID: ${data.serviceId}`);
+        addLog(`🚀 Deployed successfully: ${result.serviceUrl}`);
+        addLiveLog(`[${new Date().toLocaleTimeString()}] 🚀 Deployed to Render: ${result.serviceUrl}`);
+        addLiveLog(`[${new Date().toLocaleTimeString()}] 📦 Service ID: ${result.serviceId}`);
         toast.success('Deployment successful!');
         
         // Start monitoring deployment immediately
@@ -357,7 +338,7 @@ const CloudRunner: React.FC = () => {
           fetchRenderLogs();
         }, 2000);
       } else {
-        throw new Error(data?.error || 'Deployment failed');
+        throw new Error(result.error || 'Deployment failed');
       }
     } catch (error) {
       console.error('Deployment error:', error);
@@ -373,6 +354,45 @@ const CloudRunner: React.FC = () => {
       toast.error(errorMessage);
     } finally {
       setIsDeploying(false);
+    }
+  };
+
+  const handleRedeployProject = async () => {
+    if (!renderServiceId) {
+      toast.error('No deployment found to redeploy');
+      return;
+    }
+
+    setIsRedeploying(true);
+    addLiveLog(`[${new Date().toLocaleTimeString()}] 🔄 Starting redeployment...`);
+
+    try {
+      const result = await redeployProject(renderServiceId);
+
+      if (result.success) {
+        setDeploymentStatus({
+          status: 'deploying',
+          progress: 25,
+          logs: ['Redeployment triggered successfully', 'Building application...'],
+          lastUpdate: new Date().toISOString()
+        });
+        addLiveLog(`[${new Date().toLocaleTimeString()}] ✅ Redeployment triggered: ${result.deployId}`);
+        toast.success('Redeployment started successfully!');
+        
+        // Start monitoring redeployment
+        setTimeout(() => {
+          fetchRenderLogs();
+        }, 2000);
+      } else {
+        throw new Error(result.error || 'Redeployment failed');
+      }
+    } catch (error) {
+      console.error('Redeployment error:', error);
+      const errorMessage = error.message || 'Redeployment failed';
+      addLiveLog(`[${new Date().toLocaleTimeString()}] ❌ Redeployment failed: ${errorMessage}`);
+      toast.error(errorMessage);
+    } finally {
+      setIsRedeploying(false);
     }
   };
 
@@ -476,6 +496,23 @@ const CloudRunner: React.FC = () => {
               >
                 <ExternalLink className="h-4 w-4" />
                 Live Site
+              </Button>
+            )}
+
+            {renderServiceId && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRedeployProject}
+                disabled={isRedeploying}
+                className="flex items-center gap-2"
+              >
+                {isRedeploying ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RotateCcw className="h-4 w-4" />
+                )}
+                {isRedeploying ? 'Redeploying...' : 'Redeploy'}
               </Button>
             )}
 

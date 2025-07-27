@@ -17,6 +17,12 @@ interface CloudRunnerProject {
   updated_at: string;
 }
 
+interface ProjectFile {
+  fileName: string;
+  content: string;
+  language: string;
+}
+
 export const useCloudRunnerProjects = () => {
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
@@ -141,7 +147,7 @@ export const useCloudRunnerProjects = () => {
   const syncToGithub = useCallback(async (
     projectId: string,
     repoName: string,
-    files: any[]
+    files: ProjectFile[]
   ): Promise<{ success: boolean; error?: string; syncedFiles?: number }> => {
     if (!user) return { success: false, error: 'User not authenticated' };
 
@@ -178,6 +184,138 @@ export const useCloudRunnerProjects = () => {
       return { 
         success: false, 
         error: error.message || 'Failed to sync to GitHub' 
+      };
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  const deployToRender = useCallback(async (
+    projectId: string,
+    projectName: string,
+    githubRepoUrl: string
+  ): Promise<{ success: boolean; error?: string; serviceId?: string; serviceUrl?: string }> => {
+    if (!user) return { success: false, error: 'User not authenticated' };
+
+    try {
+      setLoading(true);
+
+      const { data, error } = await supabase.functions.invoke('cloud-runner-manager', {
+        body: {
+          action: 'deploy-to-render',
+          projectId,
+          projectName,
+          githubRepoUrl
+        }
+      });
+
+      if (error) {
+        console.error('Deploy to Render error:', error);
+        return { success: false, error: error.message };
+      }
+
+      if (data?.success) {
+        return { 
+          success: true, 
+          serviceId: data.serviceId,
+          serviceUrl: data.serviceUrl
+        };
+      } else {
+        return { 
+          success: false, 
+          error: data?.error || 'Failed to deploy to Render' 
+        };
+      }
+    } catch (error) {
+      console.error('Error deploying to Render:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to deploy to Render' 
+      };
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  const redeployProject = useCallback(async (
+    projectId: string
+  ): Promise<{ success: boolean; error?: string; deployId?: string }> => {
+    if (!user) return { success: false, error: 'User not authenticated' };
+
+    try {
+      setLoading(true);
+
+      const { data, error } = await supabase.functions.invoke('cloud-runner-manager', {
+        body: {
+          action: 'redeploy-project',
+          projectId
+        }
+      });
+
+      if (error) {
+        console.error('Redeploy error:', error);
+        return { success: false, error: error.message };
+      }
+
+      if (data?.success) {
+        return { 
+          success: true, 
+          deployId: data.deployId 
+        };
+      } else {
+        return { 
+          success: false, 
+          error: data?.error || 'Failed to redeploy project' 
+        };
+      }
+    } catch (error) {
+      console.error('Error redeploying project:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to redeploy project' 
+      };
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  const loadExistingProject = useCallback(async (
+    projectId: string
+  ): Promise<{ success: boolean; error?: string; project?: CloudRunnerProject; files?: ProjectFile[] }> => {
+    if (!user) return { success: false, error: 'User not authenticated' };
+
+    try {
+      setLoading(true);
+
+      const { data, error } = await supabase.functions.invoke('cloud-runner-manager', {
+        body: {
+          action: 'load-existing-project',
+          projectId
+        }
+      });
+
+      if (error) {
+        console.error('Load project error:', error);
+        return { success: false, error: error.message };
+      }
+
+      if (data?.success) {
+        return { 
+          success: true, 
+          project: data.project,
+          files: data.files || []
+        };
+      } else {
+        return { 
+          success: false, 
+          error: data?.error || 'Failed to load project' 
+        };
+      }
+    } catch (error) {
+      console.error('Error loading project:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to load project' 
       };
     } finally {
       setLoading(false);
@@ -267,6 +405,9 @@ export const useCloudRunnerProjects = () => {
     updateProject,
     deleteProject,
     syncToGithub,
+    deployToRender,
+    redeployProject,
+    loadExistingProject,
     getDeploymentStatus,
     getDeploymentLogs
   };
