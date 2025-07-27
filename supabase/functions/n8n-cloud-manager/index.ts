@@ -86,25 +86,30 @@ serve(async (req) => {
           const serviceUrl = `https://${serviceName}.onrender.com`
 
           const payload = {
-            service: {
-              name: serviceName,
-              type: "web_service",
+            type: "web_service",
+            name: serviceName,
+            ownerId: ownerId,
+            serviceDetails: {
               env: "docker",
-              ownerId: ownerId,
-              serviceDetails: {
-                image: {
-                  imagePath: "n8nio/n8n:latest"
-                }
+              image: {
+                imagePath: "n8nio/n8n:latest"
               },
-              envVars: [
-                { key: "N8N_BASIC_AUTH_ACTIVE", value: "true" },
-                { key: "N8N_BASIC_AUTH_USER", value: username || "admin" },
-                { key: "N8N_BASIC_AUTH_PASSWORD", value: password || "defaultpassword" },
-                { key: "PORT", value: "10000" },
-                { key: "N8N_HOST", value: `${serviceName}.onrender.com` },
-                { key: "WEBHOOK_URL", value: `https://${serviceName}.onrender.com/` }
-              ]
-            }
+              port: 5678,
+              buildCommand: "",
+              startCommand: "",
+              pullRequestPreviewsEnabled: false
+            },
+            envVars: [
+              { key: "N8N_BASIC_AUTH_ACTIVE", value: "true" },
+              { key: "N8N_BASIC_AUTH_USER", value: username || "admin" },
+              { key: "N8N_BASIC_AUTH_PASSWORD", value: password || "admin123" },
+              { key: "N8N_HOST", value: `${serviceName}.onrender.com` },
+              { key: "N8N_PORT", value: "5678" },
+              { key: "WEBHOOK_URL", value: `https://${serviceName}.onrender.com/` },
+              { key: "N8N_EDITOR_BASE_URL", value: `https://${serviceName}.onrender.com/` },
+              { key: "N8N_PROTOCOL", value: "https" },
+              { key: "NODE_ENV", value: "production" }
+            ]
           }
 
           console.log('Creating Render service with payload:', JSON.stringify(payload, null, 2))
@@ -147,7 +152,7 @@ serve(async (req) => {
             serviceUrl,
             credentials: {
               username: username || 'admin',
-              password: password || 'defaultpassword'
+              password: password || 'admin123'
             }
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
