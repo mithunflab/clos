@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -12,6 +13,8 @@ import Workflows from '@/pages/Workflows';
 import WorkflowPlayground from '@/pages/WorkflowPlayground';
 import Profile from '@/pages/Profile';
 import CloudRunner from '@/pages/CloudRunner';
+import CloudN8N from '@/pages/CloudN8N';
+
 const DashboardLayout = () => {
   const navigate = useNavigate();
   const {
@@ -68,6 +71,7 @@ const DashboardLayout = () => {
               <Route path="/workflows" element={<Workflows />} />
               <Route path="/playground" element={<WorkflowPlayground />} />
               <Route path="/cloud-runner" element={<CloudRunner />} />
+              <Route path="/cloud-n8n" element={<CloudN8N />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
@@ -76,4 +80,5 @@ const DashboardLayout = () => {
       </div>
     </div>;
 };
+
 export default DashboardLayout;

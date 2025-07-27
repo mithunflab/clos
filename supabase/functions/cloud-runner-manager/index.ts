@@ -8,6 +8,7 @@ const corsHeaders = {
 
 const GIT_TOKEN = Deno.env.get('GIT_TOKEN')
 const RENDER_API_KEY = Deno.env.get('RENDER_API')
+const RENDER_N8N_API_KEY = Deno.env.get('RENDER_N8N')
 
 function encodeBase64(str: string): string {
   return btoa(unescape(encodeURIComponent(str)))
@@ -50,9 +51,152 @@ serve(async (req) => {
     const requestBody = await req.json()
     console.log('Request body:', JSON.stringify(requestBody, null, 2))
     
-    const { action, projectName, files, sessionFile, repoName, githubRepoUrl, projectId, updateExisting, repoOwner } = requestBody
+    const { action, projectName, files, sessionFile, repoName, githubRepoUrl, projectId, updateExisting, repoOwner, serviceName, password, renderPayload } = requestBody
 
     console.log(`Processing action: ${action} for user: ${user.id}`)
+
+    // Handle N8N service creation
+    if (action === 'create-n8n-service') {
+      try {
+        console.log('=== CREATING N8N SERVICE ===')
+        console.log('Service name:', serviceName)
+        console.log('RENDER_N8N_API_KEY exists:', !!RENDER_N8N_API_KEY)
+
+        if (!RENDER_N8N_API_KEY) {
+          console.error('RENDER_N8N_API_KEY not configured')
+          return new Response(JSON.stringify({ 
+            error: 'N8N Render API key not configured. Please ensure RENDER_N8N is set in Supabase secrets.',
+            success: false,
+            requiresConfig: true
+          }), { 
+            status: 500, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+
+        // First, get the user's ownerId from Render
+        console.log('🔍 Fetching Render owner info...')
+        const ownerResponse = await fetch('https://api.render.com/v1/owners', {
+          headers: {
+            'Authorization': `Bearer ${RENDER_N8N_API_KEY}`,
+            'Content-Type': 'application/json',
+          }
+        })
+
+        if (!ownerResponse.ok) {
+          const errorText = await ownerResponse.text()
+          console.error('Failed to get owner info:', ownerResponse.status, errorText)
+          throw new Error(`Failed to get owner info: ${ownerResponse.status} - ${errorText}`)
+        }
+
+        const owners = await ownerResponse.json()
+        console.log('Render owners response:', owners)
+        
+        const ownerId = owners?.[0]?.id || owners?.id
+
+        if (!ownerId) {
+          console.error('No owner ID found in response:', owners)
+          throw new Error('Could not determine owner ID for Render deployment')
+        }
+
+        console.log('Found Render owner ID:', ownerId)
+
+        // Create the N8N service on Render
+        const n8nPayload = {
+          type: "web_service",
+          name: serviceName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+          ownerId: ownerId,
+          serviceDetails: {
+            env: "docker",
+            image: {
+              imagePath: "n8nio/n8n:latest"
+            }
+          },
+          envVars: [
+            { key: "N8N_BASIC_AUTH_ACTIVE", value: "true" },
+            { key: "N8N_BASIC_AUTH_USER", value: "admin" },
+            { key: "N8N_BASIC_AUTH_PASSWORD", value: password },
+            { key: "PORT", value: "10000" }
+          ],
+          plan: "starter",
+          region: "oregon",
+          autoDeploy: true
+        }
+
+        console.log('Creating N8N service with payload:', JSON.stringify(n8nPayload, null, 2))
+        
+        const renderResponse = await fetch('https://api.render.com/v1/services', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${RENDER_N8N_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(n8nPayload)
+        })
+
+        console.log('Render response status:', renderResponse.status)
+        const responseText = await renderResponse.text()
+        console.log('Render response body:', responseText)
+
+        if (!renderResponse.ok) {
+          console.error('N8N service creation failed:', renderResponse.status, responseText)
+          
+          // Parse error details
+          let errorDetails = responseText
+          try {
+            const errorData = JSON.parse(responseText)
+            errorDetails = errorData.message || errorData.error || JSON.stringify(errorData)
+          } catch (e) {
+            // Use raw response if not JSON
+          }
+          
+          throw new Error(`N8N service creation failed (${renderResponse.status}): ${errorDetails}`)
+        }
+
+        let service
+        try {
+          service = JSON.parse(responseText)
+        } catch (e) {
+          console.error('Failed to parse Render response:', responseText)
+          throw new Error('Invalid response from Render API')
+        }
+
+        const serviceId = service.id || service.service?.id
+        if (!serviceId) {
+          console.error('No service ID in response:', service)
+          throw new Error('No service ID returned from Render API')
+        }
+
+        console.log('N8N service created successfully:', serviceId)
+        
+        // Generate service URL (this would be the actual N8N URL once deployed)
+        const serviceUrl = `https://${serviceName.toLowerCase().replace(/[^a-z0-9]/g, '-')}.onrender.com`
+
+        return new Response(JSON.stringify({
+          success: true,
+          serviceId: serviceId,
+          serviceUrl: serviceUrl,
+          deployId: serviceId,
+          message: 'N8N service created successfully'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      } catch (error) {
+        console.error('N8N service creation error:', error)
+        console.error('Error stack:', error.stack)
+        return new Response(JSON.stringify({
+          error: error.message,
+          success: false,
+          debug: {
+            errorType: error.constructor.name,
+            stack: error.stack
+          }
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+    }
 
     // Handle configuration check
     if (action === 'check-config') {

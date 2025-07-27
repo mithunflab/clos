@@ -1,9 +1,11 @@
+
 import React, { useState } from 'react';
 import {
   LayoutDashboard,
   Zap,
   Play,
   Cloud,
+  CloudCog,
   User,
   ChevronLeft,
   ChevronRight,
@@ -92,6 +94,12 @@ const Navigation = () => {
             to="/cloud-runner"
             icon={Cloud}
             label="Cloud Runner"
+            isCollapsed={isCollapsed}
+          />
+          <NavigationLink
+            to="/cloud-n8n"
+            icon={CloudCog}
+            label="Cloud N8N"
             isCollapsed={isCollapsed}
           />
           <NavigationLink
