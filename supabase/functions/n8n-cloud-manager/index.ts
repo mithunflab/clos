@@ -15,23 +15,38 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Request received:', req.method, req.url)
+    
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       { auth: { persistSession: false } }
     )
 
-    const authHeader = req.headers.get('Authorization')!
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user } } = await supabaseClient.auth.getUser(token)
-
-    if (!user) {
-      return new Response('Unauthorized', { status: 401, headers: corsHeaders })
+    const authHeader = req.headers.get('Authorization')
+    console.log('Auth header present:', !!authHeader)
+    
+    if (!authHeader) {
+      console.log('No authorization header')
+      return new Response('Unauthorized - No auth header', { status: 401, headers: corsHeaders })
     }
 
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
+    
+    console.log('User auth result:', { user: !!user, error: authError?.message })
+
+    if (!user || authError) {
+      console.log('Authentication failed:', authError?.message)
+      return new Response('Unauthorized - Invalid token', { status: 401, headers: corsHeaders })
+    }
+
+    console.log('Parsing request body...')
     const { action, instanceName, instanceId, username, password } = await req.json()
+    console.log('Request data:', { action, instanceName, instanceId, username: !!username, password: !!password })
 
     if (!RENDER_API_KEY) {
+      console.log('RENDER_API_KEY not found in environment variables')
       return new Response(JSON.stringify({
         error: 'Render API key not configured',
         success: false
@@ -40,6 +55,8 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
+    
+    console.log('RENDER_API_KEY configured:', !!RENDER_API_KEY)
 
     const renderHeaders = {
       'Authorization': `Bearer ${RENDER_API_KEY}`,
