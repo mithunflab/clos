@@ -33,14 +33,19 @@ export const useWorkflowConfiguration = (workflowId: string | null) => {
   const [chatHistory, setChatHistory] = useState<any[]>([]);
   const [workflowData, setWorkflowData] = useState<any>(null);
   
-  const { loadWorkflow, updateDeploymentStatus } = useWorkflowStorageV2();
+  const { loadWorkflow, updateDeploymentStatus, saveWorkflow } = useWorkflowStorageV2();
 
   // Auto-save functionality
   const { saving } = useAutoSave({
     workflowId: workflowId || '',
     workflowData,
     chatHistory,
-    delay: 2000
+    delay: 2000,
+    onSave: async (id: string, data: any, chat: any[]) => {
+      if (!id) return false;
+      const result = await saveWorkflow(id, data.name || 'Untitled Workflow', { ...data, chat });
+      return !!result;
+    }
   });
 
   const updateWorkflowData = useCallback((newData: any) => {

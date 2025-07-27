@@ -64,6 +64,34 @@ export const useWorkflowStorageV2 = () => {
     }
   };
 
+  const loadWorkflow = async (workflowId: string) => {
+    if (!user) return { success: false, error: 'User not authenticated' };
+
+    try {
+      const { data, error } = await supabase
+        .from('workflow_data')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('workflow_id', workflowId)
+        .maybeSingle();
+
+      if (error) throw error;
+      
+      if (data) {
+        return { 
+          success: true, 
+          workflow: data.workflow_json,
+          chat: data.workflow_json?.chat || []
+        };
+      } else {
+        return { success: false, error: 'Workflow not found' };
+      }
+    } catch (err) {
+      console.error('Error loading workflow:', err);
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to load workflow' };
+    }
+  };
+
   const deployWorkflow = async (workflowId: string) => {
     if (!user) return { success: false, error: 'User not authenticated' };
 
@@ -99,6 +127,44 @@ export const useWorkflowStorageV2 = () => {
     }
   };
 
+  const deleteWorkflow = async (workflowId: string) => {
+    if (!user) return false;
+
+    try {
+      const { error } = await supabase
+        .from('workflow_data')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('workflow_id', workflowId);
+
+      if (error) throw error;
+      await fetchWorkflows();
+      return true;
+    } catch (err) {
+      console.error('Error deleting workflow:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete workflow');
+      return false;
+    }
+  };
+
+  const getUserWorkflows = () => {
+    return workflows;
+  };
+
+  const getUserWorkflowCount = () => {
+    return workflows.length;
+  };
+
+  const getWorkflowLimit = () => {
+    return 10; // Default limit for free users
+  };
+
+  const updateDeploymentStatus = async (workflowId: string, status: string) => {
+    // This would typically update deployment status in n8n_deployments table
+    console.log('Updating deployment status:', workflowId, status);
+    return true;
+  };
+
   const getWorkflow = (workflowId: string) => {
     return workflows.find(workflow => workflow.workflow_id === workflowId);
   };
@@ -123,7 +189,13 @@ export const useWorkflowStorageV2 = () => {
     loading,
     error,
     saveWorkflow,
+    loadWorkflow,
     deployWorkflow,
+    deleteWorkflow,
+    getUserWorkflows,
+    getUserWorkflowCount,
+    getWorkflowLimit,
+    updateDeploymentStatus,
     getWorkflow,
     getWorkflowDeploymentInfo,
     refetch: fetchWorkflows
