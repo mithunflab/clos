@@ -1,140 +1,131 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { toast } from 'sonner';
 
 interface WorkflowData {
-  name: string;
-  nodes: any[];
-  connections: any;
-  chat?: any[];
+  id: string;
+  user_id: string;
+  workflow_id: string;
+  workflow_name: string;
+  workflow_json: any;
+  created_at: string;
+  updated_at: string;
 }
 
 export const useWorkflowStorageV2 = () => {
-  const [workflows, setWorkflows] = useState<any[]>([]);
+  const [workflows, setWorkflows] = useState<WorkflowData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
-  const saveWorkflow = useCallback(async (
-    workflowId: string,
-    workflowName: string,
-    workflowData: WorkflowData
-  ) => {
-    if (!user) {
-      toast.error('Please sign in to save workflows');
-      return null;
-    }
+  const fetchWorkflows = async () => {
+    if (!user) return;
 
     try {
       setLoading(true);
-      setError(null);
-
       const { data, error } = await supabase
-        .from('workflows')
+        .from('workflow_data')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      setWorkflows(data || []);
+    } catch (err) {
+      console.error('Error fetching workflows:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load workflows');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveWorkflow = async (workflowId: string, workflowName: string, workflowJson: any) => {
+    if (!user) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from('workflow_data')
         .upsert({
-          id: workflowId,
           user_id: user.id,
-          name: workflowName,
-          workflow_data: workflowData,
-          updated_at: new Date().toISOString()
+          workflow_id: workflowId,
+          workflow_name: workflowName,
+          workflow_json: workflowJson
         })
         .select()
         .single();
 
       if (error) throw error;
-
-      console.log('✅ Workflow saved successfully:', data);
+      await fetchWorkflows();
       return data;
-    } catch (err: any) {
-      console.error('❌ Error saving workflow:', err);
-      setError(err.message);
-      toast.error('Failed to save workflow');
+    } catch (err) {
+      console.error('Error saving workflow:', err);
+      setError(err instanceof Error ? err.message : 'Failed to save workflow');
       return null;
-    } finally {
-      setLoading(false);
     }
-  }, [user]);
+  };
 
-  const loadWorkflow = useCallback(async (workflowId: string) => {
-    if (!user) {
-      return { success: false, error: 'Not authenticated' };
-    }
+  const deployWorkflow = async (workflowId: string) => {
+    if (!user) return { success: false, error: 'User not authenticated' };
 
     try {
-      setLoading(true);
-      setError(null);
-
-      const { data, error } = await supabase
-        .from('workflows')
-        .select('*')
-        .eq('id', workflowId)
-        .eq('user_id', user.id)
-        .single();
-
-      if (error) {
-        if (error.code === 'PGRST116') {
-          return { success: false, error: 'Workflow not found' };
-        }
-        throw error;
+      const workflow = workflows.find(w => w.workflow_id === workflowId);
+      if (!workflow) {
+        return { success: false, error: 'Workflow not found' };
       }
 
-      const workflowData = typeof data.workflow_data === 'string' 
-        ? JSON.parse(data.workflow_data) 
-        : data.workflow_data;
+      const { data, error } = await supabase.functions.invoke('generate-n8n-workflow', {
+        body: {
+          workflow: workflow.workflow_json,
+          workflowId: workflowId,
+          userId: user.id
+        }
+      });
 
-      return {
-        success: true,
-        workflow: workflowData,
-        chat: workflowData?.chat || []
-      };
-    } catch (err: any) {
-      console.error('❌ Error loading workflow:', err);
-      setError(err.message);
-      return { success: false, error: err.message };
-    } finally {
-      setLoading(false);
+      if (error) throw error;
+      
+      if (data?.success) {
+        await fetchWorkflows();
+        return { 
+          success: true, 
+          workflowId: data.workflowId,
+          deploymentUrl: data.deploymentUrl 
+        };
+      } else {
+        return { success: false, error: data?.error || 'Deployment failed' };
+      }
+    } catch (err) {
+      console.error('Error deploying workflow:', err);
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to deploy workflow' };
     }
+  };
+
+  const getWorkflow = (workflowId: string) => {
+    return workflows.find(workflow => workflow.workflow_id === workflowId);
+  };
+
+  const getWorkflowDeploymentInfo = (workflowId: string) => {
+    const workflow = workflows.find(w => w.workflow_id === workflowId);
+    return {
+      deploymentStatus: 'not-deployed',
+      n8nWorkflowId: null,
+      n8nUrl: null,
+      createdAt: workflow?.created_at || null,
+      updatedAt: workflow?.updated_at || null
+    };
+  };
+
+  useEffect(() => {
+    fetchWorkflows();
   }, [user]);
-
-  const deployWorkflow = useCallback(async (workflowId: string) => {
-    if (!user) {
-      return { success: false, error: 'Not authenticated' };
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Simulate deployment process
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      return {
-        success: true,
-        message: 'Workflow deployed successfully'
-      };
-    } catch (err: any) {
-      console.error('❌ Error deploying workflow:', err);
-      setError(err.message);
-      return { success: false, error: err.message };
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  const updateDeploymentStatus = useCallback(async (workflowId: string, status: string) => {
-    // Implementation for updating deployment status
-    console.log('Updating deployment status:', workflowId, status);
-  }, []);
 
   return {
     workflows,
     loading,
     error,
     saveWorkflow,
-    loadWorkflow,
     deployWorkflow,
-    updateDeploymentStatus
+    getWorkflow,
+    getWorkflowDeploymentInfo,
+    refetch: fetchWorkflows
   };
 };

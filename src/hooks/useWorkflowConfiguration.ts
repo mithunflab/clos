@@ -33,7 +33,7 @@ export const useWorkflowConfiguration = (workflowId: string | null) => {
   const [chatHistory, setChatHistory] = useState<any[]>([]);
   const [workflowData, setWorkflowData] = useState<any>(null);
   
-  const { loadWorkflow, updateDeploymentStatus, saveWorkflow } = useWorkflowStorageV2();
+  const { loadWorkflow, updateDeploymentStatus } = useWorkflowStorageV2();
 
   // Auto-save functionality
   const { saving } = useAutoSave({
@@ -149,7 +149,7 @@ export const useWorkflowConfiguration = (workflowId: string | null) => {
         
         setConfiguration(configData);
         setWorkflowData(data.workflow);
-        setChatHistory(data.workflow.chat || []);
+        setChatHistory(data.chat || []);
         console.log('✅ Configuration loaded from Supabase:', configData);
       } else {
         console.log('ℹ️ No existing configuration found for workflow:', workflowId);

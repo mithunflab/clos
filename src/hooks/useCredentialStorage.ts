@@ -8,8 +8,7 @@ interface CredentialData {
   user_id: string;
   node_id: string;
   node_type: string;
-  credentials: any;
-  workflow_id: string | null;
+  credential_data: any;
   created_at: string;
   updated_at: string;
 }
@@ -50,7 +49,7 @@ export const useCredentialStorage = () => {
           user_id: user.id,
           node_id: nodeId,
           node_type: nodeType,
-          credentials: credentialData
+          credential_data: credentialData
         });
 
       if (error) throw error;
@@ -61,35 +60,6 @@ export const useCredentialStorage = () => {
       setError(err instanceof Error ? err.message : 'Failed to save credential');
       return false;
     }
-  };
-
-  const saveCredentialsToStorage = async (nodeId: string, nodeType: string, credentialData: any, workflowId?: string) => {
-    if (!user) return false;
-
-    try {
-      const { error } = await supabase
-        .from('credential_storage')
-        .upsert({
-          user_id: user.id,
-          node_id: nodeId,
-          node_type: nodeType,
-          credentials: credentialData,
-          workflow_id: workflowId || null
-        });
-
-      if (error) throw error;
-      await fetchCredentials();
-      return true;
-    } catch (err) {
-      console.error('Error saving credentials to storage:', err);
-      setError(err instanceof Error ? err.message : 'Failed to save credentials');
-      return false;
-    }
-  };
-
-  const loadCredentialsFromStorage = (nodeId: string) => {
-    const credential = credentials.find(cred => cred.node_id === nodeId);
-    return credential ? credential.credentials : {};
   };
 
   const getCredential = (nodeId: string) => {
@@ -105,8 +75,6 @@ export const useCredentialStorage = () => {
     loading,
     error,
     saveCredential,
-    saveCredentialsToStorage,
-    loadCredentialsFromStorage,
     getCredential,
     refetch: fetchCredentials
   };
