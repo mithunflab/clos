@@ -48,7 +48,13 @@ serve(async (req) => {
     if (!apiKey) {
       return new Response(JSON.stringify({ 
         error: 'N8N API key not configured',
-        success: false
+        success: false,
+        debug: {
+          n8nUrl,
+          hasApiKey: !!apiKey,
+          N8N_URL_env: !!N8N_URL,
+          N8N_API_KEY_env: !!N8N_API_KEY
+        }
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

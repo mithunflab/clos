@@ -66,29 +66,13 @@ serve(async (req) => {
     switch (action) {
       case 'create-n8n-instance': {
         try {
-          // Get owner ID first
-          const ownerResponse = await fetch('https://api.render.com/v1/owners', {
-            headers: renderHeaders
-          })
-
-          if (!ownerResponse.ok) {
-            throw new Error('Failed to get Render owner info')
-          }
-
-          const owners = await ownerResponse.json()
-          const ownerId = owners?.[0]?.id || owners?.id
-
-          if (!ownerId) {
-            throw new Error('Could not determine owner ID')
-          }
-
           const serviceName = instanceName.toLowerCase().replace(/[^a-z0-9]/g, '-')
           const serviceUrl = `https://${serviceName}.onrender.com`
 
+          // Simple payload that works with Render API
           const payload = {
-            type: "web_service",
             name: serviceName,
-            ownerId: ownerId,
+            type: "web_service",
             serviceDetails: {
               env: "docker",
               dockerfilePath: "",
@@ -96,25 +80,12 @@ serve(async (req) => {
               pullRequestPreviewsEnabled: false
             },
             image: {
-              ownerId: ownerId,
-              registryCredential: {
-                id: "",
-                name: "",
-                username: "",
-                registry: "DOCKER"
-              },
               imagePath: "n8nio/n8n:latest"
             },
             envVars: [
               { key: "N8N_BASIC_AUTH_ACTIVE", value: "true" },
               { key: "N8N_BASIC_AUTH_USER", value: username || "admin" },
-              { key: "N8N_BASIC_AUTH_PASSWORD", value: password || "admin123" },
-              { key: "N8N_HOST", value: `${serviceName}.onrender.com` },
-              { key: "N8N_PORT", value: "5678" },
-              { key: "WEBHOOK_URL", value: `https://${serviceName}.onrender.com/` },
-              { key: "N8N_EDITOR_BASE_URL", value: `https://${serviceName}.onrender.com/` },
-              { key: "N8N_PROTOCOL", value: "https" },
-              { key: "NODE_ENV", value: "production" }
+              { key: "N8N_BASIC_AUTH_PASSWORD", value: password || "admin123" }
             ]
           }
 
@@ -126,16 +97,22 @@ serve(async (req) => {
             body: JSON.stringify(payload)
           })
 
+          const responseText = await response.text()
+          console.log('Render API response:', {
+            status: response.status,
+            statusText: response.statusText,
+            body: responseText
+          })
+
           if (!response.ok) {
-            const errorText = await response.text()
-            console.error('Render API error:', errorText)
-            throw new Error(`Render API error: ${response.status} - ${errorText}`)
+            console.error('Render API error:', responseText)
+            throw new Error(`Render API error: ${response.status} - ${responseText}`)
           }
 
-          const service = await response.json()
+          const service = JSON.parse(responseText)
           console.log('Render service created:', service)
           
-          const serviceId = service.service?.id || service.id
+          const serviceId = service.id
 
           // Update database with service details
           const { error: updateError } = await supabaseClient
