@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -42,7 +41,7 @@ export const useUserPlan = () => {
         .single();
 
       if (planError) throw planError;
-      setPlan(planData as UserPlan);
+      setPlan(planData);
 
       // Fetch user credits
       const { data: creditsData, error: creditsError } = await supabase
