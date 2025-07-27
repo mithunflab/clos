@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
-interface WorkflowData {
+export interface WorkflowData {
   id: string;
   user_id: string;
   workflow_id: string;
@@ -15,19 +15,23 @@ interface WorkflowData {
 
 export const useWorkflowStorage = () => {
   const [workflows, setWorkflows] = useState<WorkflowData[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
   const fetchWorkflows = async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('workflow_data')
+        .from('workflow_data' as any)
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       setWorkflows(data || []);
@@ -44,7 +48,7 @@ export const useWorkflowStorage = () => {
 
     try {
       const { error } = await supabase
-        .from('workflow_data')
+        .from('workflow_data' as any)
         .upsert({
           user_id: user.id,
           workflow_id: workflowId,
@@ -53,6 +57,7 @@ export const useWorkflowStorage = () => {
         });
 
       if (error) throw error;
+      
       await fetchWorkflows();
       return true;
     } catch (err) {
@@ -62,8 +67,25 @@ export const useWorkflowStorage = () => {
     }
   };
 
-  const getWorkflow = (workflowId: string) => {
-    return workflows.find(workflow => workflow.workflow_id === workflowId);
+  const deleteWorkflow = async (workflowId: string) => {
+    if (!user) return false;
+
+    try {
+      const { error } = await supabase
+        .from('workflow_data' as any)
+        .delete()
+        .eq('user_id', user.id)
+        .eq('workflow_id', workflowId);
+
+      if (error) throw error;
+      
+      await fetchWorkflows();
+      return true;
+    } catch (err) {
+      console.error('Error deleting workflow:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete workflow');
+      return false;
+    }
   };
 
   useEffect(() => {
@@ -75,7 +97,7 @@ export const useWorkflowStorage = () => {
     loading,
     error,
     saveWorkflow,
-    getWorkflow,
+    deleteWorkflow,
     refetch: fetchWorkflows
   };
 };

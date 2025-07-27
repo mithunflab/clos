@@ -8,17 +8,11 @@ import {
   Cloud, 
   Server,
   Settings,
-  Zap,
-  ChevronLeft,
-  ChevronRight
+  Zap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useMinimizeChangeMode } from '@/hooks/useMinimizeChangeMode';
-import ThemeToggle from './ThemeToggle';
 
 const Navigation = () => {
-  const { minimizeChangeMode, toggleMinimizeChangeMode } = useMinimizeChangeMode();
-
   const navItems = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/workflows', icon: Workflow, label: 'Workflows' },
@@ -29,33 +23,14 @@ const Navigation = () => {
   ];
 
   return (
-    <nav className={cn(
-      "bg-card/50 backdrop-blur-sm border-r border-border h-full transition-all duration-300",
-      minimizeChangeMode ? "w-16" : "w-64"
-    )}>
+    <nav className="w-64 bg-card/50 backdrop-blur-sm border-r border-border h-full">
       <div className="p-4">
-        <div className="flex items-center justify-between mb-8">
-          <div className={cn(
-            "flex items-center gap-2 transition-all duration-300",
-            minimizeChangeMode && "opacity-0 w-0"
-          )}>
-            <Zap className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold">Casel</span>
-          </div>
-          
-          <button
-            onClick={toggleMinimizeChangeMode}
-            className="p-2 rounded-lg hover:bg-muted transition-colors"
-          >
-            {minimizeChangeMode ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
-          </button>
+        <div className="flex items-center gap-2 mb-8">
+          <Zap className="h-8 w-8 text-primary" />
+          <span className="text-xl font-bold">Casel</span>
         </div>
         
-        <div className="space-y-2 mb-6">
+        <div className="space-y-2">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -69,20 +44,10 @@ const Navigation = () => {
                 )
               }
             >
-              <item.icon className="h-4 w-4 flex-shrink-0" />
-              {!minimizeChangeMode && <span>{item.label}</span>}
+              <item.icon className="h-4 w-4" />
+              {item.label}
             </NavLink>
           ))}
-        </div>
-
-        <div className={cn(
-          "flex items-center gap-2 transition-all duration-300",
-          minimizeChangeMode ? "justify-center" : "justify-start"
-        )}>
-          <ThemeToggle />
-          {!minimizeChangeMode && (
-            <span className="text-sm text-muted-foreground">Theme</span>
-          )}
         </div>
       </div>
     </nav>
