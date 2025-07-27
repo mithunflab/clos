@@ -14,7 +14,204 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      ai_credits: {
+        Row: {
+          created_at: string
+          current_credits: number
+          id: string
+          last_credit_reset: string
+          total_credits_used: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_credits?: number
+          id?: string
+          last_credit_reset?: string
+          total_credits_used?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_credits?: number
+          id?: string
+          last_credit_reset?: string
+          total_credits_used?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      cloud_n8n_instances: {
+        Row: {
+          basic_auth_password: string
+          basic_auth_user: string
+          created_at: string
+          deployment_status: string
+          id: string
+          instance_name: string
+          render_service_id: string | null
+          render_service_url: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          basic_auth_password: string
+          basic_auth_user: string
+          created_at?: string
+          deployment_status?: string
+          id?: string
+          instance_name: string
+          render_service_id?: string | null
+          render_service_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          basic_auth_password?: string
+          basic_auth_user?: string
+          created_at?: string
+          deployment_status?: string
+          id?: string
+          instance_name?: string
+          render_service_id?: string | null
+          render_service_url?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      cloud_runner_projects: {
+        Row: {
+          created_at: string
+          deployment_status: string
+          github_repo_name: string | null
+          github_repo_url: string | null
+          id: string
+          project_name: string
+          render_service_id: string | null
+          render_service_url: string | null
+          session_file_uploaded: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deployment_status?: string
+          github_repo_name?: string | null
+          github_repo_url?: string | null
+          id?: string
+          project_name: string
+          render_service_id?: string | null
+          render_service_url?: string | null
+          session_file_uploaded?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deployment_status?: string
+          github_repo_name?: string | null
+          github_repo_url?: string | null
+          id?: string
+          project_name?: string
+          render_service_id?: string | null
+          render_service_url?: string | null
+          session_file_uploaded?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      n8n_configs: {
+        Row: {
+          created_at: string
+          id: string
+          n8n_api_key: string | null
+          n8n_url: string | null
+          updated_at: string
+          use_casel_cloud: boolean
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          n8n_api_key?: string | null
+          n8n_url?: string | null
+          updated_at?: string
+          use_casel_cloud?: boolean
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          n8n_api_key?: string | null
+          n8n_url?: string | null
+          updated_at?: string
+          use_casel_cloud?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
+      n8n_deployments: {
+        Row: {
+          created_at: string
+          deployment_status: string
+          deployment_url: string | null
+          id: string
+          n8n_workflow_id: string
+          updated_at: string
+          user_id: string
+          workflow_id: string
+        }
+        Insert: {
+          created_at?: string
+          deployment_status?: string
+          deployment_url?: string | null
+          id?: string
+          n8n_workflow_id: string
+          updated_at?: string
+          user_id: string
+          workflow_id: string
+        }
+        Update: {
+          created_at?: string
+          deployment_status?: string
+          deployment_url?: string | null
+          id?: string
+          n8n_workflow_id?: string
+          updated_at?: string
+          user_id?: string
+          workflow_id?: string
+        }
+        Relationships: []
+      }
+      user_plans: {
+        Row: {
+          created_at: string
+          id: string
+          plan_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          plan_type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          plan_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

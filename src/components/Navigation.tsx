@@ -1,117 +1,56 @@
-import React, { useState } from 'react';
-import {
-  LayoutDashboard,
-  Zap,
-  Play,
-  Cloud,
-  User,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react';
+
+import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { 
+  LayoutDashboard, 
+  Workflow, 
+  Play, 
+  Cloud, 
+  Server,
+  Settings,
+  Zap
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import ThemeToggle from './ThemeToggle';
-
-interface NavigationLinkProps {
-  to: string;
-  icon: React.ComponentType<any>;
-  label: string;
-}
-
-const NavigationLink: React.FC<NavigationLinkProps & { isCollapsed: boolean }> = ({ to, icon: Icon, label, isCollapsed }) => {
-  return (
-    <li>
-      <NavLink
-        to={to}
-        className={({ isActive }) =>
-          cn(
-            "group flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-secondary hover:text-secondary-foreground",
-            isActive ? "bg-secondary text-secondary-foreground" : "text-foreground",
-            isCollapsed && "justify-center"
-          )
-        }
-        title={isCollapsed ? label : undefined}
-      >
-        <Icon className={cn("h-4 w-4", !isCollapsed && "mr-2")} />
-        {!isCollapsed && <span>{label}</span>}
-      </NavLink>
-    </li>
-  );
-};
 
 const Navigation = () => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-
-  const toggleCollapse = () => {
-    setIsCollapsed(!isCollapsed);
-  };
+  const navItems = [
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/workflows', icon: Workflow, label: 'Workflows' },
+    { to: '/playground', icon: Play, label: 'Playground' },
+    { to: '/cloud-runner', icon: Cloud, label: 'Cloud Runner' },
+    { to: '/cloud-n8n', icon: Server, label: 'Cloud N8N' },
+    { to: '/settings', icon: Settings, label: 'Settings' },
+  ];
 
   return (
-    <div className={cn(
-      "flex flex-col border-r border-border bg-secondary transition-all duration-300",
-      isCollapsed ? "w-16" : "w-60"
-    )}>
-      <div className="p-4 flex-grow">
-        <div className="flex items-center justify-between mb-4">
-          {!isCollapsed && <h2 className="font-semibold text-lg">Menu</h2>}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleCollapse}
-            className="h-8 w-8 p-0"
-          >
-            {isCollapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
-
-        <div className="space-y-1">
-          <NavigationLink
-            to="/dashboard"
-            icon={LayoutDashboard}
-            label="Dashboard"
-            isCollapsed={isCollapsed}
-          />
-          <NavigationLink
-            to="/workflows"
-            icon={Zap}
-            label="Workflows"
-            isCollapsed={isCollapsed}
-          />
-          <NavigationLink
-            to="/playground"
-            icon={Play}
-            label="Playground"
-            isCollapsed={isCollapsed}
-          />
-          <NavigationLink
-            to="/cloud-runner"
-            icon={Cloud}
-            label="Cloud Runner"
-            isCollapsed={isCollapsed}
-          />
-          <NavigationLink
-            to="/profile"
-            icon={User}
-            label="Profile"
-            isCollapsed={isCollapsed}
-          />
-        </div>
-      </div>
-
+    <nav className="w-64 bg-card/50 backdrop-blur-sm border-r border-border h-full">
       <div className="p-4">
-        <div className="pt-4 border-t border-border">
-          <div className={cn("flex items-center", isCollapsed ? "justify-center" : "justify-between")}>
-            {!isCollapsed && <span className="text-sm text-muted-foreground">Theme</span>}
-            <ThemeToggle />
-          </div>
+        <div className="flex items-center gap-2 mb-8">
+          <Zap className="h-8 w-8 text-primary" />
+          <span className="text-xl font-bold">Casel</span>
+        </div>
+        
+        <div className="space-y-2">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                  isActive
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                )
+              }
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label}
+            </NavLink>
+          ))}
         </div>
       </div>
-    </div>
+    </nav>
   );
 };
 
