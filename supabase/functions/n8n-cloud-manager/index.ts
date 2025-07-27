@@ -111,12 +111,12 @@ serve(async (req) => {
           const ownerId = "tea-d23312idbo4c73fpn3ig"
           console.log('Using hardcoded owner ID:', ownerId)
 
-          // Create the service payload with correct env field
+          // Create the service payload with correct runtime field
           const payload = {
             ownerId: ownerId,
             name: serviceName,
             type: "web_service",
-            env: "docker",
+            runtime: "docker",
             region: "oregon",
             plan: "starter",
             serviceDetails: {
