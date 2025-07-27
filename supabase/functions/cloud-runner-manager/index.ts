@@ -461,9 +461,9 @@ Generated on: ${new Date().toISOString()}
 
           const serviceName = projectName.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 32)
           
-          // CORRECT Render API format based on official docs
+          // CORRECT Render API format - exact working payload
           const renderPayload = {
-            type: "web_service",
+            type: "web",
             name: serviceName,
             ownerId: ownerId,
             repo: githubRepoUrl,
@@ -472,7 +472,7 @@ Generated on: ${new Date().toISOString()}
             startCommand: "python main.py",
             plan: "starter",
             region: "oregon",
-            autoDeploy: "yes",
+            autoDeploy: true,
             rootDir: ".",
             envVars: []
           }
