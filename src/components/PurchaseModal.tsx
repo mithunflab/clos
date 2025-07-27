@@ -24,43 +24,48 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose }) => {
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [successPurchaseType, setSuccessPurchaseType] = useState<'credits' | 'workflows' | 'n8n_instance'>('credits');
   const [successQuantity, setSuccessQuantity] = useState(0);
+  const [currentPurchaseType, setCurrentPurchaseType] = useState<'credits' | 'workflows' | 'n8n_instance'>('credits');
+  const [currentPurchaseQuantity, setCurrentPurchaseQuantity] = useState(0);
   
   const { purchaseCredits, purchaseWorkflows, purchaseN8nInstance, loading } = usePurchases();
   const { plan } = useUserPlan();
 
-  const handlePurchaseCredits = async () => {
-    const success = await purchaseCredits(creditQuantity);
-    if (success) {
-      setSuccessPurchaseType('credits');
-      setSuccessQuantity(creditQuantity);
-      setShowSuccessPopup(true);
-      onClose();
-    } else {
-      toast.error('Failed to purchase credits');
-    }
+  const handlePurchaseCredits = () => {
+    setCurrentPurchaseType('credits');
+    setCurrentPurchaseQuantity(creditQuantity);
+    setShowPromoCodePopup(true);
   };
 
-  const handlePurchaseWorkflows = async () => {
-    const success = await purchaseWorkflows(workflowQuantity);
-    if (success) {
-      setSuccessPurchaseType('workflows');
-      setSuccessQuantity(workflowQuantity);
-      setShowSuccessPopup(true);
-      onClose();
-    } else {
-      toast.error('Failed to purchase workflows');
-    }
+  const handlePurchaseWorkflows = () => {
+    setCurrentPurchaseType('workflows');
+    setCurrentPurchaseQuantity(workflowQuantity);
+    setShowPromoCodePopup(true);
   };
 
-  const handlePurchaseN8n = async () => {
-    const success = await purchaseN8nInstance();
+  const handlePurchaseN8n = () => {
+    setCurrentPurchaseType('n8n_instance');
+    setCurrentPurchaseQuantity(1);
+    setShowPromoCodePopup(true);
+  };
+
+  const handlePromoCodeSuccess = async () => {
+    let success = false;
+    
+    if (currentPurchaseType === 'credits') {
+      success = await purchaseCredits(currentPurchaseQuantity);
+    } else if (currentPurchaseType === 'workflows') {
+      success = await purchaseWorkflows(currentPurchaseQuantity);
+    } else if (currentPurchaseType === 'n8n_instance') {
+      success = await purchaseN8nInstance();
+    }
+
     if (success) {
-      setSuccessPurchaseType('n8n_instance');
-      setSuccessQuantity(1);
+      setSuccessPurchaseType(currentPurchaseType);
+      setSuccessQuantity(currentPurchaseQuantity);
       setShowSuccessPopup(true);
       onClose();
     } else {
-      toast.error('Failed to purchase N8N instance');
+      toast.error(`Failed to purchase ${currentPurchaseType.replace('_', ' ')}`);
     }
   };
 
@@ -80,26 +85,6 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose }) => {
           </DialogHeader>
 
           <div className="space-y-6">
-            {/* Promo Code Section */}
-            <Card className="border-2 border-dashed border-primary/30 bg-primary/5">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Gift className="h-5 w-5 text-primary" />
-                    <span className="font-medium text-primary">Have a promo code?</span>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handlePromoCodeClick}
-                    className="border-primary/30 text-primary hover:bg-primary/10"
-                  >
-                    Enter Code
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Credits Purchase */}
             <Card>
               <CardHeader>
@@ -235,6 +220,9 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose }) => {
       <PromoCodePopup 
         isOpen={showPromoCodePopup}
         onClose={() => setShowPromoCodePopup(false)}
+        onSuccess={handlePromoCodeSuccess}
+        purchaseType={currentPurchaseType}
+        quantity={currentPurchaseQuantity}
       />
     </>
   );

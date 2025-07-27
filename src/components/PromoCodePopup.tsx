@@ -11,9 +11,18 @@ import { usePromoCode } from '@/hooks/usePromoCode';
 interface PromoCodePopupProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess: () => void;
+  purchaseType: 'credits' | 'workflows' | 'n8n_instance';
+  quantity: number;
 }
 
-const PromoCodePopup: React.FC<PromoCodePopupProps> = ({ isOpen, onClose }) => {
+const PromoCodePopup: React.FC<PromoCodePopupProps> = ({ 
+  isOpen, 
+  onClose, 
+  onSuccess, 
+  purchaseType, 
+  quantity 
+}) => {
   const [promoCode, setPromoCode] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [rewardDetails, setRewardDetails] = useState({ credits: 0, workflows: 0 });
@@ -40,8 +49,9 @@ const PromoCodePopup: React.FC<PromoCodePopupProps> = ({ isOpen, onClose }) => {
       setTimeout(() => {
         setShowSuccess(false);
         setPromoCode('');
+        onSuccess();
         onClose();
-      }, 3000);
+      }, 2000);
     } else {
       toast.error(result.error || 'Failed to apply promo code');
     }
@@ -51,6 +61,19 @@ const PromoCodePopup: React.FC<PromoCodePopupProps> = ({ isOpen, onClose }) => {
     setShowSuccess(false);
     setPromoCode('');
     onClose();
+  };
+
+  const getPurchaseTypeDisplay = () => {
+    switch (purchaseType) {
+      case 'credits':
+        return `${quantity} Credits`;
+      case 'workflows':
+        return `${quantity} Workflow Slots`;
+      case 'n8n_instance':
+        return 'N8N Instance';
+      default:
+        return 'Item';
+    }
   };
 
   return (
@@ -83,11 +106,14 @@ const PromoCodePopup: React.FC<PromoCodePopupProps> = ({ isOpen, onClose }) => {
                     <p>+ {rewardDetails.workflows} workflow slots added</p>
                   )}
                 </div>
+                <p className="text-sm text-green-600 mt-2">
+                  Processing your purchase of {getPurchaseTypeDisplay()}...
+                </p>
               </div>
               
               <div className="flex items-center justify-center gap-2 text-green-600 mt-4">
                 <Sparkles className="h-5 w-5" />
-                <span className="font-medium">Ready to use!</span>
+                <span className="font-medium">Almost ready!</span>
               </div>
             </CardContent>
           </Card>
@@ -95,7 +121,7 @@ const PromoCodePopup: React.FC<PromoCodePopupProps> = ({ isOpen, onClose }) => {
           <Card>
             <CardHeader>
               <CardDescription>
-                Enter your promo code below to unlock special rewards
+                Enter your promo code to purchase {getPurchaseTypeDisplay()}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
