@@ -14,27 +14,43 @@ function encodeBase64(str: string): string {
 }
 
 serve(async (req) => {
+  console.log('=== EDGE FUNCTION STARTED ===')
+  console.log('Request method:', req.method)
+  console.log('Request URL:', req.url)
+  
   if (req.method === 'OPTIONS') {
+    console.log('OPTIONS request - returning CORS headers')
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
+    console.log('Creating Supabase client...')
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       { auth: { persistSession: false } }
     )
 
+    console.log('Getting auth header...')
     const authHeader = req.headers.get('Authorization')!
     const token = authHeader.replace('Bearer ', '')
+    console.log('Token length:', token?.length || 0)
+    
+    console.log('Verifying user...')
     const { data: { user } } = await supabaseClient.auth.getUser(token)
 
     if (!user) {
       console.error('Authentication failed - no user found')
       return new Response('Unauthorized', { status: 401, headers: corsHeaders })
     }
+    
+    console.log('User authenticated:', user.id)
 
-    const { action, projectName, files, sessionFile, repoName, githubRepoUrl, projectId, updateExisting, repoOwner } = await req.json()
+    console.log('Parsing request body...')
+    const requestBody = await req.json()
+    console.log('Request body:', JSON.stringify(requestBody, null, 2))
+    
+    const { action, projectName, files, sessionFile, repoName, githubRepoUrl, projectId, updateExisting, repoOwner } = requestBody
 
     console.log(`Processing action: ${action} for user: ${user.id}`)
 
