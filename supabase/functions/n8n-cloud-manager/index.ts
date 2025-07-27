@@ -10,13 +10,14 @@ const corsHeaders = {
 const RENDER_API_KEY = Deno.env.get('RENDER_API')
 
 serve(async (req) => {
+  console.log('=== N8N CLOUD MANAGER STARTED ===')
+  console.log('Request method:', req.method)
+  
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    console.log('Request received:', req.method, req.url)
-    
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -41,7 +42,6 @@ serve(async (req) => {
       return new Response('Unauthorized - Invalid token', { status: 401, headers: corsHeaders })
     }
 
-    console.log('Parsing request body...')
     const { action, instanceName, instanceId, username, password } = await req.json()
     console.log('Request data:', { action, instanceName, instanceId, username: !!username, password: !!password })
 
@@ -66,53 +66,142 @@ serve(async (req) => {
     switch (action) {
       case 'create-n8n-instance': {
         try {
+          console.log('=== CREATING N8N INSTANCE ===')
+          
           const serviceName = instanceName.toLowerCase().replace(/[^a-z0-9]/g, '-')
           const serviceUrl = `https://${serviceName}.onrender.com`
+          
+          console.log('Service name:', serviceName)
+          console.log('Service URL:', serviceUrl)
 
-          // Simple payload that works with Render API
+          // Get owner ID first
+          console.log('Fetching Render owner info...')
+          const ownerResponse = await fetch('https://api.render.com/v1/owners', {
+            headers: renderHeaders
+          })
+
+          if (!ownerResponse.ok) {
+            const ownerErrorText = await ownerResponse.text()
+            console.error('Failed to get owner info:', ownerResponse.status, ownerErrorText)
+            throw new Error(`Failed to get owner info: ${ownerResponse.status} - ${ownerErrorText}`)
+          }
+
+          const owners = await ownerResponse.json()
+          console.log('Render owners response:', owners)
+          
+          const ownerId = owners?.[0]?.id || owners?.id
+
+          if (!ownerId) {
+            console.error('No owner ID found in response:', owners)
+            throw new Error('Could not determine owner ID for Render deployment')
+          }
+
+          console.log('Found Render owner ID:', ownerId)
+
+          // Correct Render API payload for web service
           const payload = {
-            name: serviceName,
             type: "web_service",
+            name: serviceName,
+            ownerId: ownerId,
             serviceDetails: {
               env: "docker",
-              dockerfilePath: "",
-              dockerContext: "",
-              pullRequestPreviewsEnabled: false
+              buildCommand: "",
+              startCommand: "",
+              plan: "starter",
+              region: "oregon",
+              branch: "main",
+              pullRequestPreviewsEnabled: false,
+              buildFilter: {
+                paths: [],
+                ignoredPaths: []
+              },
+              preDeployCommand: "",
+              parentServer: {
+                id: "",
+                name: ""
+              },
+              dockerCommand: "",
+              dockerContext: "./",
+              dockerfilePath: "./Dockerfile",
+              registryCredential: {
+                id: "",
+                name: "",
+                username: "",
+                registry: "DOCKER"
+              }
             },
             image: {
-              imagePath: "n8nio/n8n:latest"
+              ownerId: ownerId,
+              imagePath: "n8nio/n8n:latest",
+              registryCredential: {
+                id: "",
+                name: "",
+                username: "",
+                registry: "DOCKER"
+              }
             },
             envVars: [
               { key: "N8N_BASIC_AUTH_ACTIVE", value: "true" },
               { key: "N8N_BASIC_AUTH_USER", value: username || "admin" },
-              { key: "N8N_BASIC_AUTH_PASSWORD", value: password || "admin123" }
-            ]
+              { key: "N8N_BASIC_AUTH_PASSWORD", value: password || "admin123" },
+              { key: "N8N_HOST", value: `${serviceName}.onrender.com` },
+              { key: "N8N_PORT", value: "5678" },
+              { key: "PORT", value: "5678" },
+              { key: "WEBHOOK_URL", value: `https://${serviceName}.onrender.com/` },
+              { key: "N8N_EDITOR_BASE_URL", value: `https://${serviceName}.onrender.com/` },
+              { key: "N8N_PROTOCOL", value: "https" },
+              { key: "NODE_ENV", value: "production" },
+              { key: "N8N_METRICS", value: "true" },
+              { key: "N8N_LOG_LEVEL", value: "info" }
+            ],
+            autoDeploy: true
           }
 
           console.log('Creating Render service with payload:', JSON.stringify(payload, null, 2))
-
-          const response = await fetch('https://api.render.com/v1/services', {
+          
+          const renderResponse = await fetch('https://api.render.com/v1/services', {
             method: 'POST',
             headers: renderHeaders,
             body: JSON.stringify(payload)
           })
 
-          const responseText = await response.text()
+          const responseText = await renderResponse.text()
           console.log('Render API response:', {
-            status: response.status,
-            statusText: response.statusText,
+            status: renderResponse.status,
+            statusText: renderResponse.statusText,
             body: responseText
           })
 
-          if (!response.ok) {
+          if (!renderResponse.ok) {
             console.error('Render API error:', responseText)
-            throw new Error(`Render API error: ${response.status} - ${responseText}`)
+            
+            // Parse error details
+            let errorDetails = responseText
+            try {
+              const errorData = JSON.parse(responseText)
+              errorDetails = errorData.message || errorData.error || JSON.stringify(errorData)
+            } catch (e) {
+              // Use raw response if not JSON
+            }
+            
+            throw new Error(`Render API error: ${renderResponse.status} - ${errorDetails}`)
           }
 
-          const service = JSON.parse(responseText)
-          console.log('Render service created:', service)
+          let service
+          try {
+            service = JSON.parse(responseText)
+          } catch (e) {
+            console.error('Failed to parse Render response:', responseText)
+            throw new Error('Invalid response from Render API')
+          }
+
+          console.log('Render service created successfully:', service)
           
-          const serviceId = service.id
+          const serviceId = service.id || service.service?.id
+          if (!serviceId) {
+            console.error('No service ID in response:', service)
+            throw new Error('No service ID returned from Render API')
+          }
 
           // Update database with service details
           const { error: updateError } = await supabaseClient
@@ -129,6 +218,8 @@ serve(async (req) => {
             throw new Error('Failed to update database')
           }
 
+          console.log('Database updated successfully')
+
           return new Response(JSON.stringify({
             success: true,
             serviceId,
@@ -136,7 +227,8 @@ serve(async (req) => {
             credentials: {
               username: username || 'admin',
               password: password || 'admin123'
-            }
+            },
+            message: 'N8N instance deployment started successfully'
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
@@ -145,14 +237,20 @@ serve(async (req) => {
           console.error('N8N instance creation error:', error)
           
           // Update status to error
-          await supabaseClient
-            .from('cloud_n8n_instances')
-            .update({ status: 'error' })
-            .eq('id', instanceId)
+          if (instanceId) {
+            await supabaseClient
+              .from('cloud_n8n_instances')
+              .update({ status: 'error' })
+              .eq('id', instanceId)
+          }
 
           return new Response(JSON.stringify({
             error: error.message,
-            success: false
+            success: false,
+            debug: {
+              timestamp: new Date().toISOString(),
+              errorType: error.constructor.name
+            }
           }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -166,6 +264,8 @@ serve(async (req) => {
             throw new Error('Instance ID is required')
           }
 
+          console.log('Checking deployment status for instance:', instanceId)
+
           // Get the render service ID from the database
           const { data: instance, error } = await supabaseClient
             .from('cloud_n8n_instances')
@@ -177,16 +277,22 @@ serve(async (req) => {
             throw new Error('Instance not found or missing render service ID')
           }
 
+          console.log('Checking Render service:', instance.render_service_id)
+
           const response = await fetch(`https://api.render.com/v1/services/${instance.render_service_id}`, {
             headers: renderHeaders
           })
 
           if (!response.ok) {
+            const errorText = await response.text()
+            console.error('Failed to check deployment status:', errorText)
             throw new Error('Failed to check deployment status')
           }
 
           const service = await response.json()
-          const isActive = service.service?.state === 'active'
+          console.log('Service status:', service.service?.serviceDetails?.status)
+          
+          const isActive = service.service?.serviceDetails?.status === 'live'
 
           // Update database status if active
           if (isActive) {
@@ -198,7 +304,7 @@ serve(async (req) => {
 
           return new Response(JSON.stringify({
             success: true,
-            status: service.service?.state || 'unknown',
+            status: service.service?.serviceDetails?.status || 'unknown',
             isActive
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -222,6 +328,8 @@ serve(async (req) => {
             throw new Error('Instance ID is required')
           }
 
+          console.log('Deleting N8N instance:', instanceId)
+
           // Get the render service ID from the database
           const { data: instance, error } = await supabaseClient
             .from('cloud_n8n_instances')
@@ -233,17 +341,24 @@ serve(async (req) => {
             throw new Error('Instance not found or missing render service ID')
           }
 
+          console.log('Deleting Render service:', instance.render_service_id)
+
           const response = await fetch(`https://api.render.com/v1/services/${instance.render_service_id}`, {
             method: 'DELETE',
             headers: renderHeaders
           })
 
           if (!response.ok && response.status !== 404) {
+            const errorText = await response.text()
+            console.error('Failed to delete Render service:', errorText)
             throw new Error('Failed to delete Render service')
           }
 
+          console.log('Render service deleted successfully')
+
           return new Response(JSON.stringify({
-            success: true
+            success: true,
+            message: 'N8N instance deleted successfully'
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
@@ -274,7 +389,11 @@ serve(async (req) => {
     console.error('N8N Cloud Manager Error:', error)
     return new Response(JSON.stringify({
       error: error.message,
-      success: false
+      success: false,
+      debug: {
+        timestamp: new Date().toISOString(),
+        errorType: error.constructor.name
+      }
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
