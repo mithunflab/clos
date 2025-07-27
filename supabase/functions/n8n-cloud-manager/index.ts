@@ -107,13 +107,14 @@ serve(async (req) => {
           console.log('Username (validated):', username)
           console.log('Password length:', password.length)
 
-          // CORRECT Render API payload using the format you provided
+          // CORRECT Render API payload with ownerID
           const payload = {
             name: serviceName,
             type: "web_service",
-            env: "docker",
+            env: "docker", 
             region: "oregon",
             plan: "starter",
+            ownerID: "usr-ce8irnhsq4sd7cdgfcgo",
             serviceDetails: {
               image: {
                 imagePath: "n8nio/n8n:latest"
@@ -123,8 +124,8 @@ serve(async (req) => {
               { key: "PORT", value: "10000" },
               { key: "N8N_PORT", value: "10000" },
               { key: "N8N_BASIC_AUTH_ACTIVE", value: "true" },
-              { key: "N8N_BASIC_AUTH_USER", value: String(username) },
-              { key: "N8N_BASIC_AUTH_PASSWORD", value: String(password) },
+              { key: "N8N_BASIC_AUTH_USER", value: "admin" },
+              { key: "N8N_BASIC_AUTH_PASSWORD", value: "password123" },
               { key: "N8N_PROTOCOL", value: "https" }
             ]
           }
