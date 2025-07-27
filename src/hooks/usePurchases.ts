@@ -132,6 +132,18 @@ export const usePurchases = () => {
 
       if (purchaseError) throw purchaseError;
 
+      // Create a new N8N instance record for the user
+      const { error: instanceError } = await supabase
+        .from('cloud_n8n_instances')
+        .insert({
+          user_id: user.id,
+          instance_name: `N8N Instance - ${new Date().toISOString().split('T')[0]}`,
+          status: 'creating'
+        });
+
+      if (instanceError) throw instanceError;
+
+      console.log('N8N instance purchase completed and instance created');
       return true;
     } catch (err) {
       console.error('Error purchasing N8N instance:', err);

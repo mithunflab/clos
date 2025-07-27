@@ -15,11 +15,18 @@ import PurchaseModal from '@/components/PurchaseModal';
 import { CreditCard, User, Settings, Crown, LogOut, Sparkles, ShoppingCart, Workflow } from 'lucide-react';
 
 const Profile = () => {
-  const { profile, loading: profileLoading } = useProfile();
-  const { plan, credits, loading: planLoading, getWorkflowLimit } = useUserPlan();
-  const { signOut } = useAuth();
+  const { profile, loading: profileLoading, error: profileError } = useProfile();
+  const { plan, credits, loading: planLoading, error: planError, getWorkflowLimit } = useUserPlan();
+  const { user, signOut } = useAuth();
   const { isOpen, openPricingPage, closePricingPage } = usePricingPage();
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
+
+  console.log('Profile component - user:', user);
+  console.log('Profile component - profile:', profile);
+  console.log('Profile component - plan:', plan);
+  console.log('Profile component - credits:', credits);
+  console.log('Profile component - loading states:', { profileLoading, planLoading });
+  console.log('Profile component - errors:', { profileError, planError });
 
   const handleSignOut = async () => {
     await signOut();
@@ -44,6 +51,42 @@ const Profile = () => {
         return <User className="w-4 h-4" />;
     }
   };
+
+  // Show error state if there are authentication issues
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 text-center">
+            <h2 className="text-xl font-semibold mb-2">Authentication Required</h2>
+            <p className="text-muted-foreground mb-4">Please log in to view your profile.</p>
+            <Button onClick={() => window.location.href = '/auth'}>
+              Go to Login
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show error state if there are loading errors
+  if (profileError || planError) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 text-center">
+            <h2 className="text-xl font-semibold mb-2">Error Loading Profile</h2>
+            <p className="text-muted-foreground mb-4">
+              {profileError || planError || 'There was an error loading your profile data.'}
+            </p>
+            <Button onClick={() => window.location.reload()}>
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (profileLoading || planLoading) {
     return (
@@ -103,14 +146,14 @@ const Profile = () => {
                 <Avatar className="w-20 h-20 border-2 border-border ring-2 ring-border/50">
                   <AvatarImage src={profile?.avatar_url || undefined} />
                   <AvatarFallback className="bg-primary text-primary-foreground text-xl font-bold">
-                    {profile?.full_name?.charAt(0) || profile?.email?.charAt(0) || 'U'}
+                    {profile?.full_name?.charAt(0) || profile?.email?.charAt(0) || user?.email?.charAt(0) || 'U'}
                   </AvatarFallback>
                 </Avatar>
                 <div>
                   <h3 className="text-xl font-bold text-foreground mb-1">
-                    {profile?.full_name || 'Anonymous User'}
+                    {profile?.full_name || user?.email || 'Anonymous User'}
                   </h3>
-                  <p className="text-muted-foreground">{profile?.email}</p>
+                  <p className="text-muted-foreground">{profile?.email || user?.email}</p>
                 </div>
               </div>
               
@@ -130,7 +173,7 @@ const Profile = () => {
                   <Label htmlFor="email" className="text-sm font-medium">Email</Label>
                   <Input
                     id="email"
-                    value={profile?.email || ''}
+                    value={profile?.email || user?.email || ''}
                     placeholder="Enter your email"
                     readOnly
                     className="bg-muted/50 border-border"

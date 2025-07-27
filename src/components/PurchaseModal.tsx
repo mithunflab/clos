@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CreditCard, Workflow, Cloud, Plus, Minus } from 'lucide-react';
+import { CreditCard, Workflow, Cloud, Plus, Minus, Gift } from 'lucide-react';
 import { toast } from 'sonner';
 import { usePurchases } from '@/hooks/usePurchases';
 import { useUserPlan } from '@/hooks/useUserPlan';
@@ -35,9 +35,6 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose }) => {
       setSuccessQuantity(creditQuantity);
       setShowSuccessPopup(true);
       onClose();
-      setTimeout(() => {
-        setShowPromoCodePopup(true);
-      }, 3500);
     } else {
       toast.error('Failed to purchase credits');
     }
@@ -50,9 +47,6 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose }) => {
       setSuccessQuantity(workflowQuantity);
       setShowSuccessPopup(true);
       onClose();
-      setTimeout(() => {
-        setShowPromoCodePopup(true);
-      }, 3500);
     } else {
       toast.error('Failed to purchase workflows');
     }
@@ -65,12 +59,13 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose }) => {
       setSuccessQuantity(1);
       setShowSuccessPopup(true);
       onClose();
-      setTimeout(() => {
-        setShowPromoCodePopup(true);
-      }, 3500);
     } else {
       toast.error('Failed to purchase N8N instance');
     }
+  };
+
+  const handlePromoCodeClick = () => {
+    setShowPromoCodePopup(true);
   };
 
   return (
@@ -85,6 +80,26 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose }) => {
           </DialogHeader>
 
           <div className="space-y-6">
+            {/* Promo Code Section */}
+            <Card className="border-2 border-dashed border-primary/30 bg-primary/5">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Gift className="h-5 w-5 text-primary" />
+                    <span className="font-medium text-primary">Have a promo code?</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePromoCodeClick}
+                    className="border-primary/30 text-primary hover:bg-primary/10"
+                  >
+                    Enter Code
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Credits Purchase */}
             <Card>
               <CardHeader>
@@ -189,10 +204,7 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({ isOpen, onClose }) => {
                   Cloud N8N Instance
                 </CardTitle>
                 <CardDescription>
-                  {plan?.plan_type === 'pro' || plan?.plan_type === 'custom' 
-                    ? 'Pro users get 1 free N8N instance. Purchase additional instances for $20/month.'
-                    : 'Get your own cloud N8N instance for $20/month'
-                  }
+                  Get your own cloud N8N instance for $20/month - Available for all users
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
