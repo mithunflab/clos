@@ -82,7 +82,7 @@ export const useAICredits = () => {
 
     try {
       // Call the reset function (this should be called via a daily cron job in production)
-      const { error } = await supabase.rpc('reset_daily_credits' as any);
+      const { error } = await supabase.rpc('reset_daily_credits');
       
       if (error) {
         console.error('Error resetting daily credits:', error);

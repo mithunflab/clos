@@ -29,47 +29,38 @@ export const useProfile = () => {
       setLoading(true);
       setError(null);
       
-      // Use raw SQL query to avoid TypeScript issues with new tables
       const { data: profileData, error: profileError } = await supabase
-        .rpc('get_user_profile', { user_id: user.id });
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
       if (profileError) {
         console.error('Error fetching profile:', profileError);
-        // Fallback to direct query if RPC doesn't exist
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('profiles' as any)
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
+        throw profileError;
+      }
 
-        if (fallbackError) {
-          throw fallbackError;
-        }
-
-        if (fallbackData) {
-          setProfile(fallbackData as UserProfile);
-        } else {
-          // Create profile if it doesn't exist
-          const { data: newProfile, error: createError } = await supabase
-            .from('profiles' as any)
-            .insert({
-              user_id: user.id,
-              email: user.email,
-              full_name: user.user_metadata?.full_name || null,
-              avatar_url: user.user_metadata?.avatar_url || null
-            })
-            .select()
-            .single();
-
-          if (createError) {
-            console.error('Error creating profile:', createError);
-            throw createError;
-          }
-          
-          setProfile(newProfile as UserProfile);
-        }
-      } else {
+      if (profileData) {
         setProfile(profileData as UserProfile);
+      } else {
+        // Create profile if it doesn't exist
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: user.id,
+            email: user.email,
+            full_name: user.user_metadata?.full_name || null,
+            avatar_url: user.user_metadata?.avatar_url || null
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('Error creating profile:', createError);
+          throw createError;
+        }
+        
+        setProfile(newProfile as UserProfile);
       }
     } catch (err) {
       console.error('Profile error:', err);
@@ -84,7 +75,7 @@ export const useProfile = () => {
 
     try {
       const { error } = await supabase
-        .from('profiles' as any)
+        .from('profiles')
         .update(updates)
         .eq('user_id', user.id);
 

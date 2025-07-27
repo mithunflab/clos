@@ -28,7 +28,7 @@ export const useWorkflowStorage = () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('workflow_data' as any)
+        .from('workflow_data')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
@@ -48,7 +48,7 @@ export const useWorkflowStorage = () => {
 
     try {
       const { error } = await supabase
-        .from('workflow_data' as any)
+        .from('workflow_data')
         .upsert({
           user_id: user.id,
           workflow_id: workflowId,
@@ -72,7 +72,7 @@ export const useWorkflowStorage = () => {
 
     try {
       const { error } = await supabase
-        .from('workflow_data' as any)
+        .from('workflow_data')
         .delete()
         .eq('user_id', user.id)
         .eq('workflow_id', workflowId);
