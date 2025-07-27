@@ -99,7 +99,7 @@ export const useWorkflowDeployment = () => {
 
     try {
       const { error } = await supabase
-        .from('workflow_data')
+        .from('workflow_data' as any)
         .upsert({
           user_id: user.id,
           workflow_id: workflowId,

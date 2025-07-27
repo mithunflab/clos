@@ -125,6 +125,39 @@ export type Database = {
         }
         Relationships: []
       }
+      credential_storage: {
+        Row: {
+          created_at: string
+          credentials: Json
+          id: string
+          node_id: string
+          node_type: string
+          updated_at: string
+          user_id: string
+          workflow_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          credentials: Json
+          id?: string
+          node_id: string
+          node_type: string
+          updated_at?: string
+          user_id: string
+          workflow_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          credentials?: Json
+          id?: string
+          node_id?: string
+          node_type?: string
+          updated_at?: string
+          user_id?: string
+          workflow_id?: string | null
+        }
+        Relationships: []
+      }
       n8n_configs: {
         Row: {
           created_at: string
@@ -188,6 +221,36 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_plans: {
         Row: {
           created_at: string
@@ -209,6 +272,36 @@ export type Database = {
           plan_type?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      workflow_data: {
+        Row: {
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          workflow_id: string
+          workflow_json: Json
+          workflow_name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          workflow_id: string
+          workflow_json: Json
+          workflow_name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          workflow_id?: string
+          workflow_json?: Json
+          workflow_name?: string
         }
         Relationships: []
       }
