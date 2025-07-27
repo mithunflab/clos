@@ -5,6 +5,7 @@ import { useAuth } from './useAuth';
 
 interface UserProfile {
   id: string;
+  user_id: string;
   email: string | null;
   full_name: string | null;
   avatar_url: string | null;
@@ -31,7 +32,7 @@ export const useProfile = () => {
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user.id)
+        .eq('user_id', user.id)
         .maybeSingle();
 
       if (profileError) {
@@ -46,7 +47,7 @@ export const useProfile = () => {
         const { data: newProfile, error: createError } = await supabase
           .from('profiles')
           .insert({
-            id: user.id,
+            user_id: user.id,
             email: user.email,
             full_name: user.user_metadata?.full_name || null,
             avatar_url: user.user_metadata?.avatar_url || null
@@ -76,7 +77,7 @@ export const useProfile = () => {
       const { error } = await supabase
         .from('profiles')
         .update(updates)
-        .eq('id', user.id);
+        .eq('user_id', user.id);
 
       if (error) throw error;
       
