@@ -49,7 +49,7 @@ interface DeploymentStatus {
 
 const CloudRunner: React.FC = () => {
   const { user } = useAuth();
-  const { syncToGithub, deployToRender, redeployProject, getDeploymentStatus, getDeploymentLogs } = useCloudRunnerProjects();
+  const { syncToGithub, deployToRender, redeployProject, getDeploymentStatus, getDeploymentLogs, testRenderAPI } = useCloudRunnerProjects();
   const { minimizeChangeMode, toggleMinimizeChangeMode } = useMinimizeChangeMode();
   
   const [projectName, setProjectName] = useState('');
@@ -396,6 +396,26 @@ const CloudRunner: React.FC = () => {
     }
   };
 
+  const handleTestRenderAPI = async () => {
+    addLiveLog(`[${new Date().toLocaleTimeString()}] 🧪 Testing Render API connection...`);
+    
+    try {
+      const result = await testRenderAPI();
+      if (result.success) {
+        addLiveLog(`[${new Date().toLocaleTimeString()}] ✅ Render API test successful`);
+        toast.success('Render API connection working!');
+      } else {
+        addLiveLog(`[${new Date().toLocaleTimeString()}] ❌ Render API test failed: ${result.error}`);
+        toast.error(`Render API test failed: ${result.error}`);
+      }
+      console.log('Render API test result:', result);
+    } catch (error) {
+      const errorMessage = error.message || 'Test failed';
+      addLiveLog(`[${new Date().toLocaleTimeString()}] ❌ Render API test error: ${errorMessage}`);
+      toast.error(errorMessage);
+    }
+  };
+
   const handleGeneratingStart = () => {
     console.log('Generation started - setting isGenerating to true');
     setIsGenerating(true);
@@ -586,6 +606,15 @@ const CloudRunner: React.FC = () => {
           >
             <Cloud className="h-4 w-4" />
             {isDeploying ? 'Deploying...' : 'Deploy'}
+          </Button>
+          
+          <Button
+            onClick={handleTestRenderAPI}
+            variant="ghost"
+            size="sm"
+            className="flex items-center gap-2 text-red-600 hover:text-red-700"
+          >
+            🧪 Test Render API
           </Button>
         </div>
 

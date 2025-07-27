@@ -402,6 +402,40 @@ export const useCloudRunnerProjects = () => {
     }
   }, [user]);
 
+  const testRenderAPI = useCallback(async (): Promise<{ success: boolean; error?: string; details?: any }> => {
+    if (!user) return { success: false, error: 'User not authenticated' };
+
+    try {
+      setLoading(true);
+
+      const { data, error } = await supabase.functions.invoke('cloud-runner-manager', {
+        body: {
+          action: 'test-render-api'
+        }
+      });
+
+      if (error) {
+        console.error('Test Render API error:', error);
+        return { success: false, error: `Test failed: ${error.message}`, details: error };
+      }
+
+      console.log('Test Render API response:', data);
+      return { 
+        success: data?.success || false, 
+        error: data?.error,
+        details: data
+      };
+    } catch (error) {
+      console.error('Error testing Render API:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to test Render API' 
+      };
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
   return {
     loading,
     getUserProjects,
@@ -413,6 +447,7 @@ export const useCloudRunnerProjects = () => {
     redeployProject,
     loadExistingProject,
     getDeploymentStatus,
-    getDeploymentLogs
+    getDeploymentLogs,
+    testRenderAPI
   };
 };

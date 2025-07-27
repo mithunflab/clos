@@ -418,6 +418,46 @@ Generated on: ${new Date().toISOString()}
         }
       }
 
+      case 'test-render-api': {
+        try {
+          console.log('=== TESTING RENDER API ACCESS ===')
+          console.log('RENDER_API_KEY exists:', !!RENDER_API_KEY)
+          console.log('RENDER_API_KEY length:', RENDER_API_KEY?.length || 0)
+          
+          const testResponse = await fetch('https://api.render.com/v1/owners', {
+            headers: {
+              'Authorization': `Bearer ${RENDER_API_KEY}`,
+              'Content-Type': 'application/json',
+            }
+          })
+          
+          console.log('Test response status:', testResponse.status)
+          console.log('Test response headers:', Object.fromEntries(testResponse.headers.entries()))
+          
+          const testBody = await testResponse.text()
+          console.log('Test response body:', testBody)
+          
+          return new Response(JSON.stringify({
+            success: testResponse.ok,
+            status: testResponse.status,
+            body: testBody,
+            hasApiKey: !!RENDER_API_KEY
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        } catch (error) {
+          console.error('Test API error:', error)
+          return new Response(JSON.stringify({
+            success: false,
+            error: error.message,
+            stack: error.stack
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+      }
+
       case 'deploy-to-render': {
         try {
           console.log('=== STARTING RENDER DEPLOYMENT ===')
