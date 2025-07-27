@@ -36,9 +36,13 @@ serve(async (req) => {
     let n8nUrl = N8N_URL
     let apiKey = N8N_API_KEY
 
+    console.log('N8N_URL from env:', n8nUrl)
+    console.log('N8N_API_KEY configured:', !!apiKey)
+
     if (n8nConfig && !n8nConfig.use_casel_cloud) {
       n8nUrl = n8nConfig.n8n_url
       apiKey = n8nConfig.n8n_api_key
+      console.log('Using custom N8N config:', { url: n8nUrl, hasKey: !!apiKey })
     }
 
     if (!apiKey) {
@@ -67,6 +71,9 @@ serve(async (req) => {
           endpoint = `${n8nUrl}/api/v1/workflows/${workflowId}`
           method = 'PUT'
         }
+
+        console.log('Making request to:', endpoint)
+        console.log('Using API key:', !!apiKey)
 
         const response = await fetch(endpoint, {
           method,
