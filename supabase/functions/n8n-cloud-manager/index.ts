@@ -213,13 +213,22 @@ serve(async (req) => {
 
       case 'delete-n8n-instance': {
         try {
-          const { renderServiceId } = await req.json()
-          
-          if (!renderServiceId) {
-            throw new Error('Render service ID is required')
+          if (!instanceId) {
+            throw new Error('Instance ID is required')
           }
 
-          const response = await fetch(`https://api.render.com/v1/services/${renderServiceId}`, {
+          // Get the render service ID from the database
+          const { data: instance, error } = await supabaseClient
+            .from('cloud_n8n_instances')
+            .select('render_service_id')
+            .eq('id', instanceId)
+            .single()
+
+          if (error || !instance?.render_service_id) {
+            throw new Error('Instance not found or missing render service ID')
+          }
+
+          const response = await fetch(`https://api.render.com/v1/services/${instance.render_service_id}`, {
             method: 'DELETE',
             headers: renderHeaders
           })
