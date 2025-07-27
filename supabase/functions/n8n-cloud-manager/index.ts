@@ -111,12 +111,12 @@ serve(async (req) => {
           const ownerId = "tea-d23312idbo4c73fpn3ig"
           console.log('Using hardcoded owner ID:', ownerId)
 
-          // Create the service payload with correct runtime field
+          // Create the service payload with the exact structure provided
           const payload = {
             ownerId: ownerId,
             name: serviceName,
             type: "web_service",
-            runtime: "docker",
+            env: "docker",
             region: "oregon",
             plan: "starter",
             serviceDetails: {
@@ -130,7 +130,8 @@ serve(async (req) => {
               { key: "N8N_BASIC_AUTH_ACTIVE", value: "true" },
               { key: "N8N_BASIC_AUTH_USER", value: username },
               { key: "N8N_BASIC_AUTH_PASSWORD", value: password },
-              { key: "N8N_PROTOCOL", value: "https" }
+              { key: "N8N_PROTOCOL", value: "https" },
+              { key: "GENERIC_TIMEZONE", value: "UTC" }
             ]
           }
 
