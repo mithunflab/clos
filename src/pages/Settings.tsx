@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
@@ -22,6 +21,8 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { useTheme } from '@/hooks/useTheme';
+import ThemeToggle from '@/components/ThemeToggle';
 
 interface SettingsSectionProps {
   title: string;
@@ -32,14 +33,14 @@ interface SettingsSectionProps {
 
 const SettingsSection: React.FC<SettingsSectionProps> = ({ title, description, icon, children }) => {
   return (
-    <div className="bg-black/30 backdrop-blur-sm border border-white/10 rounded-2xl p-6 mb-6">
+    <div className="bg-card/50 backdrop-blur-sm border border-border rounded-2xl p-6 mb-6">
       <div className="flex items-center space-x-3 mb-4">
-        <div className="p-2 bg-white/10 rounded-lg">
+        <div className="p-2 bg-muted rounded-lg">
           {icon}
         </div>
         <div>
-          <h2 className="text-xl font-semibold text-white">{title}</h2>
-          <p className="text-white/60 text-sm">{description}</p>
+          <h2 className="text-xl font-semibold text-foreground">{title}</h2>
+          <p className="text-muted-foreground text-sm">{description}</p>
         </div>
       </div>
       {children}
@@ -56,19 +57,19 @@ interface ToggleProps {
 
 const Toggle: React.FC<ToggleProps> = ({ label, description, enabled, onChange }) => {
   return (
-    <div className="flex items-center justify-between p-4 bg-black/20 rounded-xl">
+    <div className="flex items-center justify-between p-4 bg-muted/20 rounded-xl">
       <div>
-        <h3 className="text-white font-medium">{label}</h3>
-        <p className="text-white/60 text-sm">{description}</p>
+        <h3 className="text-foreground font-medium">{label}</h3>
+        <p className="text-muted-foreground text-sm">{description}</p>
       </div>
       <button
         onClick={() => onChange(!enabled)}
         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-          enabled ? 'bg-white' : 'bg-white/20'
+          enabled ? 'bg-primary' : 'bg-border'
         }`}
       >
         <span
-          className={`inline-block h-4 w-4 transform rounded-full bg-black transition-transform ${
+          className={`inline-block h-4 w-4 transform rounded-full bg-background transition-transform ${
             enabled ? 'translate-x-6' : 'translate-x-1'
           }`}
         />
@@ -79,6 +80,7 @@ const Toggle: React.FC<ToggleProps> = ({ label, description, enabled, onChange }
 
 const Settings = () => {
   const { toast } = useToast();
+  const { theme, toggleTheme } = useTheme();
   
   // Profile Settings
   const [profile, setProfile] = useState({
@@ -100,7 +102,7 @@ const Settings = () => {
 
   // Appearance Settings
   const [appearance, setAppearance] = useState({
-    theme: 'dark',
+    theme: theme,
     language: 'en',
     timezone: 'UTC'
   });
@@ -150,48 +152,48 @@ const Settings = () => {
       >
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">Settings</h1>
-          <p className="text-white/70 text-lg">Manage your account preferences and configuration</p>
+          <h1 className="text-4xl font-bold text-foreground mb-2">Settings</h1>
+          <p className="text-muted-foreground text-lg">Manage your account preferences and configuration</p>
         </div>
 
         {/* Profile Settings */}
         <SettingsSection
           title="Profile"
           description="Update your personal information and avatar"
-          icon={<User className="w-6 h-6 text-white" />}
+          icon={<User className="w-6 h-6 text-foreground" />}
         >
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-white/70 text-sm mb-2">Full Name</label>
+                <label className="block text-muted-foreground text-sm mb-2">Full Name</label>
                 <input
                   type="text"
                   value={profile.fullName}
                   onChange={(e) => setProfile({ ...profile, fullName: e.target.value })}
-                  className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-xl text-white placeholder-white/60 focus:outline-none focus:border-white/30 transition-colors"
+                  className="w-full px-4 py-3 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors"
                 />
               </div>
               <div>
-                <label className="block text-white/70 text-sm mb-2">Email</label>
+                <label className="block text-muted-foreground text-sm mb-2">Email</label>
                 <input
                   type="email"
                   value={profile.email}
                   onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                  className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-xl text-white placeholder-white/60 focus:outline-none focus:border-white/30 transition-colors"
+                  className="w-full px-4 py-3 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-white/70 text-sm mb-2">Bio</label>
+              <label className="block text-muted-foreground text-sm mb-2">Bio</label>
               <textarea
                 rows={3}
                 value={profile.bio}
                 onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
-                className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-xl text-white placeholder-white/60 focus:outline-none focus:border-white/30 transition-colors resize-none"
+                className="w-full px-4 py-3 bg-background border border-border rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
               />
             </div>
             <div className="flex justify-end">
-              <Button onClick={handleSaveProfile} className="bg-white text-black hover:bg-white/90">
+              <Button onClick={handleSaveProfile} className="bg-primary text-primary-foreground hover:bg-primary/90">
                 <Save className="w-4 h-4 mr-2" />
                 Save Profile
               </Button>
@@ -203,7 +205,7 @@ const Settings = () => {
         <SettingsSection
           title="Notifications"
           description="Configure how you receive notifications"
-          icon={<Bell className="w-6 h-6 text-white" />}
+          icon={<Bell className="w-6 h-6 text-foreground" />}
         >
           <div className="space-y-4">
             <Toggle
@@ -251,39 +253,26 @@ const Settings = () => {
         <SettingsSection
           title="Appearance"
           description="Customize the look and feel of your workspace"
-          icon={<Palette className="w-6 h-6 text-white" />}
+          icon={<Palette className="w-6 h-6 text-foreground" />}
         >
           <div className="space-y-4">
             <div>
-              <label className="block text-white/70 text-sm mb-2">Theme</label>
-              <div className="grid grid-cols-3 gap-4">
-                {[
-                  { value: 'light', label: 'Light', icon: <Sun className="w-4 h-4" /> },
-                  { value: 'dark', label: 'Dark', icon: <Moon className="w-4 h-4" /> },
-                  { value: 'system', label: 'System', icon: <Monitor className="w-4 h-4" /> }
-                ].map((theme) => (
-                  <button
-                    key={theme.value}
-                    onClick={() => setAppearance({ ...appearance, theme: theme.value })}
-                    className={`p-4 rounded-xl border transition-colors flex items-center space-x-2 ${
-                      appearance.theme === theme.value
-                        ? 'border-white bg-white/10 text-white'
-                        : 'border-white/20 bg-black/20 text-white/70 hover:bg-white/5'
-                    }`}
-                  >
-                    {theme.icon}
-                    <span>{theme.label}</span>
-                  </button>
-                ))}
+              <label className="block text-muted-foreground text-sm mb-2">Theme</label>
+              <div className="flex items-center justify-between p-4 bg-muted/20 rounded-xl">
+                <div>
+                  <h3 className="text-foreground font-medium">Dark/Light Mode</h3>
+                  <p className="text-muted-foreground text-sm">Toggle between dark and light themes</p>
+                </div>
+                <ThemeToggle />
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-white/70 text-sm mb-2">Language</label>
+                <label className="block text-muted-foreground text-sm mb-2">Language</label>
                 <select
                   value={appearance.language}
                   onChange={(e) => setAppearance({ ...appearance, language: e.target.value })}
-                  className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-xl text-white focus:outline-none focus:border-white/30 transition-colors"
+                  className="w-full px-4 py-3 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:border-primary transition-colors"
                 >
                   <option value="en">English</option>
                   <option value="es">Spanish</option>
@@ -292,11 +281,11 @@ const Settings = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-white/70 text-sm mb-2">Timezone</label>
+                <label className="block text-muted-foreground text-sm mb-2">Timezone</label>
                 <select
                   value={appearance.timezone}
                   onChange={(e) => setAppearance({ ...appearance, timezone: e.target.value })}
-                  className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-xl text-white focus:outline-none focus:border-white/30 transition-colors"
+                  className="w-full px-4 py-3 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:border-primary transition-colors"
                 >
                   <option value="UTC">UTC</option>
                   <option value="EST">Eastern Time</option>
@@ -312,18 +301,18 @@ const Settings = () => {
         <SettingsSection
           title="Security"
           description="Manage your account security settings"
-          icon={<Shield className="w-6 h-6 text-white" />}
+          icon={<Shield className="w-6 h-6 text-foreground" />}
         >
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-black/20 rounded-xl">
+            <div className="flex items-center justify-between p-4 bg-muted/20 rounded-xl">
               <div className="flex items-center space-x-3">
-                <Key className="w-5 h-5 text-white/70" />
+                <Key className="w-5 h-5 text-muted-foreground" />
                 <div>
-                  <h3 className="text-white font-medium">Password</h3>
-                  <p className="text-white/60 text-sm">Last updated 30 days ago</p>
+                  <h3 className="text-foreground font-medium">Password</h3>
+                  <p className="text-muted-foreground text-sm">Last updated 30 days ago</p>
                 </div>
               </div>
-              <Button variant="ghost" className="text-white border-white/20 hover:bg-white/10">
+              <Button variant="ghost" className="text-foreground border-border hover:bg-muted">
                 Change Password
               </Button>
             </div>
@@ -340,12 +329,12 @@ const Settings = () => {
               onChange={(enabled) => setSecurity({ ...security, loginAlerts: enabled })}
             />
             <div>
-              <label className="block text-white/70 text-sm mb-2">Session Timeout (minutes)</label>
+              <label className="block text-muted-foreground text-sm mb-2">Session Timeout (minutes)</label>
               <input
                 type="number"
                 value={security.sessionTimeout}
                 onChange={(e) => setSecurity({ ...security, sessionTimeout: parseInt(e.target.value) })}
-                className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-xl text-white focus:outline-none focus:border-white/30 transition-colors"
+                className="w-full px-4 py-3 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:border-primary transition-colors"
                 min="5"
                 max="480"
               />
@@ -357,13 +346,13 @@ const Settings = () => {
         <SettingsSection
           title="Data Management"
           description="Import, export, and manage your data"
-          icon={<Database className="w-6 h-6 text-white" />}
+          icon={<Database className="w-6 h-6 text-foreground" />}
         >
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Button
               onClick={handleExportData}
               variant="ghost"
-              className="text-white border-white/20 hover:bg-white/10 flex items-center justify-center py-6"
+              className="text-foreground border-border hover:bg-muted flex items-center justify-center py-6"
             >
               <Download className="w-5 h-5 mr-2" />
               Export Data
@@ -371,7 +360,7 @@ const Settings = () => {
             <Button
               onClick={handleImportData}
               variant="ghost"
-              className="text-white border-white/20 hover:bg-white/10 flex items-center justify-center py-6"
+              className="text-foreground border-border hover:bg-muted flex items-center justify-center py-6"
             >
               <Upload className="w-5 h-5 mr-2" />
               Import Data
@@ -379,7 +368,7 @@ const Settings = () => {
             <Button
               onClick={handleResetSettings}
               variant="ghost"
-              className="text-red-400 border-red-400/20 hover:bg-red-500/10 flex items-center justify-center py-6"
+              className="text-destructive border-destructive/20 hover:bg-destructive/10 flex items-center justify-center py-6"
             >
               <RefreshCw className="w-5 h-5 mr-2" />
               Reset Settings
@@ -388,19 +377,19 @@ const Settings = () => {
         </SettingsSection>
 
         {/* Danger Zone */}
-        <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6">
+        <div className="bg-destructive/10 border border-destructive/20 rounded-2xl p-6">
           <div className="flex items-center space-x-3 mb-4">
-            <div className="p-2 bg-red-500/20 rounded-lg">
-              <Trash2 className="w-6 h-6 text-red-400" />
+            <div className="p-2 bg-destructive/20 rounded-lg">
+              <Trash2 className="w-6 h-6 text-destructive" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-red-400">Danger Zone</h2>
-              <p className="text-red-400/70 text-sm">Irreversible actions that affect your account</p>
+              <h2 className="text-xl font-semibold text-destructive">Danger Zone</h2>
+              <p className="text-destructive/70 text-sm">Irreversible actions that affect your account</p>
             </div>
           </div>
           <Button
             variant="ghost"
-            className="text-red-400 border-red-400/20 hover:bg-red-500/10"
+            className="text-destructive border-destructive/20 hover:bg-destructive/10"
           >
             <Trash2 className="w-4 h-4 mr-2" />
             Delete Account

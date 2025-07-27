@@ -29,29 +29,17 @@ export const useProfile = () => {
       setLoading(true);
       setError(null);
       
-      // Use raw SQL query to avoid TypeScript issues with new tables
       const { data: profileData, error: profileError } = await supabase
-        .rpc('get_user_profile', { user_id: user.id });
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
 
       if (profileError) {
-        console.error('Error fetching profile:', profileError);
-        // Fallback to direct query if RPC doesn't exist
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('profiles' as any)
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (fallbackError) {
-          throw fallbackError;
-        }
-
-        if (fallbackData) {
-          setProfile(fallbackData as UserProfile);
-        } else {
-          // Create profile if it doesn't exist
+        if (profileError.code === 'PGRST116') {
+          // Profile doesn't exist, create it
           const { data: newProfile, error: createError } = await supabase
-            .from('profiles' as any)
+            .from('profiles')
             .insert({
               user_id: user.id,
               email: user.email,
@@ -66,10 +54,12 @@ export const useProfile = () => {
             throw createError;
           }
           
-          setProfile(newProfile as UserProfile);
+          setProfile(newProfile);
+        } else {
+          throw profileError;
         }
       } else {
-        setProfile(profileData as UserProfile);
+        setProfile(profileData);
       }
     } catch (err) {
       console.error('Profile error:', err);
@@ -84,7 +74,7 @@ export const useProfile = () => {
 
     try {
       const { error } = await supabase
-        .from('profiles' as any)
+        .from('profiles')
         .update(updates)
         .eq('user_id', user.id);
 

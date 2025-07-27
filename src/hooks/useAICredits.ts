@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
-interface AICredits {
+interface UserCredits {
   id: string;
   user_id: string;
   current_credits: number;
@@ -14,42 +14,56 @@ interface AICredits {
 }
 
 export const useAICredits = () => {
-  const [credits, setCredits] = useState<AICredits | null>(null);
+  const [credits, setCredits] = useState<UserCredits | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
   const fetchCredits = async () => {
-    if (!user?.id) return;
+    if (!user) return;
 
     try {
       setLoading(true);
-      
       const { data, error } = await supabase
         .from('ai_credits')
         .select('*')
         .eq('user_id', user.id)
         .single();
 
-      if (error) throw error;
-      setCredits(data);
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // Credits don't exist, create them
+          const { data: newCredits, error: createError } = await supabase
+            .from('ai_credits')
+            .insert({
+              user_id: user.id,
+              current_credits: 100,
+              total_credits_used: 0
+            })
+            .select()
+            .single();
+
+          if (createError) throw createError;
+          setCredits(newCredits);
+        } else {
+          throw error;
+        }
+      } else {
+        setCredits(data);
+      }
     } catch (err) {
-      console.error('Error fetching AI credits:', err);
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      console.error('Error fetching credits:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load credits');
     } finally {
       setLoading(false);
     }
   };
 
-  const deductCredits = async (amount: number = 1) => {
-    if (!user?.id || !credits) return false;
+  const deductCredit = async (amount: number = 1) => {
+    if (!user || !credits) return false;
 
     try {
-      if (credits.current_credits < amount) {
-        throw new Error('Insufficient credits');
-      }
-
-      const newCredits = credits.current_credits - amount;
+      const newCredits = Math.max(0, credits.current_credits - amount);
       const newTotalUsed = credits.total_credits_used + amount;
 
       const { error } = await supabase
@@ -61,68 +75,25 @@ export const useAICredits = () => {
         .eq('user_id', user.id);
 
       if (error) throw error;
-
-      // Update local state
-      setCredits(prev => prev ? {
-        ...prev,
-        current_credits: newCredits,
-        total_credits_used: newTotalUsed
-      } : null);
-
+      
+      await fetchCredits();
       return true;
     } catch (err) {
-      console.error('Error deducting credits:', err);
-      setError(err instanceof Error ? err.message : 'Failed to deduct credits');
+      console.error('Error deducting credit:', err);
+      setError(err instanceof Error ? err.message : 'Failed to deduct credit');
       return false;
     }
   };
 
-  const checkAndResetDailyCredits = async () => {
-    if (!user?.id) return;
-
-    try {
-      // Call the reset function (this should be called via a daily cron job in production)
-      const { error } = await supabase.rpc('reset_daily_credits' as any);
-      
-      if (error) {
-        console.error('Error resetting daily credits:', error);
-      } else {
-        // Refresh credits after reset
-        await fetchCredits();
-      }
-    } catch (err) {
-      console.error('Error checking daily credit reset:', err);
-    }
-  };
-
-  const getCreditsForPlan = (planType: 'free' | 'pro' | 'custom') => {
-    switch (planType) {
-      case 'free':
-        return { initial: 10, daily: 5 };
-      case 'pro':
-        return { initial: 50, daily: 5 };
-      case 'custom':
-        return { initial: 100, daily: 0 }; // Custom users don't need daily resets
-      default:
-        return { initial: 10, daily: 5 };
-    }
-  };
-
   useEffect(() => {
-    if (user) {
-      fetchCredits();
-      // Check for daily reset on component mount
-      checkAndResetDailyCredits();
-    }
+    fetchCredits();
   }, [user]);
 
   return {
     credits,
     loading,
     error,
-    fetchCredits,
-    deductCredits,
-    checkAndResetDailyCredits,
-    getCreditsForPlan
+    deductCredit,
+    refetch: fetchCredits
   };
 };
