@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -106,93 +107,29 @@ serve(async (req) => {
           console.log('Username (validated):', username)
           console.log('Password length:', password.length)
 
-          // Get owner ID first
-          console.log('Fetching Render owner info...')
-          const ownerResponse = await fetch('https://api.render.com/v1/owners', {
-            headers: renderHeaders
-          })
-
-          if (!ownerResponse.ok) {
-            const ownerErrorText = await ownerResponse.text()
-            console.error('Failed to get owner info:', ownerResponse.status, ownerErrorText)
-            throw new Error(`Failed to get owner info: ${ownerResponse.status} - ${ownerErrorText}`)
-          }
-
-          const owners = await ownerResponse.json()
-          console.log('Render owners response:', owners)
-          
-          // Handle different Render API response formats
-          const ownerId = owners?.[0]?.owner?.id || owners?.[0]?.id || owners?.id
-
-          if (!ownerId) {
-            console.error('No owner ID found in response:', owners)
-            throw new Error('Could not determine owner ID for Render deployment')
-          }
-
-          console.log('Found Render owner ID:', ownerId)
-
-          // CORRECT and MINIMAL Render API payload for Docker image deployment
+          // CORRECT Render API payload using the format you provided
           const payload = {
-            type: "web_service",
             name: serviceName,
-            ownerId: ownerId,
-            image: {
-              imagePath: "n8nio/n8n:latest"
+            type: "web_service",
+            env: "docker",
+            region: "oregon",
+            plan: "starter",
+            serviceDetails: {
+              image: {
+                imagePath: "n8nio/n8n:latest"
+              }
             },
             envVars: [
-              {
-                key: "N8N_BASIC_AUTH_ACTIVE",
-                value: "true"
-              },
-              {
-                key: "N8N_BASIC_AUTH_USER",
-                value: String(username)
-              },
-              {
-                key: "N8N_BASIC_AUTH_PASSWORD",
-                value: String(password)
-              },
-              {
-                key: "N8N_HOST",
-                value: `${serviceName}.onrender.com`
-              },
-              {
-                key: "N8N_PORT",
-                value: "5678"
-              },
-              {
-                key: "PORT",
-                value: "5678"
-              },
-              {
-                key: "WEBHOOK_URL",
-                value: `https://${serviceName}.onrender.com/`
-              },
-              {
-                key: "N8N_EDITOR_BASE_URL",
-                value: `https://${serviceName}.onrender.com/`
-              },
-              {
-                key: "N8N_PROTOCOL",
-                value: "https"
-              },
-              {
-                key: "NODE_ENV",
-                value: "production"
-              },
-              {
-                key: "N8N_METRICS",
-                value: "true"
-              },
-              {
-                key: "N8N_LOG_LEVEL",
-                value: "info"
-              }
-            ],
-            autoDeploy: true
+              { key: "PORT", value: "10000" },
+              { key: "N8N_PORT", value: "10000" },
+              { key: "N8N_BASIC_AUTH_ACTIVE", value: "true" },
+              { key: "N8N_BASIC_AUTH_USER", value: String(username) },
+              { key: "N8N_BASIC_AUTH_PASSWORD", value: String(password) },
+              { key: "N8N_PROTOCOL", value: "https" }
+            ]
           }
 
-          console.log('Creating Render service with VALIDATED payload:', JSON.stringify(payload, null, 2))
+          console.log('Creating Render service with CORRECT payload:', JSON.stringify(payload, null, 2))
           
           const renderResponse = await fetch('https://api.render.com/v1/services', {
             method: 'POST',
@@ -238,12 +175,41 @@ serve(async (req) => {
             throw new Error('No service ID returned from Render API')
           }
 
+          // Get the deploy URL from the service response
+          const deployUrl = service.service?.serviceDetails?.url || serviceUrl
+
+          console.log('Service created with ID:', serviceId)
+          console.log('Deploy URL:', deployUrl)
+
+          // Update the WEBHOOK_URL environment variable after deployment
+          try {
+            console.log('Updating WEBHOOK_URL environment variable...')
+            const envUpdateResponse = await fetch(`https://api.render.com/v1/services/${serviceId}/env-vars`, {
+              method: 'PATCH',
+              headers: renderHeaders,
+              body: JSON.stringify([
+                {
+                  key: "WEBHOOK_URL",
+                  value: deployUrl
+                }
+              ])
+            })
+
+            if (envUpdateResponse.ok) {
+              console.log('WEBHOOK_URL updated successfully')
+            } else {
+              console.log('Warning: Could not update WEBHOOK_URL, but service created successfully')
+            }
+          } catch (envError) {
+            console.log('Warning: Could not update WEBHOOK_URL:', envError)
+          }
+
           // Update database with service details
           const { error: updateError } = await supabaseClient
             .from('cloud_n8n_instances')
             .update({
               render_service_id: serviceId,
-              instance_url: serviceUrl,
+              instance_url: deployUrl,
               status: 'creating'
             })
             .eq('id', instanceId)
@@ -258,7 +224,7 @@ serve(async (req) => {
           return new Response(JSON.stringify({
             success: true,
             serviceId,
-            serviceUrl,
+            serviceUrl: deployUrl,
             credentials: {
               username: String(username),
               password: String(password)
