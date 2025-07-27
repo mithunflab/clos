@@ -84,31 +84,136 @@ export const useCloudN8nInstances = () => {
     }
   };
 
-  const createInstance = async (instanceName: string) => {
-    if (!user) return false;
+  const createInstance = async (instanceName: string, username?: string, password?: string) => {
+    if (!user) return { success: false, error: 'User not authenticated' };
 
     try {
       // Check if user has access first
       const accessGranted = await checkN8nAccess();
       if (!accessGranted) {
         setError('N8N access not purchased. Please purchase an N8N instance first.');
-        return false;
+        return { success: false, error: 'N8N access not purchased' };
       }
 
-      const { error } = await supabase
+      // Create database entry first
+      const { data: instanceData, error: dbError } = await supabase
         .from('cloud_n8n_instances')
         .insert({
           user_id: user.id,
           instance_name: instanceName,
           status: 'creating'
-        });
+        })
+        .select()
+        .single();
+
+      if (dbError) throw dbError;
+
+      // Call edge function to create Render service
+      const { data, error: deployError } = await supabase.functions.invoke('n8n-cloud-manager', {
+        body: {
+          action: 'create-n8n-instance',
+          instanceName,
+          instanceId: instanceData.id,
+          username: username || 'admin',
+          password: password || 'defaultpassword'
+        }
+      });
+
+      if (deployError) {
+        console.error('Deployment error:', deployError);
+        // Update status to error
+        await supabase
+          .from('cloud_n8n_instances')
+          .update({ status: 'error' })
+          .eq('id', instanceData.id);
+        
+        throw new Error(deployError.message || 'Failed to deploy instance');
+      }
+
+      if (!data?.success) {
+        // Update status to error
+        await supabase
+          .from('cloud_n8n_instances')
+          .update({ status: 'error' })
+          .eq('id', instanceData.id);
+        
+        throw new Error(data?.error || 'Failed to create instance');
+      }
+
+      await fetchInstances();
+      return { 
+        success: true, 
+        serviceUrl: data.serviceUrl,
+        credentials: data.credentials 
+      };
+    } catch (err) {
+      console.error('Error creating N8N instance:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create instance';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  };
+
+  const checkDeploymentStatus = async (instanceId: string) => {
+    if (!user) return { success: false, error: 'User not authenticated' };
+
+    try {
+      const { data, error } = await supabase.functions.invoke('n8n-cloud-manager', {
+        body: {
+          action: 'check-deployment-status',
+          instanceId
+        }
+      });
 
       if (error) throw error;
+
+      return {
+        success: true,
+        status: data.status,
+        isActive: data.isActive
+      };
+    } catch (err) {
+      console.error('Error checking deployment status:', err);
+      return { 
+        success: false, 
+        error: err instanceof Error ? err.message : 'Failed to check status' 
+      };
+    }
+  };
+
+  const deleteInstance = async (instanceId: string, renderServiceId?: string) => {
+    if (!user) return false;
+
+    try {
+      // Delete from Render first if we have a service ID
+      if (renderServiceId) {
+        const { data, error } = await supabase.functions.invoke('n8n-cloud-manager', {
+          body: {
+            action: 'delete-n8n-instance',
+            renderServiceId
+          }
+        });
+
+        if (error) {
+          console.error('Error deleting from Render:', error);
+          // Continue with database deletion even if Render deletion fails
+        }
+      }
+
+      // Delete from database
+      const { error: dbError } = await supabase
+        .from('cloud_n8n_instances')
+        .delete()
+        .eq('id', instanceId)
+        .eq('user_id', user.id);
+
+      if (dbError) throw dbError;
+
       await fetchInstances();
       return true;
     } catch (err) {
-      console.error('Error creating N8N instance:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create instance');
+      console.error('Error deleting N8N instance:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete instance');
       return false;
     }
   };
@@ -123,6 +228,8 @@ export const useCloudN8nInstances = () => {
     error,
     hasAccess,
     createInstance,
+    checkDeploymentStatus,
+    deleteInstance,
     refetch: fetchInstances
   };
 };

@@ -29,7 +29,7 @@ serve(async (req) => {
       return new Response('Unauthorized', { status: 401, headers: corsHeaders })
     }
 
-    const { action, instanceName, instanceId } = await req.json()
+    const { action, instanceName, instanceId, username, password } = await req.json()
 
     if (!RENDER_API_KEY) {
       return new Response(JSON.stringify({
@@ -65,32 +65,32 @@ serve(async (req) => {
             throw new Error('Could not determine owner ID')
           }
 
-          // Generate random password
-          const password = Math.random().toString(36).slice(-12)
           const serviceName = instanceName.toLowerCase().replace(/[^a-z0-9]/g, '-')
+          const serviceUrl = `https://${serviceName}.onrender.com`
 
           const payload = {
-            type: "web_service",
-            name: serviceName,
-            ownerId: ownerId,
-            serviceDetails: {
+            service: {
+              name: serviceName,
+              type: "web_service",
               env: "docker",
-              image: {
-                imagePath: "n8nio/n8n:latest"
-              }
-            },
-            envVars: [
-              { key: "N8N_BASIC_AUTH_ACTIVE", value: "true" },
-              { key: "N8N_BASIC_AUTH_USER", value: "admin" },
-              { key: "N8N_BASIC_AUTH_PASSWORD", value: password },
-              { key: "PORT", value: "10000" },
-              { key: "N8N_HOST", value: `${serviceName}.onrender.com` },
-              { key: "WEBHOOK_URL", value: `https://${serviceName}.onrender.com/` }
-            ],
-            plan: "starter",
-            region: "oregon",
-            autoDeploy: true
+              ownerId: ownerId,
+              serviceDetails: {
+                image: {
+                  imagePath: "n8nio/n8n:latest"
+                }
+              },
+              envVars: [
+                { key: "N8N_BASIC_AUTH_ACTIVE", value: "true" },
+                { key: "N8N_BASIC_AUTH_USER", value: username || "admin" },
+                { key: "N8N_BASIC_AUTH_PASSWORD", value: password || "defaultpassword" },
+                { key: "PORT", value: "10000" },
+                { key: "N8N_HOST", value: `${serviceName}.onrender.com` },
+                { key: "WEBHOOK_URL", value: `https://${serviceName}.onrender.com/` }
+              ]
+            }
           }
+
+          console.log('Creating Render service with payload:', JSON.stringify(payload, null, 2))
 
           const response = await fetch('https://api.render.com/v1/services', {
             method: 'POST',
@@ -100,15 +100,17 @@ serve(async (req) => {
 
           if (!response.ok) {
             const errorText = await response.text()
+            console.error('Render API error:', errorText)
             throw new Error(`Render API error: ${response.status} - ${errorText}`)
           }
 
           const service = await response.json()
-          const serviceId = service.id || service.service?.id
-          const serviceUrl = `https://${serviceName}.onrender.com`
+          console.log('Render service created:', service)
+          
+          const serviceId = service.service?.id || service.id
 
           // Update database with service details
-          await supabaseClient
+          const { error: updateError } = await supabaseClient
             .from('cloud_n8n_instances')
             .update({
               render_service_id: serviceId,
@@ -117,13 +119,18 @@ serve(async (req) => {
             })
             .eq('id', instanceId)
 
+          if (updateError) {
+            console.error('Database update error:', updateError)
+            throw new Error('Failed to update database')
+          }
+
           return new Response(JSON.stringify({
             success: true,
             serviceId,
             serviceUrl,
             credentials: {
-              username: 'admin',
-              password: password
+              username: username || 'admin',
+              password: password || 'defaultpassword'
             }
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -138,6 +145,97 @@ serve(async (req) => {
             .update({ status: 'error' })
             .eq('id', instanceId)
 
+          return new Response(JSON.stringify({
+            error: error.message,
+            success: false
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+      }
+
+      case 'check-deployment-status': {
+        try {
+          if (!instanceId) {
+            throw new Error('Instance ID is required')
+          }
+
+          // Get the render service ID from the database
+          const { data: instance, error } = await supabaseClient
+            .from('cloud_n8n_instances')
+            .select('render_service_id')
+            .eq('id', instanceId)
+            .single()
+
+          if (error || !instance?.render_service_id) {
+            throw new Error('Instance not found or missing render service ID')
+          }
+
+          const response = await fetch(`https://api.render.com/v1/services/${instance.render_service_id}`, {
+            headers: renderHeaders
+          })
+
+          if (!response.ok) {
+            throw new Error('Failed to check deployment status')
+          }
+
+          const service = await response.json()
+          const isActive = service.service?.state === 'active'
+
+          // Update database status if active
+          if (isActive) {
+            await supabaseClient
+              .from('cloud_n8n_instances')
+              .update({ status: 'active' })
+              .eq('id', instanceId)
+          }
+
+          return new Response(JSON.stringify({
+            success: true,
+            status: service.service?.state || 'unknown',
+            isActive
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+
+        } catch (error) {
+          console.error('Status check error:', error)
+          return new Response(JSON.stringify({
+            error: error.message,
+            success: false
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+      }
+
+      case 'delete-n8n-instance': {
+        try {
+          const { renderServiceId } = await req.json()
+          
+          if (!renderServiceId) {
+            throw new Error('Render service ID is required')
+          }
+
+          const response = await fetch(`https://api.render.com/v1/services/${renderServiceId}`, {
+            method: 'DELETE',
+            headers: renderHeaders
+          })
+
+          if (!response.ok && response.status !== 404) {
+            throw new Error('Failed to delete Render service')
+          }
+
+          return new Response(JSON.stringify({
+            success: true
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+
+        } catch (error) {
+          console.error('Delete error:', error)
           return new Response(JSON.stringify({
             error: error.message,
             success: false
