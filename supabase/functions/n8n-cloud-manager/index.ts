@@ -123,12 +123,14 @@ serve(async (req) => {
           const ownersData = await ownersResponse.json()
           console.log('Owners data received:', JSON.stringify(ownersData, null, 2))
 
-          // Extract the first owner (or you could let user choose)
-          const owner = ownersData[0] || ownersData.owners?.[0]
-          if (!owner || !owner.id) {
+          // Extract the owner from the first item in the response
+          const ownerData = ownersData[0]
+          if (!ownerData || !ownerData.owner || !ownerData.owner.id) {
             console.error('No valid owner found:', ownersData)
             throw new Error('No valid owner found in Render account')
           }
+          
+          const owner = ownerData.owner
 
           console.log('Using owner:', { id: owner.id, name: owner.name, type: owner.type })
 
