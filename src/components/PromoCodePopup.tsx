@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Gift, Sparkles, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { usePromoCode } from '@/hooks/usePromoCode';
+import QRCode from 'qrcode';
 
 interface PromoCodePopupProps {
   isOpen: boolean;
@@ -26,7 +26,24 @@ const PromoCodePopup: React.FC<PromoCodePopupProps> = ({
   const [promoCode, setPromoCode] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [rewardDetails, setRewardDetails] = useState({ credits: 0, workflows: 0 });
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
+  const [planUpgraded, setPlanUpgraded] = useState<string | null>(null);
   const { applyPromoCode, loading: isApplyingPromo } = usePromoCode();
+
+  // Generate QR code for pro membership
+  useEffect(() => {
+    if (purchaseType === 'pro_membership' && showSuccess && planUpgraded) {
+      const qrData = `WorkflowCraft Pro Membership Activated - Welcome to Premium Features!`;
+      QRCode.toDataURL(qrData, {
+        width: 200,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      }).then(setQrCodeDataUrl).catch(console.error);
+    }
+  }, [purchaseType, showSuccess, planUpgraded]);
 
   const handleApplyPromoCode = async () => {
     if (!promoCode.trim()) {
@@ -41,17 +58,23 @@ const PromoCodePopup: React.FC<PromoCodePopupProps> = ({
         credits: result.credits_added || 0,
         workflows: result.workflows_added || 0
       });
+      setPlanUpgraded(result.plan_upgraded || null);
       setShowSuccess(true);
-      toast.success(
-        `Promo code applied! You received ${result.credits_added} credits and ${result.workflows_added} workflow slots.`
-      );
+      
+      if (result.plan_upgraded) {
+        toast.success('Pro Membership Activated! Welcome to premium features.');
+      } else {
+        toast.success(
+          `Promo code applied! You received ${result.credits_added || 0} credits and ${result.workflows_added || 0} workflow slots.`
+        );
+      }
       
       setTimeout(() => {
         setShowSuccess(false);
         setPromoCode('');
         onSuccess();
         onClose();
-      }, 2000);
+      }, planUpgraded ? 5000 : 2000);
     } else {
       toast.error(result.error || 'Failed to apply promo code');
     }
@@ -60,6 +83,8 @@ const PromoCodePopup: React.FC<PromoCodePopupProps> = ({
   const handleClose = () => {
     setShowSuccess(false);
     setPromoCode('');
+    setPlanUpgraded(null);
+    setQrCodeDataUrl('');
     onClose();
   };
 
@@ -97,20 +122,43 @@ const PromoCodePopup: React.FC<PromoCodePopupProps> = ({
               </div>
               
               <div className="space-y-2 text-center">
-                <p className="text-green-700 font-medium">
-                  Promo code applied successfully!
-                </p>
-                <div className="space-y-1 text-sm text-green-600">
-                  {rewardDetails.credits > 0 && (
-                    <p>+ {rewardDetails.credits} AI credits added</p>
-                  )}
-                  {rewardDetails.workflows > 0 && (
-                    <p>+ {rewardDetails.workflows} workflow slots added</p>
-                  )}
-                </div>
-                <p className="text-sm text-green-600 mt-2">
-                  Processing your purchase of {getPurchaseTypeDisplay()}...
-                </p>
+                {planUpgraded ? (
+                  <div className="space-y-4">
+                    <p className="text-green-700 font-medium">
+                      Pro Membership Activated!
+                    </p>
+                    {qrCodeDataUrl && (
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">Your activation QR code:</p>
+                        <img 
+                          src={qrCodeDataUrl} 
+                          alt="Pro Membership QR Code" 
+                          className="mx-auto border rounded-lg"
+                        />
+                      </div>
+                    )}
+                    <p className="text-sm text-green-600">
+                      Welcome to WorkflowCraft Pro! You now have access to premium features including 20 workflows and 50 AI credits.
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-green-700 font-medium">
+                      Promo code applied successfully!
+                    </p>
+                    <div className="space-y-1 text-sm text-green-600">
+                      {rewardDetails.credits > 0 && (
+                        <p>+ {rewardDetails.credits} AI credits added</p>
+                      )}
+                      {rewardDetails.workflows > 0 && (
+                        <p>+ {rewardDetails.workflows} workflow slots added</p>
+                      )}
+                    </div>
+                    <p className="text-sm text-green-600 mt-2">
+                      Processing your purchase of {getPurchaseTypeDisplay()}...
+                    </p>
+                  </div>
+                )}
               </div>
               
               <div className="flex items-center justify-center gap-2 text-green-600 mt-4">
