@@ -420,14 +420,23 @@ Generated on: ${new Date().toISOString()}
 
       case 'deploy-to-render': {
         try {
-          console.log('Starting deployment to Render for project:', projectName)
+          console.log('=== STARTING RENDER DEPLOYMENT ===')
+          console.log('Project name:', projectName)
+          console.log('GitHub repo URL:', githubRepoUrl)
+          console.log('Project ID:', projectId)
+          console.log('RENDER_API_KEY exists:', !!RENDER_API_KEY)
 
           if (!githubRepoUrl) {
             throw new Error('GitHub repository URL is required for deployment')
           }
 
+          if (!RENDER_API_KEY) {
+            console.error('RENDER_API_KEY not found in environment')
+            throw new Error('Render API key not configured. Please check Supabase secrets.')
+          }
+
           // First, get the user's ownerId from Render
-          console.log('Fetching Render owner info...')
+          console.log('🔍 Fetching Render owner info...')
           const ownerResponse = await fetch('https://api.render.com/v1/owners', {
             headers: renderHeaders
           })
