@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -202,7 +201,8 @@ serve(async (req) => {
           const owners = await ownerResponse.json()
           console.log('Owners response:', owners)
           
-          const ownerId = owners?.[0]?.id || owners?.id
+          // FIX: The API returns an array with objects that have an "owner" property
+          const ownerId = owners?.[0]?.owner?.id || owners?.[0]?.id || owners?.id
 
           if (!ownerId) {
             console.error('No owner ID found in response:', owners)
