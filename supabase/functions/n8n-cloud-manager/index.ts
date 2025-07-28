@@ -191,12 +191,12 @@ serve(async (req) => {
           const ownerId = "tea-d23312idbo4c73fpn3ig"
           console.log('Using hardcoded owner ID:', ownerId)
 
-          // Create the service payload with docker runtime
+          // Create the service payload with correct format for Render API
           const payload = {
             ownerId: ownerId,
             name: serviceName,
             type: "web_service",
-            runtime: "docker",
+            env: "docker",
             region: "oregon",
             plan: "starter",
             serviceDetails: {
@@ -279,6 +279,25 @@ serve(async (req) => {
               console.log('Live deployment logs:', JSON.stringify(deploymentLogs, null, 2))
             } else {
               console.log('Could not fetch deployment logs:', await logsResponse.text())
+            }
+
+            // Now fetch custom domains using the service ID
+            console.log('=== FETCHING CUSTOM DOMAINS FOR SERVICE ID:', serviceId, '===')
+            let customDomains = []
+            try {
+              const domainsResponse = await fetch(`https://api.render.com/v1/services/${serviceId}/custom-domains?limit=20`, {
+                headers: renderHeaders
+              })
+
+              if (domainsResponse.ok) {
+                customDomains = await domainsResponse.json()
+                console.log('Custom domains fetched:', customDomains.length || 0)
+                console.log('Custom domains:', JSON.stringify(customDomains, null, 2))
+              } else {
+                console.log('Could not fetch custom domains:', await domainsResponse.text())
+              }
+            } catch (domainError) {
+              console.error('Error fetching custom domains:', domainError)
             }
 
             // Update database with service details
