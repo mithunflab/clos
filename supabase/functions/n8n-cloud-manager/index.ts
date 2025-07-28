@@ -223,20 +223,20 @@ serve(async (req) => {
             ownerId: ownerId,
             name: serviceName,
             type: "web_service",
-            env: "docker",
-            region: "oregon", 
-            plan: "starter",
             serviceDetails: {
+              env: "docker",
+              region: "oregon",
+              plan: "starter", 
               image: {
                 imagePath: "n8nio/n8n:latest"
-              }
-            },
-            envVars: [
-              { key: "PORT", value: "10000" },
-              { key: "N8N_BASIC_AUTH_ACTIVE", value: "true" },
-              { key: "N8N_BASIC_AUTH_USER", value: username },
-              { key: "N8N_BASIC_AUTH_PASSWORD", value: password }
-            ]
+              },
+              envVars: [
+                { key: "PORT", value: "10000" },
+                { key: "N8N_BASIC_AUTH_ACTIVE", value: "true" },
+                { key: "N8N_BASIC_AUTH_USER", value: username },
+                { key: "N8N_BASIC_AUTH_PASSWORD", value: password }
+              ]
+            }
           }
 
           console.log('=== STEP 2: Creating Render service with payload ===')
