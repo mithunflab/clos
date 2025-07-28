@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -210,7 +211,7 @@ serve(async (req) => {
 
           console.log('Found owner ID:', ownerId)
 
-          // Step 2: Create the service payload with the correct format
+          // Step 2: Create the service payload with the exact format from your example
           const payload = {
             ownerId: ownerId,
             name: serviceName,
@@ -225,12 +226,9 @@ serve(async (req) => {
             },
             envVars: [
               { key: "PORT", value: "10000" },
-              { key: "N8N_PORT", value: "10000" },
               { key: "N8N_BASIC_AUTH_ACTIVE", value: "true" },
               { key: "N8N_BASIC_AUTH_USER", value: username },
-              { key: "N8N_BASIC_AUTH_PASSWORD", value: password },
-              { key: "N8N_PROTOCOL", value: "https" },
-              { key: "GENERIC_TIMEZONE", value: "UTC" }
+              { key: "N8N_BASIC_AUTH_PASSWORD", value: password }
             ]
           }
 
@@ -281,12 +279,30 @@ serve(async (req) => {
             throw new Error('No service ID returned from Render API')
           }
 
-          const deployUrl = service.service?.serviceDetails?.url || serviceUrl
+          const deployUrl = service.url || serviceUrl
           console.log('Service created with ID:', serviceId)
           console.log('Deploy URL:', deployUrl)
 
-          // Step 3: Fetch deployment logs using the service ID
-          console.log('=== STEP 3: Fetching deployment logs for service ID:', serviceId, '===')
+          // Step 3: Trigger a manual redeploy to ensure deployment starts
+          console.log('=== STEP 3: Triggering manual redeploy ===')
+          try {
+            const redeployResponse = await fetch(`https://api.render.com/v1/services/${serviceId}/deploys`, {
+              method: 'POST',
+              headers: renderHeaders
+            })
+
+            if (redeployResponse.ok) {
+              const redeployData = await redeployResponse.json()
+              console.log('Manual redeploy triggered:', redeployData)
+            } else {
+              console.log('Could not trigger redeploy:', await redeployResponse.text())
+            }
+          } catch (redeployError) {
+            console.error('Error triggering redeploy:', redeployError)
+          }
+
+          // Step 4: Fetch deployment logs using the service ID
+          console.log('=== STEP 4: Fetching deployment logs for service ID:', serviceId, '===')
           let deploymentLogs = []
           try {
             const logsResponse = await fetch(`https://api.render.com/v1/services/${serviceId}/deploys?limit=20`, {
@@ -302,24 +318,6 @@ serve(async (req) => {
             }
           } catch (logsError) {
             console.error('Error fetching deployment logs:', logsError)
-          }
-
-          // Step 4: Trigger a manual redeploy if needed
-          console.log('=== STEP 4: Triggering manual redeploy ===')
-          try {
-            const redeployResponse = await fetch(`https://api.render.com/v1/services/${serviceId}/deploys`, {
-              method: 'POST',
-              headers: renderHeaders
-            })
-
-            if (redeployResponse.ok) {
-              const redeployData = await redeployResponse.json()
-              console.log('Manual redeploy triggered:', redeployData)
-            } else {
-              console.log('Could not trigger redeploy:', await redeployResponse.text())
-            }
-          } catch (redeployError) {
-            console.error('Error triggering redeploy:', redeployError)
           }
 
           // Step 5: Update database with service details
@@ -350,7 +348,7 @@ serve(async (req) => {
               username: String(username),
               password: String(password)
             },
-            message: 'N8N instance deployment started with live logs'
+            message: 'N8N instance deployment started successfully'
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
