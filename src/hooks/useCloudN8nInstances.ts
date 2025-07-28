@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -152,10 +153,12 @@ export const useCloudN8nInstances = () => {
     }
   };
 
-  const createInstance = async (instanceName: string, username?: string, password?: string) => {
+  const createInstance = async (instanceName: string, username: string, password: string) => {
     if (!user) return { success: false, error: 'User not authenticated' };
 
     try {
+      console.log('Creating N8N instance:', { instanceName, username, passwordLength: password.length });
+      
       // Check if user has access first
       const accessGranted = await checkN8nAccess();
       if (!accessGranted) {
@@ -176,14 +179,16 @@ export const useCloudN8nInstances = () => {
 
       if (dbError) throw dbError;
 
+      console.log('Database entry created:', instanceData);
+
       // Call edge function to create Render service
       const { data, error: deployError } = await supabase.functions.invoke('n8n-cloud-manager', {
         body: {
           action: 'create-n8n-instance',
           instanceName,
           instanceId: instanceData.id,
-          username: username || 'admin',
-          password: password || 'defaultpassword'
+          username,
+          password
         }
       });
 
@@ -199,6 +204,7 @@ export const useCloudN8nInstances = () => {
       }
 
       if (!data?.success) {
+        console.error('Deployment failed:', data?.error);
         // Update status to error
         await supabase
           .from('cloud_n8n_instances')
@@ -207,6 +213,8 @@ export const useCloudN8nInstances = () => {
         
         throw new Error(data?.error || 'Failed to create instance');
       }
+
+      console.log('Instance created successfully:', data);
 
       // Set initial deployment logs if available
       if (data.deploymentLogs) {
@@ -233,6 +241,8 @@ export const useCloudN8nInstances = () => {
     if (!user) return { success: false, error: 'User not authenticated' };
 
     try {
+      console.log('Checking deployment status for instance:', instanceId);
+      
       const { data, error } = await supabase.functions.invoke('n8n-cloud-manager', {
         body: {
           action: 'check-deployment-status',
@@ -241,6 +251,8 @@ export const useCloudN8nInstances = () => {
       });
 
       if (error) throw error;
+
+      console.log('Status check result:', data);
 
       return {
         success: true,
@@ -260,6 +272,8 @@ export const useCloudN8nInstances = () => {
     if (!user) return false;
 
     try {
+      console.log('Deleting instance:', { instanceId, renderServiceId });
+      
       // Delete from Render first if we have a service ID
       if (renderServiceId) {
         const { data, error } = await supabase.functions.invoke('n8n-cloud-manager', {

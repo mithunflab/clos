@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useCloudN8nInstances } from '@/hooks/useCloudN8nInstances';
 import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus, Server, ExternalLink, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { Loader2, Plus, Server, ExternalLink, Eye, EyeOff, RefreshCw, CheckCircle } from 'lucide-react';
 import { CloudN8nDeleteButton } from '@/components/CloudN8nDeleteButton';
 
 interface DeploymentResult {
@@ -15,6 +16,8 @@ interface DeploymentResult {
     username: string;
     password: string;
   };
+  deploymentLogs?: any[];
+  logsUrl?: string;
 }
 
 const CloudN8N = () => {
@@ -25,6 +28,7 @@ const CloudN8N = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [deploymentResult, setDeploymentResult] = useState<DeploymentResult | null>(null);
   const [statusChecking, setStatusChecking] = useState<Record<string, boolean>>({});
+  const [deploymentStage, setDeploymentStage] = useState<string>('');
   
   const { instances, loading, error, hasAccess, createInstance, checkDeploymentStatus, deleteInstance, refetch } = useCloudN8nInstances();
   const { toast } = useToast();
@@ -59,19 +63,16 @@ const CloudN8N = () => {
 
     setIsCreating(true);
     setDeploymentResult(null);
+    setError(null);
     
-    // Ensure we pass string values, not booleans
-    const instanceNameStr = String(instanceName.trim());
-    const usernameStr = String(username.trim());
-    const passwordStr = String(password.trim());
+    // Show deployment stages
+    setDeploymentStage('Getting Render owner ID...');
     
-    console.log('Creating instance with:', { 
-      instanceName: instanceNameStr, 
-      username: usernameStr, 
-      password: '***' 
-    });
+    setTimeout(() => setDeploymentStage('Creating N8N service...'), 2000);
+    setTimeout(() => setDeploymentStage('Triggering deployment...'), 4000);
+    setTimeout(() => setDeploymentStage('Finalizing setup...'), 6000);
     
-    const result = await createInstance(instanceNameStr, usernameStr, passwordStr);
+    const result = await createInstance(instanceName.trim(), username.trim(), password.trim());
     
     if (result.success) {
       setInstanceName('');
@@ -79,13 +80,17 @@ const CloudN8N = () => {
       setPassword('');
       setDeploymentResult({
         serviceUrl: result.serviceUrl!,
-        credentials: result.credentials!
+        credentials: result.credentials!,
+        deploymentLogs: result.deploymentLogs,
+        logsUrl: result.logsUrl
       });
+      setDeploymentStage('');
       toast({
         title: "Success",
-        description: "N8N instance deployment started successfully",
+        description: "N8N instance deployment started successfully! It may take a few minutes to become fully active.",
       });
     } else {
+      setDeploymentStage('');
       toast({
         title: "Error",
         description: result.error || "Failed to create instance",
@@ -105,13 +110,13 @@ const CloudN8N = () => {
       if (result.isActive) {
         toast({
           title: "Status Updated",
-          description: "Instance is now active!",
+          description: "Instance is now active! You can access it using the provided URL.",
         });
         refetch();
       } else {
         toast({
           title: "Status Check",
-          description: `Instance status: ${result.status}`,
+          description: `Instance status: ${result.status}. It may take a few more minutes to become active.`,
         });
       }
     } else {
@@ -135,6 +140,15 @@ const CloudN8N = () => {
       case 'creating': return 'bg-yellow-500';
       case 'error': return 'bg-red-500';
       default: return 'bg-gray-500';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'active': return 'Active';
+      case 'creating': return 'Deploying';
+      case 'error': return 'Error';
+      default: return 'Unknown';
     }
   };
 
@@ -265,6 +279,16 @@ const CloudN8N = () => {
                 </div>
               </div>
               
+              {/* Deployment Progress */}
+              {isCreating && deploymentStage && (
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm font-medium">{deploymentStage}</span>
+                  </div>
+                </div>
+              )}
+              
               <Button 
                 onClick={handleCreateInstance}
                 disabled={isCreating || !instanceName.trim() || !username.trim() || !password.trim()}
@@ -287,17 +311,31 @@ const CloudN8N = () => {
             {/* Deployment Result */}
             {deploymentResult && (
               <div className="p-4 border rounded-lg bg-green-50 dark:bg-green-900/20">
-                <h4 className="font-semibold text-green-800 dark:text-green-200 mb-2">
+                <h4 className="font-semibold text-green-800 dark:text-green-200 mb-2 flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5" />
                   Instance Deployed Successfully!
                 </h4>
                 <div className="space-y-2 text-sm">
-                  <p><strong>URL:</strong> {deploymentResult.serviceUrl}</p>
+                  <p><strong>URL:</strong> <a href={deploymentResult.serviceUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{deploymentResult.serviceUrl}</a></p>
                   <p><strong>Username:</strong> {deploymentResult.credentials.username}</p>
                   <p><strong>Password:</strong> {deploymentResult.credentials.password}</p>
                   <p className="text-yellow-600 dark:text-yellow-400">
-                    Note: It may take a few minutes for the service to be fully active.
+                    <strong>Note:</strong> It may take 5-10 minutes for the service to be fully active. You can check the status using the refresh button on your instance.
                   </p>
+                  {deploymentResult.logsUrl && (
+                    <p className="text-xs text-muted-foreground">
+                      <strong>Deployment logs:</strong> <a href={deploymentResult.logsUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">View on Render</a>
+                    </p>
+                  )}
                 </div>
+              </div>
+            )}
+
+            {/* Error Display */}
+            {error && (
+              <div className="p-4 border rounded-lg bg-red-50 dark:bg-red-900/20">
+                <h4 className="font-semibold text-red-800 dark:text-red-200 mb-2">Error</h4>
+                <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
               </div>
             )}
 
@@ -323,7 +361,7 @@ const CloudN8N = () => {
                               variant="secondary" 
                               className={`${getStatusColor(instance.status)} text-white`}
                             >
-                              {instance.status}
+                              {getStatusText(instance.status)}
                             </Badge>
                           </div>
                         </div>
@@ -366,7 +404,7 @@ const CloudN8N = () => {
                       
                       {instance.instance_url && (
                         <p className="text-sm text-muted-foreground mt-2">
-                          URL: {instance.instance_url}
+                          URL: <a href={instance.instance_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{instance.instance_url}</a>
                         </p>
                       )}
                       

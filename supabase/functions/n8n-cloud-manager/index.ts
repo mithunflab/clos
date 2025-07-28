@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -201,8 +202,14 @@ serve(async (req) => {
           const owners = await ownerResponse.json()
           console.log('Owners response:', owners)
           
-          // FIX: The API returns an array with objects that have an "owner" property
-          const ownerId = owners?.[0]?.owner?.id || owners?.[0]?.id || owners?.id
+          // Fix: The API returns an array of objects with owner info
+          let ownerId = null
+          if (Array.isArray(owners) && owners.length > 0) {
+            // Try different possible structures
+            ownerId = owners[0].owner?.id || owners[0].id
+          } else if (owners && owners.id) {
+            ownerId = owners.id
+          }
 
           if (!ownerId) {
             console.error('No owner ID found in response:', owners)
@@ -211,7 +218,7 @@ serve(async (req) => {
 
           console.log('Found owner ID:', ownerId)
 
-          // Step 2: Create the service payload with the exact format from your example
+          // Step 2: Create the service with proper payload structure
           const payload = {
             ownerId: ownerId,
             name: serviceName,
@@ -312,7 +319,6 @@ serve(async (req) => {
             if (logsResponse.ok) {
               deploymentLogs = await logsResponse.json()
               console.log('Deployment logs fetched:', deploymentLogs.length || 0)
-              console.log('Live deployment logs:', JSON.stringify(deploymentLogs, null, 2))
             } else {
               console.log('Could not fetch deployment logs:', await logsResponse.text())
             }
