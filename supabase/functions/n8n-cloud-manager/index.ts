@@ -224,7 +224,7 @@ serve(async (req) => {
             name: serviceName,
             type: "web_service",
             env: "docker",
-            region: "oregon",
+            region: "oregon", 
             plan: "starter",
             serviceDetails: {
               image: {
