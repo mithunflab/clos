@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -187,11 +186,31 @@ serve(async (req) => {
           console.log('Username (validated):', username)
           console.log('Password length:', password.length)
 
-          // Use the provided owner ID directly
-          const ownerId = "tea-d23312idbo4c73fpn3ig"
-          console.log('Using hardcoded owner ID:', ownerId)
+          // Step 1: Get the ownerId from Render API
+          console.log('=== STEP 1: Getting ownerId from Render API ===')
+          const ownerResponse = await fetch('https://api.render.com/v1/owners', {
+            headers: renderHeaders
+          })
 
-          // Create the service payload with correct format for Render API
+          if (!ownerResponse.ok) {
+            const errorText = await ownerResponse.text()
+            console.error('Failed to get owner info:', ownerResponse.status, errorText)
+            throw new Error(`Failed to get owner info: ${ownerResponse.status} - ${errorText}`)
+          }
+
+          const owners = await ownerResponse.json()
+          console.log('Owners response:', owners)
+          
+          const ownerId = owners?.[0]?.id || owners?.id
+
+          if (!ownerId) {
+            console.error('No owner ID found in response:', owners)
+            throw new Error('Could not determine owner ID for Render deployment')
+          }
+
+          console.log('Found owner ID:', ownerId)
+
+          // Step 2: Create the service payload with the correct format
           const payload = {
             ownerId: ownerId,
             name: serviceName,
@@ -215,7 +234,8 @@ serve(async (req) => {
             ]
           }
 
-          console.log('Creating Render service with payload:', JSON.stringify(payload, null, 2))
+          console.log('=== STEP 2: Creating Render service with payload ===')
+          console.log('Payload:', JSON.stringify(payload, null, 2))
           
           const renderResponse = await fetch('https://api.render.com/v1/services', {
             method: 'POST',
@@ -265,14 +285,14 @@ serve(async (req) => {
           console.log('Service created with ID:', serviceId)
           console.log('Deploy URL:', deployUrl)
 
-          // Now fetch deployment logs using the service ID
-          console.log('=== FETCHING DEPLOYMENT LOGS FOR SERVICE ID:', serviceId, '===')
+          // Step 3: Fetch deployment logs using the service ID
+          console.log('=== STEP 3: Fetching deployment logs for service ID:', serviceId, '===')
+          let deploymentLogs = []
           try {
             const logsResponse = await fetch(`https://api.render.com/v1/services/${serviceId}/deploys?limit=20`, {
               headers: renderHeaders
             })
 
-            let deploymentLogs = []
             if (logsResponse.ok) {
               deploymentLogs = await logsResponse.json()
               console.log('Deployment logs fetched:', deploymentLogs.length || 0)
@@ -280,77 +300,60 @@ serve(async (req) => {
             } else {
               console.log('Could not fetch deployment logs:', await logsResponse.text())
             }
-
-            // Now fetch custom domains using the service ID
-            console.log('=== FETCHING CUSTOM DOMAINS FOR SERVICE ID:', serviceId, '===')
-            let customDomains = []
-            try {
-              const domainsResponse = await fetch(`https://api.render.com/v1/services/${serviceId}/custom-domains?limit=20`, {
-                headers: renderHeaders
-              })
-
-              if (domainsResponse.ok) {
-                customDomains = await domainsResponse.json()
-                console.log('Custom domains fetched:', customDomains.length || 0)
-                console.log('Custom domains:', JSON.stringify(customDomains, null, 2))
-              } else {
-                console.log('Could not fetch custom domains:', await domainsResponse.text())
-              }
-            } catch (domainError) {
-              console.error('Error fetching custom domains:', domainError)
-            }
-
-            // Update database with service details
-            const { error: updateError } = await supabaseClient
-              .from('cloud_n8n_instances')
-              .update({
-                render_service_id: serviceId,
-                instance_url: deployUrl,
-                status: 'creating'
-              })
-              .eq('id', instanceId)
-
-            if (updateError) {
-              console.error('Database update error:', updateError)
-              throw new Error('Failed to update database')
-            }
-
-            console.log('Database updated successfully')
-
-            return new Response(JSON.stringify({
-              success: true,
-              serviceId,
-              serviceUrl: deployUrl,
-              deploymentLogs: deploymentLogs,
-              logsUrl: `https://api.render.com/v1/services/${serviceId}/deploys?limit=20`,
-              credentials: {
-                username: String(username),
-                password: String(password)
-              },
-              message: 'N8N instance deployment started with live logs'
-            }), {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            })
-
           } catch (logsError) {
             console.error('Error fetching deployment logs:', logsError)
-            
-            // Still return success for service creation even if logs fail
-            return new Response(JSON.stringify({
-              success: true,
-              serviceId,
-              serviceUrl: deployUrl,
-              deploymentLogs: [],
-              logsUrl: `https://api.render.com/v1/services/${serviceId}/deploys?limit=20`,
-              credentials: {
-                username: String(username),
-                password: String(password)
-              },
-              message: 'N8N instance deployment started (logs fetch failed)'
-            }), {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            })
           }
+
+          // Step 4: Trigger a manual redeploy if needed
+          console.log('=== STEP 4: Triggering manual redeploy ===')
+          try {
+            const redeployResponse = await fetch(`https://api.render.com/v1/services/${serviceId}/deploys`, {
+              method: 'POST',
+              headers: renderHeaders
+            })
+
+            if (redeployResponse.ok) {
+              const redeployData = await redeployResponse.json()
+              console.log('Manual redeploy triggered:', redeployData)
+            } else {
+              console.log('Could not trigger redeploy:', await redeployResponse.text())
+            }
+          } catch (redeployError) {
+            console.error('Error triggering redeploy:', redeployError)
+          }
+
+          // Step 5: Update database with service details
+          console.log('=== STEP 5: Updating database ===')
+          const { error: updateError } = await supabaseClient
+            .from('cloud_n8n_instances')
+            .update({
+              render_service_id: serviceId,
+              instance_url: deployUrl,
+              status: 'creating'
+            })
+            .eq('id', instanceId)
+
+          if (updateError) {
+            console.error('Database update error:', updateError)
+            throw new Error('Failed to update database')
+          }
+
+          console.log('Database updated successfully')
+
+          return new Response(JSON.stringify({
+            success: true,
+            serviceId,
+            serviceUrl: deployUrl,
+            deploymentLogs: deploymentLogs,
+            logsUrl: `https://api.render.com/v1/services/${serviceId}/deploys?limit=20`,
+            credentials: {
+              username: String(username),
+              password: String(password)
+            },
+            message: 'N8N instance deployment started with live logs'
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
 
         } catch (error) {
           console.error('N8N instance creation error:', error)
